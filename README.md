@@ -9,8 +9,8 @@ A low-level HTTP client for communicating with the Opbeat intake API.
 This module is meant for building other modules that needs to
 communicate with Opbeat.
 
-If you are looking to use Opbeat in your app or website, you'd most like
-want to check out [the official Opbeat module for
+If you are looking to use Opbeat in your app or website, you'd most
+likely want to check out [the official Opbeat module for
 Node.js](https://github.com/opbeat/opbeat-node) instead.
 
 ## Installation
