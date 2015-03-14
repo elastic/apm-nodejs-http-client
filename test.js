@@ -8,7 +8,8 @@ var Client = require('./')
 var options = {
   organizationId: 'some-org-id',
   appId: 'some-app-id',
-  secretToken: 'secret'
+  secretToken: 'secret',
+  userAgent: 'foo'
 }
 
 test('throw if missing required options', function (t) {
