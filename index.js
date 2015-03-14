@@ -17,7 +17,7 @@ var Client = module.exports = function (opts) {
     path: '/api/v1/organizations/' + opts.organizationId + '/apps/' + opts.appId + '/'
   }
 
-  if (!this.appId || !this.organizationId || !this.secretToken) {
+  if (!this.appId || !this.organizationId || !this.secretToken || !this.userAgent) {
     throw new Error('Missing required options: appId, organizationId, secretToken or userAgent')
   }
 }
