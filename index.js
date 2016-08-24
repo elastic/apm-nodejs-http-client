@@ -3,22 +3,26 @@
 var https = require('https')
 var zlib = require('zlib')
 var stringify = require('json-stringify-safe')
+var pkg = require('./package')
+
+var SUB_USER_AGENT = pkg.name + '/' + pkg.version
 
 var Client = module.exports = function (opts) {
   if (!(this instanceof Client)) return new Client(opts)
 
   opts = opts || {}
+
+  if (!opts.appId || !opts.organizationId || !opts.secretToken || !opts.userAgent) {
+    throw new Error('Missing required options: appId, organizationId, secretToken or userAgent')
+  }
+
   this.appId = opts.appId
   this.organizationId = opts.organizationId
   this.secretToken = opts.secretToken
-  this.userAgent = opts.userAgent
+  this.userAgent = opts.userAgent + ' ' + SUB_USER_AGENT
   this._api = {
     host: opts._apiHost || 'intake.opbeat.com',
     path: '/api/v1/organizations/' + opts.organizationId + '/apps/' + opts.appId + '/'
-  }
-
-  if (!this.appId || !this.organizationId || !this.secretToken || !this.userAgent) {
-    throw new Error('Missing required options: appId, organizationId, secretToken or userAgent')
   }
 }
 
