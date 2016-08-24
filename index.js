@@ -20,8 +20,12 @@ var Client = module.exports = function (opts) {
   this.organizationId = opts.organizationId
   this.secretToken = opts.secretToken
   this.userAgent = opts.userAgent + ' ' + SUB_USER_AGENT
+
+  // opts._api* properties are used for debugging and testing
   this._api = {
     host: opts._apiHost || 'intake.opbeat.com',
+    port: opts._apiPort,
+    transport: opts._apiSecure !== false ? https : require('http'),
     path: '/api/v1/organizations/' + opts.organizationId + '/apps/' + opts.appId + '/'
   }
 }
@@ -33,6 +37,7 @@ Client.prototype.request = function (endpoint, body, cb) {
     var opts = {
       method: 'POST',
       hostname: self._api.host,
+      port: self._api.port,
       path: self._api.path + endpoint + '/',
       headers: {
         'Authorization': 'Bearer ' + self.secretToken,
@@ -41,7 +46,7 @@ Client.prototype.request = function (endpoint, body, cb) {
         'User-Agent': self.userAgent
       }
     }
-    var req = https.request(opts, function (res) {
+    var req = self._api.transport.request(opts, function (res) {
       var buffers = []
       res.on('data', buffers.push.bind(buffers))
       res.on('end', function () {
