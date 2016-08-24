@@ -1,6 +1,6 @@
 {
   "name": "opbeat-http-client",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "An HTTP client for communicating with the Opbeat intake API",
   "main": "index.js",
   "directories": {
@@ -31,5 +31,9 @@
     "opbeat",
     "http",
     "client"
+  ],
+  "coordinates": [
+    64.1488669,
+    -21.9420381
   ]
 }
