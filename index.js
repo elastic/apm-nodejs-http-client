@@ -30,22 +30,28 @@ var Client = module.exports = function (opts) {
   }
 }
 
-Client.prototype.request = function (endpoint, body, cb) {
+Client.prototype.request = function (endpoint, headers, body, cb) {
   var self = this
+
+  if (typeof body === 'function') return this.request(endpoint, {}, headers, body)
+  if (!headers) headers = {}
+
   zlib.deflate(stringify(body), function (err, buffer) {
     if (err) return cb(err)
+
+    headers['Authorization'] = 'Bearer ' + self.secretToken
+    headers['Content-Type'] = 'application/octet-stream' // yes this is weird!
+    headers['Content-Length'] = buffer.length
+    headers['User-Agent'] = self.userAgent
+
     var opts = {
       method: 'POST',
       hostname: self._api.host,
       port: self._api.port,
       path: self._api.path + endpoint + '/',
-      headers: {
-        'Authorization': 'Bearer ' + self.secretToken,
-        'Content-Type': 'application/octet-stream', // yes this is weird!
-        'Content-Length': buffer.length,
-        'User-Agent': self.userAgent
-      }
+      headers: headers
     }
+
     var req = self._api.transport.request(opts, function (res) {
       var buffers = []
       res.on('data', buffers.push.bind(buffers))

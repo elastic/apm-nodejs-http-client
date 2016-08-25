@@ -49,7 +49,7 @@ hash as the 1st argument. All properties are required:
 The init function will return a low level HTTP client primed for
 communicating with the Opbeat intake API.
 
-### `client.request(endpoint, body, callback)`
+### `client.request(endpoint, [headers], body, callback)`
 
 #### endpoint
 
@@ -67,6 +67,11 @@ https://intake.opbeat.com/api/v1/organizations/<organization-id>/apps/<app-id>/<
 When specifying the `endpoint` argument in the `client.request()`
 method, you just have to specify that last part of the URL, e.g.
 "releases".
+
+#### headers
+
+An optional object that you can use to supply custom headers that should
+be sent to the Opbeat intake API.
 
 #### body
 

@@ -71,5 +71,27 @@ test('#request()', function (t) {
         t.end()
       })
     })
+
+    t.test('with custom header', function (t) {
+      var client = Client(options)
+      var scope = nock('https://intake.opbeat.com')
+        .matchHeader('X-Foo', 'bar')
+        .filteringRequestBody(function (body) {
+          t.equal(body, buffer.toString('hex'))
+          return 'ok'
+        })
+        .post('/api/v1/organizations/some-org-id/apps/some-app-id/endpoint/', 'ok')
+        .reply(202)
+
+      var headers = { 'X-Foo': 'bar' }
+
+      client.request('endpoint', headers, body, function (err, res, body) {
+        t.error(err)
+        t.equal(res.statusCode, 202)
+        t.equal(body, '')
+        scope.done()
+        t.end()
+      })
+    })
   })
 })
