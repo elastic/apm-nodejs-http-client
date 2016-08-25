@@ -33,6 +33,10 @@ test('#request()', function (t) {
     t.test('normal request', function (t) {
       var client = Client(options)
       var scope = nock('https://intake.opbeat.com')
+        .matchHeader('Authorization', 'Bearer ' + options.secretToken)
+        .matchHeader('Content-Type', 'application/octet-stream')
+        .matchHeader('Content-Length', buffer.length)
+        .matchHeader('User-Agent', 'foo opbeat-http-client/' + require('./package').version)
         .filteringRequestBody(function (body) {
           t.equal(body, buffer.toString('hex'))
           return 'ok'
