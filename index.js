@@ -2,7 +2,7 @@
 
 var https = require('https')
 var zlib = require('zlib')
-var stringify = require('json-stringify-safe')
+var stringify = require('fast-safe-stringify')
 var pkg = require('./package')
 
 var SUB_USER_AGENT = pkg.name + '/' + pkg.version
