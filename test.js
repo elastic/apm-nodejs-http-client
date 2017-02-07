@@ -37,11 +37,10 @@ test('#request()', function (t) {
         .matchHeader('Content-Type', 'application/octet-stream')
         .matchHeader('Content-Length', buffer.length)
         .matchHeader('User-Agent', 'foo opbeat-http-client/' + require('./package').version)
-        .filteringRequestBody(function (body) {
+        .post('/api/v1/organizations/some-org-id/apps/some-app-id/endpoint/', function (body) {
           t.equal(body, buffer.toString('hex'))
-          return 'ok'
+          return true
         })
-        .post('/api/v1/organizations/some-org-id/apps/some-app-id/endpoint/', 'ok')
         .reply(202)
 
       client.request('endpoint', body, function (err, res, body) {
@@ -56,11 +55,10 @@ test('#request()', function (t) {
     t.test('request with error', function (t) {
       var client = Client(options)
       var scope = nock('https://intake.opbeat.com')
-        .filteringRequestBody(function (body) {
+        .post('/api/v1/organizations/some-org-id/apps/some-app-id/endpoint/', function (body) {
           t.equal(body, buffer.toString('hex'))
-          return 'ok'
+          return true
         })
-        .post('/api/v1/organizations/some-org-id/apps/some-app-id/endpoint/', 'ok')
         .reply(500, { error: 'foo' })
 
       client.request('endpoint', body, function (err, res, body) {
@@ -76,11 +74,10 @@ test('#request()', function (t) {
       var client = Client(options)
       var scope = nock('https://intake.opbeat.com')
         .matchHeader('X-Foo', 'bar')
-        .filteringRequestBody(function (body) {
+        .post('/api/v1/organizations/some-org-id/apps/some-app-id/endpoint/', function (body) {
           t.equal(body, buffer.toString('hex'))
-          return 'ok'
+          return true
         })
-        .post('/api/v1/organizations/some-org-id/apps/some-app-id/endpoint/', 'ok')
         .reply(202)
 
       var headers = { 'X-Foo': 'bar' }
