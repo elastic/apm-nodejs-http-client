@@ -1,6 +1,7 @@
 'use strict'
 
 var zlib = require('zlib')
+var http = require('http')
 var test = require('tape')
 var nock = require('nock')
 var Client = require('./')
@@ -88,6 +89,33 @@ test('#request()', function (t) {
         t.equal(body, '')
         scope.done()
         t.end()
+      })
+    })
+
+    t.test('socket hang up', function (t) {
+      var server = http.createServer(function (req, res) {
+        req.socket.destroy()
+      })
+
+      server.listen(function () {
+        var opts = {
+          organizationId: 'test',
+          appId: 'test',
+          secretToken: 'test',
+          userAgent: 'test',
+          _apiHost: 'localhost',
+          _apiPort: server.address().port,
+          _apiSecure: false
+        }
+
+        var client = Client(opts)
+
+        client.request('endpoint', body, function (err, res, body) {
+          t.equal(err.message, 'socket hang up')
+          t.equal(err.code, 'ECONNRESET')
+          server.close()
+          t.end()
+        })
       })
     })
   })
