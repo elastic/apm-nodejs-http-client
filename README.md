@@ -48,11 +48,11 @@ hash as the 1st argument. All properties are required:
 The init function will return a low level HTTP client primed for
 communicating with the Opbeat intake API.
 
-### `client.request(endpoint, [headers], body, callback)`
+### `client.request(endpoint[, headers], body, callback)`
 
 #### endpoint
 
-The Opbeat intake API v1 currently support the following two endpoints:
+The Opbeat intake API v1 currently support the following endpoints:
 
 - `errors`
 - `releases`
@@ -81,8 +81,12 @@ opbeat-http-client will take care of encoding it correctly.
 
 The callback function is called with 3 arguments:
 
-1. An error when applicable (usually from the [http.ClientRequest](https://nodejs.org/api/http.html#http_class_http_clientrequest) object)
-1. An [http.IncomingMessage](https://nodejs.org/api/http.html#http_http_incomingmessage) object
+1. An error when applicable (usually from the
+   [http.ClientRequest](https://nodejs.org/api/http.html#http_class_http_clientrequest)
+   object)
+1. An
+   [http.IncomingMessage](https://nodejs.org/api/http.html#http_http_incomingmessage)
+   object
 1. The response body (as a String)
 
 ## License
