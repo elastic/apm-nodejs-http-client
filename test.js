@@ -14,10 +14,9 @@ var options = {
 }
 
 test('throw if missing required options', function (t) {
-  var fn = function () {
-    Client({ appId: 'foo', organizationId: 'bar' })
-  }
-  t.throws(fn)
+  t.throws(function () {
+    Client({appId: 'foo', organizationId: 'bar'})
+  })
   t.end()
 })
 
