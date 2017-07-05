@@ -13,6 +13,10 @@ If you are looking to use Opbeat in your app or website, you'd most
 likely want to check out [the official Opbeat module for
 Node.js](https://github.com/opbeat/opbeat-node) instead.
 
+If you are looking for the version of this module that supports the
+Opbeat intake API, see the [opbeat
+branch](https://github.com/elastic/apm-nodejs-http-client/tree/opbeat).
+
 ## Installation
 
 ```
