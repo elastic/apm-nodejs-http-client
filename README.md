@@ -1,6 +1,6 @@
 # opbeat-http-client
 
-[![Build status](https://travis-ci.org/watson/opbeat-http-client.svg?branch=master)](https://travis-ci.org/watson/opbeat-http-client)
+[![Build status](https://travis-ci.org/elastic/apm-nodejs-http-client.svg?branch=opbeat)](https://travis-ci.org/elastic/apm-nodejs-http-client)
 [![Standard - JavaScript Style Guide](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat)](https://github.com/feross/standard)
 
 A low-level HTTP client for communicating with the Opbeat intake API.
