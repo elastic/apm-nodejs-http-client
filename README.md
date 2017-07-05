@@ -26,12 +26,12 @@ npm install elastic-apm-http-client
 ## Example Usage
 
 ```js
-var elasticHttpClient = require('elastic-apm-http-client')({
+var client = require('elastic-apm-http-client')({
   secretToken: '...',
   userAgent: '...'
 })
 
-elasticHttpClient.request('errors', body, function (err, res, body) {
+client.request('errors', body, function (err, res, body) {
   if (err) throw err
   console.log(body)
 })
