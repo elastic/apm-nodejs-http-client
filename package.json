@@ -15,9 +15,9 @@
     "fast-safe-stringify": "^1.2.0"
   },
   "devDependencies": {
-    "nock": "^9.0.2",
-    "standard": "^8.6.0",
-    "tape": "^4.6.3"
+    "nock": "^9.0.13",
+    "standard": "^10.0.2",
+    "tape": "^4.7.0"
   },
   "repository": {
     "type": "git",
