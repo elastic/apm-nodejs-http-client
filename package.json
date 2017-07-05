@@ -1,7 +1,7 @@
 {
   "name": "opbeat-http-client",
   "version": "1.2.2",
-  "description": "An HTTP client for communicating with the Opbeat intake API",
+  "description": "A low-level HTTP client for communicating with the Elastic APM intake API",
   "main": "index.js",
   "directories": {
     "test": "test"
@@ -9,7 +9,7 @@
   "scripts": {
     "test": "standard && tape test.js"
   },
-  "author": "Thomas Watson Steen <w@tson.dk> (https://twitter.com/wa7son)",
+  "author": "Thomas Watson <w@tson.dk> (https://twitter.com/wa7son)",
   "license": "MIT",
   "dependencies": {
     "fast-safe-stringify": "^1.1.3"
