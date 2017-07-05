@@ -35,7 +35,7 @@ test('#request()', function (t) {
       var scope = nock('https://intake.opbeat.com')
         .matchHeader('Authorization', 'Bearer ' + options.secretToken)
         .matchHeader('Content-Type', 'application/octet-stream')
-        .matchHeader('Content-Length', buffer.length)
+        .matchHeader('Content-Length', String(buffer.length))
         .matchHeader('User-Agent', 'foo opbeat-http-client/' + require('./package').version)
         .post('/api/v1/organizations/some-org-id/apps/some-app-id/endpoint/', function (body) {
           t.equal(body, buffer.toString('hex'))
