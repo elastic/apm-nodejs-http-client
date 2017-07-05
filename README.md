@@ -56,6 +56,7 @@ The Opbeat intake API v1 currently support the following endpoints:
 
 - `errors`
 - `releases`
+- `transactions`
 
 The full URL's for those are:
 
