@@ -1,6 +1,6 @@
 'use strict'
 
-var https = require('https')
+var http = require('http')
 var zlib = require('zlib')
 var stringify = require('fast-safe-stringify')
 var pkg = require('./package')
@@ -12,21 +12,18 @@ var Client = module.exports = function (opts) {
 
   opts = opts || {}
 
-  if (!opts.appId || !opts.organizationId || !opts.secretToken || !opts.userAgent) {
-    throw new Error('Missing required options: appId, organizationId, secretToken or userAgent')
+  if (!opts.secretToken || !opts.userAgent) {
+    throw new Error('Missing required options: secretToken or userAgent')
   }
 
-  this.appId = opts.appId
-  this.organizationId = opts.organizationId
   this.secretToken = opts.secretToken
   this.userAgent = opts.userAgent + ' ' + SUB_USER_AGENT
 
-  // opts._api* properties are used for debugging and testing
   this._api = {
-    host: opts._apiHost || 'intake.opbeat.com',
-    port: opts._apiPort,
-    transport: opts._apiSecure !== false ? https : require('http'),
-    path: '/api/v1/organizations/' + opts.organizationId + '/apps/' + opts.appId + '/'
+    host: opts.apiHost || 'localhost',
+    port: opts.apiPort || 8080,
+    transport: opts.apiHttps ? require('https') : http,
+    path: '/v1/'
   }
 }
 
@@ -36,11 +33,12 @@ Client.prototype.request = function (endpoint, headers, body, cb) {
   if (typeof body === 'function') return this.request(endpoint, {}, headers, body)
   if (!headers) headers = {}
 
-  zlib.deflate(stringify(body), function (err, buffer) {
+  zlib.gzip(stringify(body), function (err, buffer) {
     if (err) return cb(err)
 
     headers['Authorization'] = 'Bearer ' + self.secretToken
-    headers['Content-Type'] = 'application/octet-stream' // yes this is weird!
+    headers['Content-Type'] = 'application/json'
+    headers['Content-Encoding'] = 'gzip'
     headers['Content-Length'] = buffer.length
     headers['User-Agent'] = self.userAgent
 
@@ -48,7 +46,7 @@ Client.prototype.request = function (endpoint, headers, body, cb) {
       method: 'POST',
       hostname: self._api.host,
       port: self._api.port,
-      path: self._api.path + endpoint + '/',
+      path: self._api.path + endpoint,
       headers: headers
     }
 

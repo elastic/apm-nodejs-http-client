@@ -1,5 +1,5 @@
 {
-  "name": "opbeat-http-client",
+  "name": "elastic-apm-http-client",
   "version": "1.2.2",
   "description": "A low-level HTTP client for communicating with the Elastic APM intake API",
   "main": "index.js",
@@ -21,14 +21,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/watson/opbeat-http-client.git"
+    "url": "git+https://github.com/elastic/apm-nodejs-http-client.git"
   },
   "bugs": {
-    "url": "https://github.com/watson/opbeat-http-client/issues"
+    "url": "https://github.com/elastic/apm-nodejs-http-client/issues"
   },
-  "homepage": "https://github.com/watson/opbeat-http-client",
+  "homepage": "https://github.com/elastic/apm-nodejs-http-client",
   "keywords": [
     "opbeat",
+    "elastic",
+    "apm",
     "http",
     "client"
   ],

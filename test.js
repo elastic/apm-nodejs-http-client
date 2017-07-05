@@ -7,22 +7,20 @@ var nock = require('nock')
 var Client = require('./')
 
 var options = {
-  organizationId: 'some-org-id',
-  appId: 'some-app-id',
   secretToken: 'secret',
   userAgent: 'foo'
 }
 
 test('throw if missing required options', function (t) {
   t.throws(function () {
-    Client({appId: 'foo', organizationId: 'bar'})
+    Client()
   })
   t.end()
 })
 
 test('#request()', function (t) {
   var encode = function (body, cb) {
-    zlib.deflate(JSON.stringify(body), function (err, buffer) {
+    zlib.gzip(JSON.stringify(body), function (err, buffer) {
       if (err) throw err
       cb(buffer)
     })
@@ -32,12 +30,13 @@ test('#request()', function (t) {
   encode(body, function (buffer) {
     t.test('normal request', function (t) {
       var client = Client(options)
-      var scope = nock('https://intake.opbeat.com')
+      var scope = nock('http://localhost:8080')
         .matchHeader('Authorization', 'Bearer ' + options.secretToken)
-        .matchHeader('Content-Type', 'application/octet-stream')
-        .matchHeader('Content-Length', buffer.length)
-        .matchHeader('User-Agent', 'foo opbeat-http-client/' + require('./package').version)
-        .post('/api/v1/organizations/some-org-id/apps/some-app-id/endpoint/', function (body) {
+        .matchHeader('Content-Type', 'application/json')
+        .matchHeader('Content-Encoding', 'gzip')
+        .matchHeader('Content-Length', String(buffer.length))
+        .matchHeader('User-Agent', 'foo elastic-apm-http-client/' + require('./package').version)
+        .post('/v1/endpoint', function (body) {
           t.equal(body, buffer.toString('hex'))
           return true
         })
@@ -54,8 +53,8 @@ test('#request()', function (t) {
 
     t.test('request with error', function (t) {
       var client = Client(options)
-      var scope = nock('https://intake.opbeat.com')
-        .post('/api/v1/organizations/some-org-id/apps/some-app-id/endpoint/', function (body) {
+      var scope = nock('http://localhost:8080')
+        .post('/v1/endpoint', function (body) {
           t.equal(body, buffer.toString('hex'))
           return true
         })
@@ -72,9 +71,9 @@ test('#request()', function (t) {
 
     t.test('with custom header', function (t) {
       var client = Client(options)
-      var scope = nock('https://intake.opbeat.com')
+      var scope = nock('http://localhost:8080')
         .matchHeader('X-Foo', 'bar')
-        .post('/api/v1/organizations/some-org-id/apps/some-app-id/endpoint/', function (body) {
+        .post('/v1/endpoint', function (body) {
           t.equal(body, buffer.toString('hex'))
           return true
         })
@@ -98,13 +97,9 @@ test('#request()', function (t) {
 
       server.listen(function () {
         var opts = {
-          organizationId: 'test',
-          appId: 'test',
           secretToken: 'test',
           userAgent: 'test',
-          _apiHost: 'localhost',
-          _apiPort: server.address().port,
-          _apiSecure: false
+          apiPort: server.address().port
         }
 
         var client = Client(opts)
