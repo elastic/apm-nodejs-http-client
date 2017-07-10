@@ -23,7 +23,7 @@ var Client = module.exports = function (opts) {
     host: opts.apiHost || 'localhost',
     port: opts.apiPort || 8080,
     transport: opts.apiHttps ? require('https') : http,
-    path: '/v1/'
+    path: '/'
   }
 }
 

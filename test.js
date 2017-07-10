@@ -36,7 +36,7 @@ test('#request()', function (t) {
         .matchHeader('Content-Encoding', 'gzip')
         .matchHeader('Content-Length', String(buffer.length))
         .matchHeader('User-Agent', 'foo elastic-apm-http-client/' + require('./package').version)
-        .post('/v1/endpoint', function (body) {
+        .post('/endpoint', function (body) {
           t.equal(body, buffer.toString('hex'))
           return true
         })
@@ -54,7 +54,7 @@ test('#request()', function (t) {
     t.test('request with error', function (t) {
       var client = Client(options)
       var scope = nock('http://localhost:8080')
-        .post('/v1/endpoint', function (body) {
+        .post('/endpoint', function (body) {
           t.equal(body, buffer.toString('hex'))
           return true
         })
@@ -73,7 +73,7 @@ test('#request()', function (t) {
       var client = Client(options)
       var scope = nock('http://localhost:8080')
         .matchHeader('X-Foo', 'bar')
-        .post('/v1/endpoint', function (body) {
+        .post('/endpoint', function (body) {
           t.equal(body, buffer.toString('hex'))
           return true
         })

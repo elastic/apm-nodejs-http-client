@@ -58,7 +58,7 @@ communicating with the Elastic APM intake API.
 
 #### endpoint
 
-The Elastic APM intake API v1 currently support the following endpoints:
+The Elastic APM intake API currently support the following endpoints:
 
 - `errors`
 - `transactions`
@@ -66,7 +66,7 @@ The Elastic APM intake API v1 currently support the following endpoints:
 The default full URL's for those are:
 
 ```
-http://localhost:8080/v1/<endpoint>
+http://localhost:8080/<endpoint>
 ```
 
 When specifying the `endpoint` argument in the `client.request()`
