@@ -12,11 +12,9 @@ var Client = module.exports = function (opts) {
 
   opts = opts || {}
 
-  if (!opts.secretToken || !opts.userAgent) {
-    throw new Error('Missing required options: secretToken or userAgent')
-  }
+  if (!opts.userAgent) throw new Error('Missing required option: userAgent')
 
-  this.secretToken = opts.secretToken
+  this.secretToken = opts.secretToken || null
   this.userAgent = opts.userAgent + ' ' + SUB_USER_AGENT
 
   this._api = {
@@ -36,7 +34,7 @@ Client.prototype.request = function (endpoint, headers, body, cb) {
   zlib.gzip(stringify(body), function (err, buffer) {
     if (err) return cb(err)
 
-    headers['Authorization'] = 'Bearer ' + self.secretToken
+    if (self.secretToken) headers['Authorization'] = 'Bearer ' + self.secretToken
     headers['Content-Type'] = 'application/json'
     headers['Content-Encoding'] = 'gzip'
     headers['Content-Length'] = buffer.length

@@ -27,7 +27,6 @@ npm install elastic-apm-http-client
 
 ```js
 var client = require('elastic-apm-http-client')({
-  secretToken: '...',
   userAgent: '...'
 })
 
@@ -47,9 +46,9 @@ hash as the 1st argument. All properties are required:
 - `apiPort` - The port of the Elastic APM intake API (default: `8080`)
 - `apiHttps` - Toggle http/https when communicating with the Elastic APM
   intake API (default: `false`)
-- `secretToken` - The Elastic APM intake API secret token
 - `userAgent` - The HTTP user agent that your module should identify it
   self with
+- `secretToken` - (optional) The Elastic APM intake API secret token
 
 The init function will return a low level HTTP client primed for
 communicating with the Elastic APM intake API.
