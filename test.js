@@ -56,11 +56,12 @@ test('#request()', function (t) {
     t.test('no secretToken', function (t) {
       var client = Client({userAgent: 'foo'})
       var scope = nock('http://localhost:8080')
-        .post('/endpoint')
-        .reply(function () {
-          t.ok('content-encoding' in this.req.headers)
-          t.notOk('authorization' in this.req.headers)
+        .post('/endpoint', function (body, a, b) {
+          t.ok('content-encoding' in this.headers)
+          t.notOk('authorization' in this.headers)
+          return true
         })
+        .reply()
 
       client.request('endpoint', body, function (err, res, body) {
         t.error(err)
