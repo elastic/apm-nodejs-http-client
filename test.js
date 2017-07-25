@@ -38,7 +38,7 @@ test('#request()', function (t) {
         .matchHeader('Content-Encoding', 'gzip')
         .matchHeader('Content-Length', String(buffer.length))
         .matchHeader('User-Agent', 'foo elastic-apm-http-client/' + require('./package').version)
-        .post('/endpoint', function (body) {
+        .post('/v1/endpoint', function (body) {
           t.equal(body, buffer.toString('hex'))
           return true
         })
@@ -56,7 +56,7 @@ test('#request()', function (t) {
     t.test('no secretToken', function (t) {
       var client = Client({userAgent: 'foo'})
       var scope = nock('http://localhost:8080')
-        .post('/endpoint', function (body, a, b) {
+        .post('/v1/endpoint', function (body, a, b) {
           t.ok('content-encoding' in this.headers)
           t.notOk('authorization' in this.headers)
           return true
@@ -73,7 +73,7 @@ test('#request()', function (t) {
     t.test('request with error', function (t) {
       var client = Client({userAgent: 'foo'})
       var scope = nock('http://localhost:8080')
-        .post('/endpoint', function (body) {
+        .post('/v1/endpoint', function (body) {
           t.equal(body, buffer.toString('hex'))
           return true
         })
@@ -92,7 +92,7 @@ test('#request()', function (t) {
       var client = Client({userAgent: 'foo'})
       var scope = nock('http://localhost:8080')
         .matchHeader('X-Foo', 'bar')
-        .post('/endpoint', function (body) {
+        .post('/v1/endpoint', function (body) {
           t.equal(body, buffer.toString('hex'))
           return true
         })
