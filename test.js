@@ -118,7 +118,7 @@ test('#request()', function (t) {
         var opts = {
           secretToken: 'test',
           userAgent: 'test',
-          apiPort: server.address().port
+          serverUrl: 'http://localhost:' + server.address().port
         }
 
         var client = Client(opts)

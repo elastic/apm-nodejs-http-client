@@ -41,11 +41,7 @@ client.request('errors', body, function (err, res, body) {
 The module exposes an initialize function which takes a single options
 hash as the 1st argument. All properties are required:
 
-- `apiHost` - The hostname of the Elastic APM intake API (default:
-  `localhost`)
-- `apiPort` - The port of the Elastic APM intake API (default: `8080`)
-- `apiHttps` - Toggle http/https when communicating with the Elastic APM
-  intake API (default: `false`)
+- `serverUrl` - The APM Server URL (default: `http://localhost:8080`)
 - `userAgent` - The HTTP user agent that your module should identify it
   self with
 - `secretToken` - (optional) The Elastic APM intake API secret token

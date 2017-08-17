@@ -1,6 +1,7 @@
 'use strict'
 
 var http = require('http')
+var parseUrl = require('url').parse
 var zlib = require('zlib')
 var stringify = require('fast-safe-stringify')
 var pkg = require('./package')
@@ -17,10 +18,12 @@ var Client = module.exports = function (opts) {
   this.secretToken = opts.secretToken || null
   this.userAgent = opts.userAgent + ' ' + SUB_USER_AGENT
 
+  var url = parseUrl(opts.serverUrl || 'http://localhost:8080')
+
   this._api = {
-    host: opts.apiHost || 'localhost',
-    port: opts.apiPort || 8080,
-    transport: opts.apiHttps ? require('https') : http,
+    hostname: url.hostname,
+    port: url.port,
+    transport: url.protocol === 'https:' ? require('https') : http,
     path: '/v1/'
   }
 }
@@ -42,7 +45,7 @@ Client.prototype.request = function (endpoint, headers, body, cb) {
 
     var opts = {
       method: 'POST',
-      hostname: self._api.host,
+      hostname: self._api.hostname,
       port: self._api.port,
       path: self._api.path + endpoint,
       headers: headers
