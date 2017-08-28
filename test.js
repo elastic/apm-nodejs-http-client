@@ -32,7 +32,7 @@ test('#request()', function (t) {
   encode(body, function (buffer) {
     t.test('normal request', function (t) {
       var client = Client({secretToken: 'secret', userAgent: 'foo'})
-      var scope = nock('http://localhost:8080')
+      var scope = nock('http://localhost:8200')
         .matchHeader('Authorization', 'Bearer secret')
         .matchHeader('Content-Type', 'application/json')
         .matchHeader('Content-Encoding', 'gzip')
@@ -55,7 +55,7 @@ test('#request()', function (t) {
 
     t.test('no secretToken', function (t) {
       var client = Client({userAgent: 'foo'})
-      var scope = nock('http://localhost:8080')
+      var scope = nock('http://localhost:8200')
         .post('/v1/endpoint', function (body, a, b) {
           t.ok('content-encoding' in this.headers)
           t.notOk('authorization' in this.headers)
@@ -72,7 +72,7 @@ test('#request()', function (t) {
 
     t.test('request with error', function (t) {
       var client = Client({userAgent: 'foo'})
-      var scope = nock('http://localhost:8080')
+      var scope = nock('http://localhost:8200')
         .post('/v1/endpoint', function (body) {
           t.equal(body, buffer.toString('hex'))
           return true
@@ -90,7 +90,7 @@ test('#request()', function (t) {
 
     t.test('with custom header', function (t) {
       var client = Client({userAgent: 'foo'})
-      var scope = nock('http://localhost:8080')
+      var scope = nock('http://localhost:8200')
         .matchHeader('X-Foo', 'bar')
         .post('/v1/endpoint', function (body) {
           t.equal(body, buffer.toString('hex'))

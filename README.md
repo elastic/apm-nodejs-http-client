@@ -41,7 +41,7 @@ client.request('errors', body, function (err, res, body) {
 The module exposes an initialize function which takes a single options
 hash as the 1st argument. All properties are required:
 
-- `serverUrl` - The APM Server URL (default: `http://localhost:8080`)
+- `serverUrl` - The APM Server URL (default: `http://localhost:8200`)
 - `userAgent` - The HTTP user agent that your module should identify it
   self with
 - `secretToken` - (optional) The Elastic APM intake API secret token
@@ -61,7 +61,7 @@ The Elastic APM intake API currently support the following endpoints:
 The default full URL's for those are:
 
 ```
-http://localhost:8080/<endpoint>
+http://localhost:8200/<endpoint>
 ```
 
 When specifying the `endpoint` argument in the `client.request()`

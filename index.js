@@ -18,7 +18,7 @@ var Client = module.exports = function (opts) {
   this.secretToken = opts.secretToken || null
   this.userAgent = opts.userAgent + ' ' + SUB_USER_AGENT
 
-  var url = parseUrl(opts.serverUrl || 'http://localhost:8080')
+  var url = parseUrl(opts.serverUrl || 'http://localhost:8200')
 
   this._api = {
     hostname: url.hostname,
