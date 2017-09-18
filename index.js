@@ -24,7 +24,8 @@ var Client = module.exports = function (opts) {
     hostname: url.hostname,
     port: url.port,
     transport: url.protocol === 'https:' ? require('https') : http,
-    path: '/v1/'
+    path: '/v1/',
+    rejectUnauthorized: opts.rejectUnauthorized !== false
   }
 }
 
@@ -48,7 +49,8 @@ Client.prototype.request = function (endpoint, headers, body, cb) {
       hostname: self._api.hostname,
       port: self._api.port,
       path: self._api.path + endpoint,
-      headers: headers
+      headers: headers,
+      rejectUnauthorized: self._api.rejectUnauthorized
     }
 
     var req = self._api.transport.request(opts, function (res) {

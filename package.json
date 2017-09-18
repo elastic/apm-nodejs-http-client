@@ -15,7 +15,9 @@
     "fast-safe-stringify": "^1.2.0"
   },
   "devDependencies": {
+    "https-pem": "^1.0.4",
     "nock": "^9.0.13",
+    "semver": "^5.4.1",
     "standard": "^10.0.2",
     "tape": "^4.7.0"
   },

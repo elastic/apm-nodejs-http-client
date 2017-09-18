@@ -2,8 +2,11 @@
 
 var zlib = require('zlib')
 var http = require('http')
+var https = require('https')
 var test = require('tape')
 var nock = require('nock')
+var pem = require('https-pem')
+var semver = require('semver')
 var Client = require('./')
 
 test('throw if missing required options', function (t) {
@@ -126,6 +129,56 @@ test('#request()', function (t) {
         client.request('endpoint', body, function (err, res, body) {
           t.equal(err.message, 'socket hang up')
           t.equal(err.code, 'ECONNRESET')
+          server.close()
+          t.end()
+        })
+      })
+    })
+
+    t.test('reject unauthorized TLS by default', function (t) {
+      var server = https.createServer(pem, function (req, res) {
+        res.end('secret')
+      })
+
+      server.listen(function () {
+        var opts = {
+          userAgent: 'test',
+          serverUrl: 'https://localhost:' + server.address().port
+        }
+
+        var client = Client(opts)
+
+        client.request('endpoint', body, function (err, res, body) {
+          if (semver.gte(process.version, '0.12.0')) {
+            t.equal(err.message, 'self signed certificate')
+            t.equal(err.code, 'DEPTH_ZERO_SELF_SIGNED_CERT')
+          } else {
+            // Node.js v0.10 had the code as the message (and no code)
+            t.equal(err.message, 'DEPTH_ZERO_SELF_SIGNED_CERT')
+          }
+          server.close()
+          t.end()
+        })
+      })
+    })
+
+    t.test('allow unauthorized TLS by if asked', function (t) {
+      var server = https.createServer(pem, function (req, res) {
+        res.end('secret')
+      })
+
+      server.listen(function () {
+        var opts = {
+          userAgent: 'test',
+          serverUrl: 'https://localhost:' + server.address().port,
+          rejectUnauthorized: false
+        }
+
+        var client = Client(opts)
+
+        client.request('endpoint', body, function (err, res, body) {
+          t.error(err)
+          t.equal(body, 'secret')
           server.close()
           t.end()
         })

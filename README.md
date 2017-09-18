@@ -46,6 +46,8 @@ hash as the 1st argument:
 - `secretToken` - (optional) The Elastic APM intake API secret token
 - `serverUrl` - (optional) The APM Server URL (default:
   `http://localhost:8200`)
+- `rejectUnauthorized` - (optional) Set to `false` if the client
+  shouldn't verify the APM Server TLS certificates (default: `true`)
 
 The init function will return a low level HTTP client primed for
 communicating with the Elastic APM intake API.
