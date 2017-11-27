@@ -42,6 +42,7 @@ Client.prototype.request = function (endpoint, headers, body, cb) {
     headers['Content-Type'] = 'application/json'
     headers['Content-Encoding'] = 'gzip'
     headers['Content-Length'] = buffer.length
+    headers['Accept'] = 'application/json'
     headers['User-Agent'] = self.userAgent
 
     var opts = {
