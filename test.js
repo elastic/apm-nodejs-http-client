@@ -184,5 +184,18 @@ test('#request()', function (t) {
         })
       })
     })
+
+    t.test('serverUrl contains path', function (t) {
+      var client = Client({userAgent: 'foo', serverUrl: 'http://localhost:8200/sub'})
+      var scope = nock('http://localhost:8200')
+        .post('/sub/v1/endpoint')
+        .reply()
+
+      client.request('endpoint', body, function (err, res, body) {
+        t.error(err)
+        scope.done()
+        t.end()
+      })
+    })
   })
 })

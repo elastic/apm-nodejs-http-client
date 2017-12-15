@@ -24,7 +24,7 @@ var Client = module.exports = function (opts) {
     hostname: url.hostname,
     port: url.port,
     transport: url.protocol === 'https:' ? require('https') : http,
-    path: '/v1/',
+    path: url.path === '/' ? '/v1/' : url.path + '/v1/',
     rejectUnauthorized: opts.rejectUnauthorized !== false
   }
 }
