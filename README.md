@@ -48,6 +48,7 @@ hash as the 1st argument:
   `http://localhost:8200`)
 - `rejectUnauthorized` - (optional) Set to `false` if the client
   shouldn't verify the APM Server TLS certificates (default: `true`)
+- `serverTimeout` - (optional) Set request timeout in milliseconds
 
 The init function will return a low level HTTP client primed for
 communicating with the Elastic APM intake API.
