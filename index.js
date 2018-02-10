@@ -25,7 +25,8 @@ var Client = module.exports = function (opts) {
     port: url.port,
     transport: url.protocol === 'https:' ? require('https') : http,
     path: url.path === '/' ? '/v1/' : url.path + '/v1/',
-    rejectUnauthorized: opts.rejectUnauthorized !== false
+    rejectUnauthorized: opts.rejectUnauthorized !== false,
+    serverTimeout: opts.serverTimeout
   }
 }
 
@@ -61,6 +62,13 @@ Client.prototype.request = function (endpoint, headers, body, cb) {
         cb(null, res, Buffer.concat(buffers).toString('utf8'))
       })
     })
+
+    if (isFinite(self._api.serverTimeout)) {
+      req.setTimeout(self._api.serverTimeout, function () {
+        req.abort()
+      })
+    }
+
     req.on('error', cb)
     req.end(buffer)
   })

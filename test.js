@@ -197,5 +197,25 @@ test('#request()', function (t) {
         t.end()
       })
     })
+
+    t.test('socket timeout', function (t) {
+      var client = Client({
+        secretToken: 'secret',
+        userAgent: 'foo',
+        serverTimeout: 1000
+      })
+
+      var scope = nock('http://localhost:8200')
+        .post('/v1/endpoint')
+        .socketDelay(2000)
+        .reply(200)
+
+      client.request('endpoint', body, function (err, res, body) {
+        t.ok(err)
+        t.equal(err.code, 'ECONNRESET')
+        scope.done()
+        t.end()
+      })
+    })
   })
 })
