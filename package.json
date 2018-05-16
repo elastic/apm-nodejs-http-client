@@ -12,7 +12,7 @@
   "author": "Thomas Watson <w@tson.dk> (https://twitter.com/wa7son)",
   "license": "MIT",
   "dependencies": {
-    "fast-safe-stringify": "^1.2.0"
+    "fast-safe-stringify": "^2.0.4"
   },
   "devDependencies": {
     "https-pem": "^1.0.4",
