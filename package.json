@@ -15,11 +15,11 @@
     "fast-safe-stringify": "^2.0.4"
   },
   "devDependencies": {
-    "https-pem": "^1.0.4",
-    "nock": "^9.0.13",
-    "semver": "^5.4.1",
+    "https-pem": "^2.0.0",
+    "nock": "^9.2.6",
+    "semver": "^5.5.0",
     "standard": "^11.0.1",
-    "tape": "^4.7.0"
+    "tape": "^4.9.0"
   },
   "repository": {
     "type": "git",
