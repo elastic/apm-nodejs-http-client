@@ -13,10 +13,6 @@ If you are looking to use Elastic APM in your app or website, you'd most
 likely want to check out [the official Elastic APM agent for
 Node.js](https://github.com/elastic/apm-agent-nodejs) instead.
 
-If you are looking for the version of this module that supports the
-Opbeat intake API, see the [opbeat
-branch](https://github.com/elastic/apm-nodejs-http-client/tree/opbeat).
-
 ## Installation
 
 ```

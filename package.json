@@ -30,7 +30,6 @@
   },
   "homepage": "https://github.com/elastic/apm-nodejs-http-client",
   "keywords": [
-    "opbeat",
     "elastic",
     "apm",
     "http",
