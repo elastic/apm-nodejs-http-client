@@ -259,7 +259,7 @@ test('client should not hold the process open', function (t) {
       const end = Date.now()
       const start = Number(stdout)
       const duration = end - start
-      t.ok(duration < 200, 'should not take more than 200 ms to complete')
+      t.ok(duration < 300, `should not take more than 300 ms to complete (was: ${duration})`)
       t.end()
     })
   })
