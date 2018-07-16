@@ -15,7 +15,7 @@
     "fast-stream-to-buffer": "^1.0.0",
     "ndjson": "^1.5.0",
     "pump": "^3.0.0",
-    "stream-chopper": "github:watson/stream-chopper"
+    "stream-chopper": "^1.0.0"
   },
   "devDependencies": {
     "https-pem": "^2.0.0",
