@@ -1,75 +1,154 @@
 'use strict'
 
-var http = require('http')
-var parseUrl = require('url').parse
-var zlib = require('zlib')
-var stringify = require('fast-safe-stringify')
-var pkg = require('./package')
+const parseUrl = require('url').parse
+const http = require('http')
+const zlib = require('zlib')
+const pump = require('pump')
+const ndjson = require('ndjson')
+const streamToBuffer = require('fast-stream-to-buffer')
+const StreamChopper = require('stream-chopper')
+const pkg = require('./package')
 
-var SUB_USER_AGENT = pkg.name + '/' + pkg.version
+module.exports = Client
 
-var Client = module.exports = function (opts) {
-  if (!(this instanceof Client)) return new Client(opts)
+function Client (opts, onerror) {
+  opts = normalizeOptions(opts)
+  onerror = onerror || throwerr
 
-  opts = opts || {}
+  const serialize = ndjson.serialize()
+  // TODO: Is there a race condition between the `time` config option and the request timeout option?
+  const chopper = new StreamChopper(opts).on('stream', onStream(opts, onerror))
 
-  if (!opts.userAgent) throw new Error('Missing required option: userAgent')
+  // All sockets on the agent are unreffed when they are created. This means
+  // that when those are the only handles left, the `beforeExit` event will be
+  // emitted. By listening for this we can make sure to end the requests
+  // properly before exiting. This way we don't keep the process running until
+  // the `time` timeout happens.
+  // TODO: If you start too many clients (e.g. in a test), this will emit a too-many-listeners warning
+  process.once('beforeExit', function () {
+    opts.agent.ref() // re-ref the open socket handles
+    serialize.end()
+  })
 
-  this.secretToken = opts.secretToken || null
-  this.userAgent = opts.userAgent + ' ' + SUB_USER_AGENT
+  pump(serialize, chopper, function (err) {
+    if (err) onerror(err)
+  })
 
-  var url = parseUrl(opts.serverUrl || 'http://localhost:8200')
-
-  this._api = {
-    hostname: url.hostname,
-    port: url.port,
-    transport: url.protocol === 'https:' ? require('https') : http,
-    path: url.path === '/' ? '/v1/' : url.path + '/v1/',
-    rejectUnauthorized: opts.rejectUnauthorized !== false,
-    serverTimeout: opts.serverTimeout
-  }
+  return serialize
 }
 
-Client.prototype.request = function (endpoint, headers, body, cb) {
-  var self = this
+function onStream (opts, onerror) {
+  const transport = opts.transport
+  const serverTimeout = opts.serverTimeout
+  opts = getRequestOptions(opts)
 
-  if (typeof body === 'function') return this.request(endpoint, {}, headers, body)
-  if (!headers) headers = {}
+  return function (stream, next) {
+    const req = transport.request(opts, onResult(onerror))
 
-  zlib.gzip(stringify(body), function (err, buffer) {
-    if (err) return cb(err)
-
-    if (self.secretToken) headers['Authorization'] = 'Bearer ' + self.secretToken
-    headers['Content-Type'] = 'application/json'
-    headers['Content-Encoding'] = 'gzip'
-    headers['Content-Length'] = buffer.length
-    headers['Accept'] = 'application/json'
-    headers['User-Agent'] = self.userAgent
-
-    var opts = {
-      method: 'POST',
-      hostname: self._api.hostname,
-      port: self._api.port,
-      path: self._api.path + endpoint,
-      headers: headers,
-      rejectUnauthorized: self._api.rejectUnauthorized
-    }
-
-    var req = self._api.transport.request(opts, function (res) {
-      var buffers = []
-      res.on('data', buffers.push.bind(buffers))
-      res.on('end', function () {
-        cb(null, res, Buffer.concat(buffers).toString('utf8'))
-      })
+    req.on('socket', function (socket) {
+      // Sockets will automatically be unreffed by the HTTP agent when they are
+      // not in use by an HTTP request, but as we're keeping the HTTP request
+      // open, we need to unref the socket manually
+      socket.unref()
     })
 
-    if (isFinite(self._api.serverTimeout)) {
-      req.setTimeout(self._api.serverTimeout, function () {
+    // TODO: It doesn't really make sense to set req.serverTimeout on a
+    // streaming request before all the data is sent. We need find a solution
+    // for how to handle timeout of the response.
+    if (Number.isFinite(serverTimeout)) {
+      req.setTimeout(serverTimeout, function () {
         req.abort()
       })
     }
 
-    req.on('error', cb)
-    req.end(buffer)
+    pump(stream, zlib.createGzip(), req, function (err) {
+      if (err) onerror(err)
+      // Add listener for req errors in case a timeout occurs AFTER the request
+      // finishes
+      //
+      // TODO: This will produce two errors, which might not be that nice
+      // - First one is caught by the if-sentence above (premature closure)
+      // - Second one is caught by the listener below (socket hung up)
+      req.on('error', onerror)
+      next()
+    })
+  }
+}
+
+function onResult (onerror) {
+  return streamToBuffer.onStream(function (err, buf, res) {
+    if (err) return onerror(err)
+    if (res.statusCode < 200 || res.statusCode > 299) {
+      const err = new Error('Unexpected response code from APM Server: ' + res.statusCode)
+      if (buf.length > 0) {
+        err.result = buf.toString('utf8')
+        if (res.headers['content-type'] === 'application/json') {
+          try {
+            err.result = JSON.parse(err.result).error || err.result
+          } catch (e) {}
+        }
+      }
+      onerror(err)
+    }
   })
+}
+
+function normalizeOptions (opts) {
+  if (!opts.userAgent) throw new Error('Missing required option: userAgent')
+
+  const result = Object.assign({
+    size: 1024 * 1024,
+    time: 10000,
+    type: StreamChopper.overflow,
+    serverUrl: 'http://localhost:8200',
+    keepAlive: true
+  }, opts)
+
+  result.serverUrl = parseUrl(result.serverUrl)
+  result.transport = result.serverUrl.protocol === 'https:' ? require('https') : http
+  result.agent = getAgent(result)
+
+  return result
+}
+
+function getAgent (opts) {
+  // TODO: Consider use of maxSockets and maxFreeSockets
+  const agent = new opts.transport.Agent({keepAlive: opts.keepAlive})
+
+  agent.ref = function () {
+    Object.keys(agent.sockets).forEach(function (remote) {
+      agent.sockets[remote].forEach(function (socket) {
+        socket.ref()
+      })
+    })
+  }
+
+  return agent
+}
+
+function getRequestOptions (opts) {
+  const defaultPath = '/v2/intake'
+  return {
+    agent: opts.agent,
+    rejectUnauthorized: opts.rejectUnauthorized !== false,
+    hostname: opts.serverUrl.hostname,
+    port: opts.serverUrl.port,
+    method: 'POST',
+    path: opts.serverUrl.path === '/' ? defaultPath : opts.serverUrl.path + defaultPath,
+    headers: getHeaders(opts)
+  }
+}
+
+function getHeaders (opts) {
+  const headers = {}
+  if (opts.secretToken) headers['Authorization'] = 'Bearer ' + opts.secretToken
+  headers['Content-Type'] = 'application/x-ndjson'
+  headers['Content-Encoding'] = 'gzip'
+  headers['Accept'] = 'application/json'
+  headers['User-Agent'] = opts.userAgent + ' ' + pkg.name + '/' + pkg.version
+  return Object.assign(headers, opts.headers)
+}
+
+function throwerr (err) {
+  throw err
 }

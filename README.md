@@ -22,73 +22,51 @@ npm install elastic-apm-http-client
 ## Example Usage
 
 ```js
-var client = require('elastic-apm-http-client')({
-  userAgent: '...'
+const Client = require('elastic-apm-http-client')
+
+const stream = Client({
+  userAgent: 'My Custom Elastic APM Agent'
+}, function (err) {
+  throw err
 })
 
-client.request('errors', body, function (err, res, body) {
-  if (err) throw err
-  console.log(body)
-})
+stream.write(span)
 ```
 
 ## API
 
-The module exposes an initialize function which takes a single options
-hash as the 1st argument:
+### `stream = Client(options[, onerror])`
 
-- `userAgent` - The HTTP user agent that your module should identify it
-  self with
-- `secretToken` - (optional) The Elastic APM intake API secret token
-- `serverUrl` - (optional) The APM Server URL (default:
-  `http://localhost:8200`)
-- `rejectUnauthorized` - (optional) Set to `false` if the client
-  shouldn't verify the APM Server TLS certificates (default: `true`)
-- `serverTimeout` - (optional) Set request timeout in milliseconds
+Arguments:
 
-The init function will return a low level HTTP client primed for
-communicating with the Elastic APM intake API.
+- `options` - An object containing config options
+- `onerror` - An optional error callback which will be called with an
+  error object if the client ever encounters an error. If no `onerror`
+  function is provided, any error that occur will be thrown
 
-### `client.request(endpoint[, headers], body, callback)`
+Config options:
 
-#### endpoint
+- `userAgent` - (required) The HTTP user agent that your module should
+  identify it self as
+- `secretToken` - The Elastic APM intake API secret token
+- `serverUrl` - The APM Server URL (default: `http://localhost:8200`)
+- `rejectUnauthorized` - Set to `false` if the client shouldn't verify
+  the APM Server TLS certificates (default: `true`)
+- `keepAlive` - If set the `false` the client will not reuse TCP sockets
+  between requests (default: `true`)
+- `size` - The maxiumum compressed body size (in bytes) of each HTTP
+  request to the APM Server. An overshoot of up to the size of the
+  internal zlib buffer should be expected as the buffer is flushed after
+  this limit is reached. The default zlib buffer size is 16 kb (default:
+  `1048576` bytes / 1 MB)
+- `time` - The maxiumum number of milliseconds a streaming HTTP request
+  to the APM Server can be ongoing before it's ended (default: `10000`
+  ms)
 
-The Elastic APM intake API currently support the following endpoints:
-
-- `errors`
-- `transactions`
-
-The default full URL's for those are:
-
-```
-http://localhost:8200/<endpoint>
-```
-
-When specifying the `endpoint` argument in the `client.request()`
-method, you just have to specify that last part of the URL, e.g.
-"releases".
-
-#### headers
-
-An optional object that you can use to supply custom headers that should
-be sent to the Elastic APM intake API.
-
-#### body
-
-The body should be in the form of a JavaScript object literal. The
-elastic-apm-http-client will take care of encoding it correctly.
-
-#### callback
-
-The callback function is called with 3 arguments:
-
-1. An error when applicable (usually from the
-   [http.ClientRequest](https://nodejs.org/api/http.html#http_class_http_clientrequest)
-   object)
-1. An
-   [http.IncomingMessage](https://nodejs.org/api/http.html#http_http_incomingmessage)
-   object
-1. The response body (as a String)
+The `Client` function will return a writable `stream`, to which the data
+that should be sent to the APM Server should be written. The stream will
+convert the data to [ndjson](http://ndjson.org), compress it using gzip,
+and stream it to the APM Server.
 
 ## License
 

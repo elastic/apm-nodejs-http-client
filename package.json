@@ -7,12 +7,15 @@
     "test": "test"
   },
   "scripts": {
-    "test": "standard && tape test.js"
+    "test": "standard && node test/test.js"
   },
   "author": "Thomas Watson <w@tson.dk> (https://twitter.com/wa7son)",
   "license": "MIT",
   "dependencies": {
-    "fast-safe-stringify": "^2.0.4"
+    "fast-stream-to-buffer": "^1.0.0",
+    "ndjson": "^1.5.0",
+    "pump": "^3.0.0",
+    "stream-chopper": "github:watson/stream-chopper"
   },
   "devDependencies": {
     "https-pem": "^2.0.0",
