@@ -100,7 +100,8 @@ function normalizeOptions (opts) {
     time: 10000,
     type: StreamChopper.overflow,
     serverUrl: 'http://localhost:8200',
-    keepAlive: true
+    keepAlive: true,
+    serverTimeout: 15000
   }, opts)
 
   result.serverUrl = parseUrl(result.serverUrl)

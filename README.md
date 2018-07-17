@@ -56,7 +56,7 @@ Config options:
   sent or received on the socket for this amount of time, the request
   will be aborted. It's not recommended to set a `serverTimeout` lower
   than the `time` config option. That might result in healthy requests
-  being aborted prematurely
+  being aborted prematurely (default: `15000` ms)
 - `keepAlive` - If set the `false` the client will not reuse sockets
   between requests (default: `true`)
 - `headers` - Extra HTTP headers that should be sent to the APM Server
