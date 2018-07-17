@@ -1,5 +1,6 @@
 # elastic-apm-http-client
 
+[![npm](https://img.shields.io/npm/v/elastic-apm-http-client.svg)](https://www.npmjs.com/package/elastic-apm-http-client)
 [![Build status](https://travis-ci.org/elastic/apm-nodejs-http-client.svg?branch=master)](https://travis-ci.org/elastic/apm-nodejs-http-client)
 [![Standard - JavaScript Style Guide](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat)](https://github.com/feross/standard)
 
@@ -16,7 +17,7 @@ Node.js](https://github.com/elastic/apm-agent-nodejs) instead.
 ## Installation
 
 ```
-npm install elastic-apm-http-client
+npm install elastic-apm-http-client --save
 ```
 
 ## Example Usage
@@ -92,4 +93,4 @@ The callback function is called with 3 arguments:
 
 ## License
 
-MIT
+[MIT](https://github.com/elastic/apm-nodejs-http-client/blob/master/LICENSE)
