@@ -59,7 +59,8 @@ Config options:
   being aborted prematurely (default: `15000` ms)
 - `keepAlive` - If set the `false` the client will not reuse sockets
   between requests (default: `true`)
-- `headers` - Extra HTTP headers that should be sent to the APM Server
+- `headers` - An object containing extra HTTP headers that should be
+  used when making HTTP requests to he APM Server
 - `size` - The maxiumum compressed body size (in bytes) of each HTTP
   request to the APM Server. An overshoot of up to the size of the
   internal zlib buffer should be expected as the buffer is flushed after
