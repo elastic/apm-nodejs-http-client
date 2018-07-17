@@ -52,8 +52,14 @@ Config options:
 - `serverUrl` - The APM Server URL (default: `http://localhost:8200`)
 - `rejectUnauthorized` - Set to `false` if the client shouldn't verify
   the APM Server TLS certificates (default: `true`)
-- `keepAlive` - If set the `false` the client will not reuse TCP sockets
+- `serverTimeout` - HTTP request timeout in milliseconds. If no data is
+  sent or received on the socket for this amount of time, the request
+  will be aborted. It's not recommended to set a `serverTimeout` lower
+  than the `time` config option. That might result in healthy requests
+  being aborted prematurely
+- `keepAlive` - If set the `false` the client will not reuse sockets
   between requests (default: `true`)
+- `headers` - Extra HTTP headers that should be sent to the APM Server
 - `size` - The maxiumum compressed body size (in bytes) of each HTTP
   request to the APM Server. An overshoot of up to the size of the
   internal zlib buffer should be expected as the buffer is flushed after
