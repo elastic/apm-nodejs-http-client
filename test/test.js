@@ -104,7 +104,7 @@ test('reject unauthorized TLS by default', function (t) {
 test('allow unauthorized TLS if asked', function (t) {
   t.plan(1)
   const server = APMServer({secure: true}, function (req, res) {
-    t.ok(true, 'should let request through')
+    t.pass('should let request through')
     res.end()
     server.close()
     t.end()
@@ -382,7 +382,7 @@ test('socket hang up - continue with new request', function (t) {
       t.deepEqual(obj, {req: 2}, 'should get data')
     })
     req.on('end', function () {
-      t.ok(true, 'should end request')
+      t.pass('should end request')
       res.end()
       server.close()
       t.end()
@@ -427,20 +427,22 @@ test('socket timeout - client request too slow', function (t) {
     start = Date.now()
     stream.write({foo: 42})
   }, function (err) {
-    count++
-    if (count === 1) {
-      const end = Date.now()
-      const delta = end - start
-      t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
-      t.equal(err.message, 'premature close')
-      t.equal(err.code, undefined)
-    } else if (count === 2) {
-      t.equal(err.message, 'socket hang up')
-      t.equal(err.code, 'ECONNRESET')
-      server.close()
-      t.end()
-    } else {
-      t.fail('too many errors')
+    switch (++count) {
+      case 1:
+        const end = Date.now()
+        const delta = end - start
+        t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
+        t.equal(err.message, 'premature close')
+        t.equal(err.code, undefined)
+        break
+      case 2:
+        t.equal(err.message, 'socket hang up')
+        t.equal(err.code, 'ECONNRESET')
+        server.close()
+        t.end()
+        break
+      default:
+        t.fail('too many errors')
     }
   })
 })
