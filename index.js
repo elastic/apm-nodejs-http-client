@@ -1,7 +1,6 @@
 'use strict'
 
 const parseUrl = require('url').parse
-const http = require('http')
 const zlib = require('zlib')
 const pump = require('pump')
 const ndjson = require('ndjson')
@@ -105,7 +104,7 @@ function normalizeOptions (opts) {
   }, opts)
 
   result.serverUrl = parseUrl(result.serverUrl)
-  result.transport = result.serverUrl.protocol === 'https:' ? require('https') : http
+  result.transport = require(result.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
   result.agent = getAgent(result)
 
   return result
