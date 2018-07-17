@@ -4,6 +4,7 @@ const parseUrl = require('url').parse
 const zlib = require('zlib')
 const pump = require('pump')
 const ndjson = require('ndjson')
+const safeStringify = require('fast-safe-stringify')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
 const pkg = require('./package')
@@ -37,6 +38,7 @@ function Client (opts, onerror) {
 }
 
 function onStream (opts, onerror) {
+  const meta = opts.meta
   const transport = opts.transport
   const serverTimeout = opts.serverTimeout
   opts = getRequestOptions(opts)
@@ -71,6 +73,9 @@ function onStream (opts, onerror) {
       req.on('error', onerror)
       next()
     })
+
+    // All requests to the APM Server must start with a metadata object
+    stream.write(safeStringify({metadata: meta()}) + '\n')
   }
 }
 
@@ -94,6 +99,7 @@ function onResult (onerror) {
 
 function normalizeOptions (opts) {
   if (!opts.userAgent) throw new Error('Missing required option: userAgent')
+  if (!opts.meta) throw new Error('Missing required option: meta')
 
   const normalized = Object.assign({}, opts)
 

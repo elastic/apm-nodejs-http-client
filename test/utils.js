@@ -11,6 +11,7 @@ const Client = require('../')
 exports.APMServer = APMServer
 exports.processReq = processReq
 exports.assertReq = assertReq
+exports.onmeta = onmeta
 
 function APMServer (opts, onreq) {
   if (typeof opts === 'function') return APMServer(null, opts)
@@ -39,7 +40,8 @@ function APMServer (opts, onreq) {
       const stream = Client(Object.assign({
         serverUrl: `http${secure ? 's' : ''}://localhost:${server.address().port}`,
         secretToken: 'secret',
-        userAgent: 'foo'
+        userAgent: 'foo',
+        meta: onmeta
       }, opts), onerror)
       onclient(stream)
     })
@@ -63,3 +65,7 @@ function assertReq (t, req) {
   t.equal(req.headers['user-agent'], `foo ${pkg.name}/${pkg.version}`, 'should add proper User-Agent')
 }
 assertReq.asserts = 7
+
+function onmeta () {
+  return {}
+}

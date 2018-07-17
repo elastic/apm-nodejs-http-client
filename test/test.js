@@ -11,6 +11,7 @@ const Client = require('../')
 const APMServer = utils.APMServer
 const processReq = utils.processReq
 const assertReq = utils.assertReq
+const onmeta = utils.onmeta
 
 /**
  * Setup and config
@@ -29,9 +30,26 @@ test('throw if missing required options', function (t) {
   t.end()
 })
 
-test('only userAgent should be required', function (t) {
-  t.doesNotThrow(function () {
+test('throw if only userAgent is provided', function (t) {
+  t.throws(function () {
     Client({userAgent: 'foo'})
+  })
+  t.end()
+})
+
+test('throw if only meta is provided', function (t) {
+  t.throws(function () {
+    Client({meta: onmeta})
+  })
+  t.end()
+})
+
+test('only userAgent and meta should be required', function (t) {
+  t.doesNotThrow(function () {
+    Client({
+      userAgent: 'foo',
+      meta: onmeta
+    })
   })
   t.end()
 })
@@ -40,6 +58,7 @@ test('null value config options shouldn\'t throw', function (t) {
   t.doesNotThrow(function () {
     Client({
       userAgent: 'foo', // so we don't throw
+      meta: onmeta, // so we don't throw
       size: null,
       time: null,
       serverTimeout: null,
@@ -62,7 +81,8 @@ test('no secretToken', function (t) {
   server.listen(function () {
     Client({
       serverUrl: 'http://localhost:' + server.address().port,
-      userAgent: 'foo'
+      userAgent: 'foo',
+      meta: onmeta
     }).end({foo: 42})
   })
 })
@@ -78,6 +98,7 @@ test('custom headers', function (t) {
     Client({
       serverUrl: 'http://localhost:' + server.address().port,
       userAgent: 'foo',
+      meta: onmeta,
       headers: {
         'X-Foo': 'bar'
       }
@@ -95,7 +116,8 @@ test('serverUrl contains path', function (t) {
   }).listen(function () {
     Client({
       serverUrl: 'http://localhost:' + server.address().port + '/subpath',
-      userAgent: 'foo'
+      userAgent: 'foo',
+      meta: onmeta
     }).end({foo: 42})
   })
 })
@@ -133,12 +155,16 @@ test('allow unauthorized TLS if asked', function (t) {
  */
 
 test('stream.end(data)', function (t) {
-  t.plan(1 + assertReq.asserts)
+  t.plan(2 + assertReq.asserts)
+  const datas = [
+    {metadata: {}},
+    {foo: 42}
+  ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, {foo: 42})
+      t.deepEqual(obj, datas.shift())
     })
     req.on('end', function () {
       res.end()
@@ -151,12 +177,16 @@ test('stream.end(data)', function (t) {
 })
 
 test('stream.write(data) + stream.end()', function (t) {
-  t.plan(1 + assertReq.asserts)
+  t.plan(2 + assertReq.asserts)
+  const datas = [
+    {metadata: {}},
+    {foo: 42}
+  ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, {foo: 42})
+      t.deepEqual(obj, datas.shift())
     })
     req.on('end', function () {
       res.end()
@@ -170,12 +200,16 @@ test('stream.write(data) + stream.end()', function (t) {
 })
 
 test('single stream.write', function (t) {
-  t.plan(1 + assertReq.asserts)
+  t.plan(2 + assertReq.asserts)
+  const datas = [
+    {metadata: {}},
+    {foo: 42}
+  ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, {foo: 42})
+      t.deepEqual(obj, datas.shift())
     })
     req.on('end', function () {
       res.end()
@@ -188,13 +222,18 @@ test('single stream.write', function (t) {
 })
 
 test('multiple stream.write (same request)', function (t) {
-  t.plan(3 + assertReq.asserts)
+  t.plan(4 + assertReq.asserts)
+  const datas = [
+    {metadata: {}},
+    {req: 1},
+    {req: 2},
+    {req: 3}
+  ]
   const server = APMServer(function (req, res) {
-    let counter = 0
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, {req: ++counter})
+      t.deepEqual(obj, datas.shift())
     })
     req.on('end', function () {
       res.end()
@@ -209,20 +248,30 @@ test('multiple stream.write (same request)', function (t) {
 })
 
 test('multiple stream.write (multiple requests)', function (t) {
-  t.plan(6 + assertReq.asserts * 2)
+  t.plan(8 + assertReq.asserts * 2)
 
   let clientReqNum = 0
   let clientWriteNum = 0
   let serverReqNum = 0
-  let serverDataNum = 0
   let stream
+
+  const datas = [
+    {metadata: {}},
+    {req: 1, write: 1},
+    {req: 1, write: 2},
+    {req: 1, write: 3},
+    {metadata: {}},
+    {req: 2, write: 4},
+    {req: 2, write: 5},
+    {req: 2, write: 6}
+  ]
 
   const server = APMServer(function (req, res) {
     let reqNum = ++serverReqNum
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, {req: reqNum, write: ++serverDataNum})
+      t.deepEqual(obj, datas.shift())
     })
     req.on('end', function () {
       res.end()
@@ -251,13 +300,18 @@ test('multiple stream.write (multiple requests)', function (t) {
  */
 
 test('client should not hold the process open', function (t) {
-  t.plan(2 + assertReq.asserts)
+  t.plan(3 + assertReq.asserts)
+
+  const datas = [
+    {metadata: {}},
+    {hello: 'world'}
+  ]
 
   const server = APMServer(function (req, res) {
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, {hello: 'world'}, 'should get data from client')
+      t.deepEqual(obj, datas.shift())
     })
     req.on('end', function () {
       res.statusCode = 202
@@ -377,9 +431,13 @@ test('socket hang up', function (t) {
 })
 
 test('socket hang up - continue with new request', function (t) {
-  t.plan(4 + assertReq.asserts * 2)
+  t.plan(5 + assertReq.asserts * 2)
   let reqs = 0
   let stream
+  const datas = [
+    {metadata: {}},
+    {req: 2}
+  ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
 
@@ -394,7 +452,7 @@ test('socket hang up - continue with new request', function (t) {
 
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, {req: 2}, 'should get data')
+      t.deepEqual(obj, datas.shift())
     })
     req.on('end', function () {
       t.pass('should end request')

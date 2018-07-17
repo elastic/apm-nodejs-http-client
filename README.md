@@ -25,7 +25,13 @@ npm install elastic-apm-http-client
 const Client = require('elastic-apm-http-client')
 
 const stream = Client({
-  userAgent: 'My Custom Elastic APM Agent'
+  userAgent: 'My Custom Elastic APM Agent',
+  meta: function () {
+    return {
+      // meta data object sent as the first ndjson object in all HTTP
+      // requests to the APM Server
+    }
+  }
 }, function (err) {
   throw err
 })
@@ -48,6 +54,10 @@ Config options:
 
 - `userAgent` - (required) The HTTP user agent that your module should
   identify it self as
+- `meta` - (required) A function which will be called every time the a
+  new HTTP request is being made to the APM Server. It's expected that
+  you return a metadata object. This object will be sent as the first
+  ndjson object to the API
 - `secretToken` - The Elastic APM intake API secret token
 - `serverUrl` - The APM Server URL (default: `http://localhost:8200`)
 - `rejectUnauthorized` - Set to `false` if the client shouldn't verify
