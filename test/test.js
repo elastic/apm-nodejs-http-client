@@ -36,6 +36,21 @@ test('only userAgent should be required', function (t) {
   t.end()
 })
 
+test('null value config options shouldn\'t throw', function (t) {
+  t.doesNotThrow(function () {
+    Client({
+      userAgent: 'foo', // so we don't throw
+      size: null,
+      time: null,
+      serverTimeout: null,
+      type: null,
+      serverUrl: null,
+      keepAlive: null
+    })
+  })
+  t.end()
+})
+
 test('no secretToken', function (t) {
   t.plan(1)
   const server = APMServer(function (req, res) {

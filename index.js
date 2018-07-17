@@ -95,20 +95,22 @@ function onResult (onerror) {
 function normalizeOptions (opts) {
   if (!opts.userAgent) throw new Error('Missing required option: userAgent')
 
-  const result = Object.assign({
-    size: 1024 * 1024,
-    time: 10000,
-    type: StreamChopper.overflow,
-    serverUrl: 'http://localhost:8200',
-    keepAlive: true,
-    serverTimeout: 15000
-  }, opts)
+  const normalized = Object.assign({}, opts)
 
-  result.serverUrl = parseUrl(result.serverUrl)
-  result.transport = require(result.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
-  result.agent = getAgent(result)
+  // default values
+  if (!normalized.size && normalized.size !== 0) normalized.size = 1024 * 1024
+  if (!normalized.time && normalized.time !== 0) normalized.time = 10000
+  if (!normalized.serverTimeout && normalized.serverTimeout !== 0) normalized.serverTimeout = 15000
+  if (!normalized.type) normalized.type = StreamChopper.overflow
+  if (!normalized.serverUrl) normalized.serverUrl = 'http://localhost:8200'
+  normalized.keepAlive = normalized.keepAlive !== false
 
-  return result
+  // process
+  normalized.serverUrl = parseUrl(normalized.serverUrl)
+  normalized.transport = require(normalized.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
+  normalized.agent = getAgent(normalized)
+
+  return normalized
 }
 
 function getAgent (opts) {
