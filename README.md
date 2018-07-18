@@ -25,7 +25,7 @@ npm install elastic-apm-http-client
 ```js
 const Client = require('elastic-apm-http-client')
 
-const stream = Client({
+const client = new Client({
   userAgent: 'My Custom Elastic APM Agent',
   meta: function () {
     return {
@@ -33,23 +33,26 @@ const stream = Client({
       // requests to the APM Server
     }
   }
-}, function (err) {
-  throw err
 })
 
-stream.write(span)
+client.on('error', function (err) {
+  console.log('Client encountered and error:', err.message)
+})
+
+client.sendSpan(span)
 ```
 
 ## API
 
-### `stream = Client(options[, onerror])`
+### `new Client(options)`
+
+Construct a new `client` object. Data given to the client will be
+converted to JSON, compressed using gzip, and streamed to the APM
+Server.
 
 Arguments:
 
 - `options` - An object containing config options
-- `onerror` - An optional error callback which will be called with an
-  error object if the client ever encounters an error. If no `onerror`
-  function is provided, any error that occur will be thrown
 
 Config options:
 
@@ -81,10 +84,72 @@ Config options:
   to the APM Server can be ongoing before it's ended (default: `10000`
   ms)
 
-The `Client` function will return a writable `stream`, to which the data
-that should be sent to the APM Server should be written. The stream will
-convert the data to [ndjson](http://ndjson.org), compress it using gzip,
-and stream it to the APM Server.
+### Event: `error`
+
+Emitted if an error occurs. The listener callback is passed a single
+Error argument when called.
+
+### Event: `finish`
+
+Emitted when the client are done sending data to the APM Server.
+
+### `client.sendSpan(span[, callback])`
+
+Send a span to the APM Server.
+
+Arguments:
+
+- `span` - A span object that can be serialized to JSON
+- `callback` - Callback is called when the `span` have been flushed to
+  the underlying stream
+
+### `client.sendTransaction(transaction[, callback])`
+
+Send a transaction to the APM Server.
+
+Arguments:
+
+- `transaction` - A transaction object that can be serialized to JSON
+- `callback` - Callback is called when the `transaction` have been
+  flushed to the underlying stream
+
+### `client.sendError(error[, callback])`
+
+Send a error to the APM Server.
+
+Arguments:
+
+- `error` - A error object that can be serialized to JSON
+- `callback` - Callback is called when the `error` have been flushed to
+  the underlying stream
+
+### `client.flush([callback])
+
+Flush the internal buffer and end the current HTTP request to the APM
+Server. If no HTTP request is in process nothing happens.
+
+Arguments:
+
+- `callback` - Callback is called when the internal buffer have been
+  flushed and the HTTP request ended. If no HTTP request is in progress
+  the callback is called in the next tick.
+
+### `client.end([callback])
+
+Calling the `client.end()` method signals that no more data will be sent
+to the `client`. If the internal buffer contains any data, this is
+flushed before ending.
+
+Arguments:
+
+- `callback` - If provided, the optional `callback` function is attached
+  as a listener for the 'finish' event
+
+### `client.destroy()`
+
+Destroy the `client`. After this call, the client has ended and
+subsequent calls to `sendSpan()`, `sendTransaction()`, `sendError()`,
+`flush()`, or `end()` will result in an error.
 
 ## License
 

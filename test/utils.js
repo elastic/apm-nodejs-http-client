@@ -30,9 +30,8 @@ function APMServer (opts, onreq) {
     socket.unref()
   })
 
-  server.client = function (opts, onclient, onerror) {
+  server.client = function (opts, onclient) {
     if (typeof opts === 'function') {
-      onerror = onclient
       onclient = opts
       opts = {}
     }
@@ -42,7 +41,7 @@ function APMServer (opts, onreq) {
         secretToken: 'secret',
         userAgent: 'foo',
         meta: onmeta
-      }, opts), onerror))
+      }, opts)))
     })
     return server
   }

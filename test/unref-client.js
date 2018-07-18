@@ -13,4 +13,4 @@ const client = new Client({
 
 process.stdout.write(String(Date.now()))
 
-client.writeSpan({hello: 'world'}) // Don't end the stream
+client.sendSpan({hello: 'world'}) // Don't end the stream

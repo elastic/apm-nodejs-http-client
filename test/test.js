@@ -96,7 +96,7 @@ test('no secretToken', function (t) {
       userAgent: 'foo',
       meta: onmeta
     })
-    client.writeSpan({foo: 42})
+    client.sendSpan({foo: 42})
     client.end()
   })
 })
@@ -117,7 +117,7 @@ test('custom headers', function (t) {
         'X-Foo': 'bar'
       }
     })
-    client.writeSpan({foo: 42})
+    client.sendSpan({foo: 42})
     client.end()
   })
 })
@@ -135,25 +135,25 @@ test('serverUrl contains path', function (t) {
       userAgent: 'foo',
       meta: onmeta
     })
-    client.writeSpan({foo: 42})
+    client.sendSpan({foo: 42})
     client.end()
   })
 })
 
 test('reject unauthorized TLS by default', function (t) {
   t.plan(3)
-
   const server = APMServer({secure: true}, function (req, res) {
     t.fail('should should not get request')
   }).client(function (client) {
-    client.writeSpan({foo: 42})
+    client.on('error', function (err) {
+      t.ok(err instanceof Error)
+      t.equal(err.message, 'self signed certificate')
+      t.equal(err.code, 'DEPTH_ZERO_SELF_SIGNED_CERT')
+      server.close()
+      t.end()
+    })
+    client.sendSpan({foo: 42})
     client.end()
-  }, function (err) {
-    t.ok(err instanceof Error)
-    t.equal(err.message, 'self signed certificate')
-    t.equal(err.code, 'DEPTH_ZERO_SELF_SIGNED_CERT')
-    server.close()
-    t.end()
   })
 })
 
@@ -165,7 +165,7 @@ test('allow unauthorized TLS if asked', function (t) {
     server.close()
     t.end()
   }).client({rejectUnauthorized: false}, function (client) {
-    client.writeSpan({foo: 42})
+    client.sendSpan({foo: 42})
     client.end()
   })
 })
@@ -177,9 +177,9 @@ test('allow unauthorized TLS if asked', function (t) {
 const dataTypes = ['span', 'transaction', 'error']
 
 dataTypes.forEach(function (dataType) {
-  const writeFn = 'write' + dataType.charAt(0).toUpperCase() + dataType.substr(1)
+  const sendFn = 'send' + dataType.charAt(0).toUpperCase() + dataType.substr(1)
 
-  test(`client.${writeFn}() + client.flush()`, function (t) {
+  test(`client.${sendFn}() + client.flush()`, function (t) {
     t.plan(2 + assertReq.asserts)
     const datas = [
       {metadata: {}},
@@ -197,12 +197,39 @@ dataTypes.forEach(function (dataType) {
         t.end()
       })
     }).client(function (client) {
-      client[writeFn]({foo: 42})
+      client[sendFn]({foo: 42})
       client.flush()
     })
   })
 
-  test(`client.${writeFn}() + client.end()`, function (t) {
+  test(`client.${sendFn}(callback) + client.flush()`, function (t) {
+    t.plan(3 + assertReq.asserts)
+    const datas = [
+      {metadata: {}},
+      {[dataType]: {foo: 42}}
+    ]
+    const server = APMServer(function (req, res) {
+      assertReq(t, req)
+      req = processReq(req)
+      req.on('data', function (obj) {
+        t.deepEqual(obj, datas.shift())
+      })
+      req.on('end', function () {
+        res.end()
+        server.close()
+        t.end()
+      })
+    }).client(function (client) {
+      let nexttick = false
+      client[sendFn]({foo: 42}, function () {
+        t.ok(nexttick, 'should call callback')
+      })
+      client.flush()
+      nexttick = true
+    })
+  })
+
+  test(`client.${sendFn}() + client.end()`, function (t) {
     t.plan(2 + assertReq.asserts)
     const datas = [
       {metadata: {}},
@@ -220,12 +247,12 @@ dataTypes.forEach(function (dataType) {
         t.end()
       })
     }).client(function (client) {
-      client[writeFn]({foo: 42})
+      client[sendFn]({foo: 42})
       client.end()
     })
   })
 
-  test(`single client.${writeFn}`, function (t) {
+  test(`single client.${sendFn}`, function (t) {
     t.plan(2 + assertReq.asserts)
     const datas = [
       {metadata: {}},
@@ -243,11 +270,11 @@ dataTypes.forEach(function (dataType) {
         t.end()
       })
     }).client({time: 100}, function (client) {
-      client[writeFn]({foo: 42})
+      client[sendFn]({foo: 42})
     })
   })
 
-  test('multiple client.write (same request)', function (t) {
+  test(`multiple client.${sendFn} (same request)`, function (t) {
     t.plan(4 + assertReq.asserts)
     const datas = [
       {metadata: {}},
@@ -267,29 +294,29 @@ dataTypes.forEach(function (dataType) {
         t.end()
       })
     }).client({time: 100}, function (client) {
-      client[writeFn]({req: 1})
-      client[writeFn]({req: 2})
-      client[writeFn]({req: 3})
+      client[sendFn]({req: 1})
+      client[sendFn]({req: 2})
+      client[sendFn]({req: 3})
     })
   })
 
-  test('multiple client.write (multiple requests)', function (t) {
+  test(`multiple client.${sendFn} (multiple requests)`, function (t) {
     t.plan(8 + assertReq.asserts * 2)
 
     let clientReqNum = 0
-    let clientWriteNum = 0
+    let clientSendNum = 0
     let serverReqNum = 0
     let client
 
     const datas = [
       {metadata: {}},
-      {[dataType]: {req: 1, write: 1}},
-      {[dataType]: {req: 1, write: 2}},
-      {[dataType]: {req: 1, write: 3}},
+      {[dataType]: {req: 1, send: 1}},
+      {[dataType]: {req: 1, send: 2}},
+      {[dataType]: {req: 1, send: 3}},
       {metadata: {}},
-      {[dataType]: {req: 2, write: 4}},
-      {[dataType]: {req: 2, write: 5}},
-      {[dataType]: {req: 2, write: 6}}
+      {[dataType]: {req: 2, send: 4}},
+      {[dataType]: {req: 2, send: 5}},
+      {[dataType]: {req: 2, send: 6}}
     ]
 
     const server = APMServer(function (req, res) {
@@ -302,7 +329,7 @@ dataTypes.forEach(function (dataType) {
       req.on('end', function () {
         res.end()
         if (reqNum === 1) {
-          write()
+          send()
         } else {
           server.close()
           t.end()
@@ -310,15 +337,65 @@ dataTypes.forEach(function (dataType) {
       })
     }).client({time: 100}, function (_client) {
       client = _client
-      write()
+      send()
     })
 
-    function write () {
+    function send () {
       clientReqNum++
       for (let n = 0; n < 3; n++) {
-        client[writeFn]({req: clientReqNum, write: ++clientWriteNum})
+        client[sendFn]({req: clientReqNum, send: ++clientSendNum})
       }
     }
+  })
+})
+
+test('client.flush(callback)', function (t) {
+  t.plan(3 + assertReq.asserts)
+  const datas = [
+    {metadata: {}},
+    {span: {foo: 42}}
+  ]
+  const server = APMServer(function (req, res) {
+    assertReq(t, req)
+    req = processReq(req)
+    req.on('data', function (obj) {
+      t.deepEqual(obj, datas.shift())
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client(function (client) {
+    client.sendSpan({foo: 42})
+    client.flush(function () {
+      t.pass('should call callback')
+    })
+  })
+})
+
+test('client.end(callback)', function (t) {
+  t.plan(3 + assertReq.asserts)
+  const datas = [
+    {metadata: {}},
+    {span: {foo: 42}}
+  ]
+  const server = APMServer(function (req, res) {
+    assertReq(t, req)
+    req = processReq(req)
+    req.on('data', function (obj) {
+      t.deepEqual(obj, datas.shift())
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client(function (client) {
+    client.sendSpan({foo: 42})
+    client.end(function () {
+      t.pass('should call callback')
+    })
   })
 })
 
@@ -365,19 +442,36 @@ test('client should not hold the process open', function (t) {
  * Edge cases
  */
 
+test.skip('write after end', function (t) {
+  t.plan(2)
+  const server = APMServer(function (req, res) {
+    t.fail('should never get any request')
+  }).client(function (client) {
+    client.on('error', function (err) {
+      t.ok(err instanceof Error)
+      t.equal(err.message, 'write after end')
+      server.close()
+      t.end()
+    })
+    client.end()
+    client.sendSpan({foo: 42})
+  })
+})
+
 test('request with error - no body', function (t) {
   const server = APMServer(function (req, res) {
     res.statusCode = 418
     res.end()
   }).client(function (client) {
-    client.writeSpan({foo: 42})
+    client.on('error', function (err) {
+      t.ok(err instanceof Error)
+      t.equal(err.message, 'Unexpected response code from APM Server: 418')
+      t.equal(err.result, undefined)
+      server.close()
+      t.end()
+    })
+    client.sendSpan({foo: 42})
     client.flush()
-  }, function (err) {
-    t.ok(err instanceof Error)
-    t.equal(err.message, 'Unexpected response code from APM Server: 418')
-    t.equal(err.result, undefined)
-    server.close()
-    t.end()
   })
 })
 
@@ -386,14 +480,15 @@ test('request with error - non json body', function (t) {
     res.statusCode = 418
     res.end('boom!')
   }).client(function (client) {
-    client.writeSpan({foo: 42})
+    client.on('error', function (err) {
+      t.ok(err instanceof Error)
+      t.equal(err.message, 'Unexpected response code from APM Server: 418')
+      t.equal(err.result, 'boom!')
+      server.close()
+      t.end()
+    })
+    client.sendSpan({foo: 42})
     client.flush()
-  }, function (err) {
-    t.ok(err instanceof Error)
-    t.equal(err.message, 'Unexpected response code from APM Server: 418')
-    t.equal(err.result, 'boom!')
-    server.close()
-    t.end()
   })
 })
 
@@ -403,14 +498,15 @@ test('request with error - invalid json body', function (t) {
     res.setHeader('Content-Type', 'application/json')
     res.end('boom!')
   }).client(function (client) {
-    client.writeSpan({foo: 42})
+    client.on('error', function (err) {
+      t.ok(err instanceof Error)
+      t.equal(err.message, 'Unexpected response code from APM Server: 418')
+      t.equal(err.result, 'boom!')
+      server.close()
+      t.end()
+    })
+    client.sendSpan({foo: 42})
     client.flush()
-  }, function (err) {
-    t.ok(err instanceof Error)
-    t.equal(err.message, 'Unexpected response code from APM Server: 418')
-    t.equal(err.result, 'boom!')
-    server.close()
-    t.end()
   })
 })
 
@@ -421,14 +517,15 @@ test('request with error - json body without error property', function (t) {
     res.setHeader('Content-Type', 'application/json')
     res.end(body)
   }).client(function (client) {
-    client.writeSpan({foo: 42})
+    client.on('error', function (err) {
+      t.ok(err instanceof Error)
+      t.equal(err.message, 'Unexpected response code from APM Server: 418')
+      t.equal(err.result, body)
+      server.close()
+      t.end()
+    })
+    client.sendSpan({foo: 42})
     client.flush()
-  }, function (err) {
-    t.ok(err instanceof Error)
-    t.equal(err.message, 'Unexpected response code from APM Server: 418')
-    t.equal(err.result, body)
-    server.close()
-    t.end()
   })
 })
 
@@ -438,14 +535,15 @@ test('request with error - json body with error property', function (t) {
     res.setHeader('Content-Type', 'application/json')
     res.end(JSON.stringify({error: 'bar'}))
   }).client(function (client) {
-    client.writeSpan({foo: 42})
+    client.on('error', function (err) {
+      t.ok(err instanceof Error)
+      t.equal(err.message, 'Unexpected response code from APM Server: 418')
+      t.equal(err.result, 'bar')
+      server.close()
+      t.end()
+    })
+    client.sendSpan({foo: 42})
     client.flush()
-  }, function (err) {
-    t.ok(err instanceof Error)
-    t.equal(err.message, 'Unexpected response code from APM Server: 418')
-    t.equal(err.result, 'bar')
-    server.close()
-    t.end()
   })
 })
 
@@ -453,17 +551,22 @@ test('socket hang up', function (t) {
   const server = APMServer(function (req, res) {
     req.socket.destroy()
   }).client(function (client) {
-    client.writeSpan({foo: 42})
-  }, function (err) {
-    t.equal(err.message, 'socket hang up')
-    t.equal(err.code, 'ECONNRESET')
-    server.close()
-    t.end()
+    client.on('error', function (err) {
+      t.equal(err.message, 'socket hang up')
+      t.equal(err.code, 'ECONNRESET')
+      server.close()
+      client.destroy()
+      t.end()
+    })
+    client.on('finish', function () {
+      t.fail('should not emit finish')
+    })
+    client.sendSpan({foo: 42})
   })
 })
 
 test('socket hang up - continue with new request', function (t) {
-  t.plan(5 + assertReq.asserts * 2)
+  t.plan(6 + assertReq.asserts * 2)
   let reqs = 0
   let client
   const datas = [
@@ -494,51 +597,55 @@ test('socket hang up - continue with new request', function (t) {
     })
   }).client(function (_client) {
     client = _client
-    client.writeSpan({req: 1})
-  }, function (err) {
-    t.equal(err.message, 'socket hang up')
-    t.equal(err.code, 'ECONNRESET')
-    client.writeSpan({req: 2})
+    client.on('error', function (err) {
+      t.equal(err.message, 'socket hang up')
+      t.equal(err.code, 'ECONNRESET')
+      client.sendSpan({req: 2})
+    })
+    client.on('finish', function () {
+      t.equal(reqs, 2, 'should emit finish after last request')
+    })
+    client.sendSpan({req: 1})
   })
 })
 
 test('socket timeout - server response too slow', function (t) {
-  let start
   const server = APMServer(function (req, res) {
     req.resume()
   }).client({serverTimeout: 1000}, function (client) {
-    start = Date.now()
-    client.writeSpan({foo: 42})
+    const start = Date.now()
+    client.on('error', function (err) {
+      const end = Date.now()
+      const delta = end - start
+      t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
+      t.equal(err.message, 'socket hang up')
+      t.equal(err.code, 'ECONNRESET')
+      server.close()
+      t.end()
+    })
+    client.sendSpan({foo: 42})
     client.end()
-  }, function (err) {
-    const end = Date.now()
-    const delta = end - start
-    t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
-    t.equal(err.message, 'socket hang up')
-    t.equal(err.code, 'ECONNRESET')
-    server.close()
-    t.end()
   })
 })
 
 test('socket timeout - client request too slow', function (t) {
-  let start
   const server = APMServer(function (req, res) {
     req.resume()
     req.on('end', function () {
       res.end()
     })
   }).client({serverTimeout: 1000}, function (client) {
-    start = Date.now()
-    client.writeSpan({foo: 42})
-  }, function (err) {
-    const end = Date.now()
-    const delta = end - start
-    t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
-    t.equal(err.message, 'socket hang up')
-    t.equal(err.code, 'ECONNRESET')
-    server.close()
-    t.end()
+    const start = Date.now()
+    client.on('error', function (err) {
+      const end = Date.now()
+      const delta = end - start
+      t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
+      t.equal(err.message, 'socket hang up')
+      t.equal(err.code, 'ECONNRESET')
+      server.close()
+      t.end()
+    })
+    client.sendSpan({foo: 42})
   })
 })
 
@@ -547,11 +654,39 @@ test('client.destroy() - on fresh client', function (t) {
     userAgent: 'foo',
     meta: onmeta
   })
+  client.on('finish', function () {
+    t.fail('should not emit finish')
+  })
   client.destroy()
   t.end()
 })
 
+test('client.destroy() - should not allow more writes', function (t) {
+  t.plan(5)
+
+  const client = new Client({
+    userAgent: 'foo',
+    meta: onmeta
+  })
+  client.on('error', function (err) {
+    t.ok(err instanceof Error)
+  })
+  client.destroy()
+  client.sendSpan({foo: 42}, fail)
+  client.sendTransaction({foo: 42}, fail)
+  client.sendError({foo: 42}, fail)
+  client.flush(fail)
+  client.end(fail)
+
+  t.end()
+
+  function fail () {
+    t.fail('should not call callback')
+  }
+})
+
 test('client.destroy() - on ended client', function (t) {
+  t.plan(1)
   let client
 
   // create a server that doesn't unref incoming sockets to see if
@@ -572,7 +707,10 @@ test('client.destroy() - on ended client', function (t) {
       userAgent: 'foo',
       meta: onmeta
     })
-    client.writeSpan({foo: 42})
+    client.on('finish', function () {
+      t.pass('should emit finish only once')
+    })
+    client.sendSpan({foo: 42})
     client.end()
   })
 })
@@ -594,6 +732,9 @@ test('client.destroy() - on client with request in progress', function (t) {
       userAgent: 'foo',
       meta: onmeta
     })
-    client.writeSpan({foo: 42})
+    client.on('finish', function () {
+      t.fail('should not emit finish')
+    })
+    client.sendSpan({foo: 42})
   })
 })

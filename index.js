@@ -1,7 +1,9 @@
 'use strict'
 
+const util = require('util')
 const parseUrl = require('url').parse
 const zlib = require('zlib')
+const EventEmitter = require('events')
 const pump = require('pump')
 const ndjson = require('ndjson')
 const safeStringify = require('fast-safe-stringify')
@@ -24,14 +26,17 @@ process.once('beforeExit', function () {
   })
 })
 
-function Client (opts, onerror) {
-  if (!(this instanceof Client)) return new Client(opts, onerror)
+util.inherits(Client, EventEmitter)
+
+function Client (opts) {
+  if (!(this instanceof Client)) return new Client(opts)
 
   opts = normalizeOptions(opts)
-  onerror = onerror || throwerr
+
+  EventEmitter.call(this, opts)
 
   const errorproxy = (err) => {
-    if (this._destroyed === false) onerror(err)
+    if (this._destroyed === false) this.emit('error', err)
   }
 
   this._transport = require(opts.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
@@ -42,12 +47,13 @@ function Client (opts, onerror) {
   this._stream = ndjson.serialize()
   this._chopper = new StreamChopper(opts).on('stream', onStream(opts, this, errorproxy))
 
-  pump(this._stream, this._chopper, err => {
-    if (err) errorproxy(err)
-  })
-
   this._stream.on('error', errorproxy)
   this._chopper.on('error', errorproxy)
+  this._chopper.once('finish', () => {
+    this.emit('finish')
+  })
+
+  pump(this._stream, this._chopper)
 
   this._index = clients.length
   clients.push(this)
@@ -63,45 +69,57 @@ Client.prototype._ref = function () {
 }
 
 Client.prototype._write = function (obj, cb) {
+  if (this._destroyed) {
+    this.emit('error', new Error('data sent to destroyed Elastic APM client'))
+    return
+  }
   return this._stream.write(obj, cb)
 }
 
-Client.prototype.writeSpan = function (span, cb) {
+Client.prototype.sendSpan = function (span, cb) {
   return this._write({span}, cb)
 }
 
-Client.prototype.writeTransaction = function (transaction, cb) {
+Client.prototype.sendTransaction = function (transaction, cb) {
   return this._write({transaction}, cb)
 }
 
-Client.prototype.writeError = function (error, cb) {
+Client.prototype.sendError = function (error, cb) {
   return this._write({error}, cb)
 }
 
 Client.prototype.flush = function (cb) {
+  if (this._destroyed) {
+    this.emit('error', new Error('flush called on destroyed Elastic APM client'))
+    return
+  }
+  if (this._ended) return // TODO: call bacllback?
   // TODO: If there's backpreasure the ndjson stream might contain some
   // unflushed data. This will not get flushed as part of this operation. But
   // maybe that's ok
   this._chopper.chop(cb)
-  return this
 }
 
 Client.prototype.end = function (cb) {
-  if (this._ended) return this
+  if (this._destroyed) {
+    this.emit('error', new Error('end called on destroyed Elastic APM client'))
+    return
+  }
+  if (this._ended) return // TODO: call callback?
   this._ended = true
   clients[this._index] = null // remove global reference to ease garbage collection
+  if (cb) this.once('finish', cb)
   this._ref()
-  this._stream.end(cb)
-  return this
+  this._stream.end()
 }
 
 Client.prototype.destroy = function () {
-  if (this._destroyed) return this
+  if (this._destroyed) return
   this._destroyed = true
+  clients[this._index] = null // remove global reference to ease garbage collection
   this._stream.destroy()
   this._chopper.destroy()
   this._agent.destroy()
-  return this
 }
 
 function onStream (opts, client, onerror) {
@@ -222,8 +240,4 @@ function getHeaders (opts) {
   headers['Accept'] = 'application/json'
   headers['User-Agent'] = opts.userAgent + ' ' + pkg.name + '/' + pkg.version
   return Object.assign(headers, opts.headers)
-}
-
-function throwerr (err) {
-  throw err
 }
