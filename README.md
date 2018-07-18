@@ -73,6 +73,13 @@ Config options:
   being aborted prematurely (default: `15000` ms)
 - `keepAlive` - If set the `false` the client will not reuse sockets
   between requests (default: `true`)
+- `keepAliveMsecs` - When using the `keepAlive` option, specifies the
+  initial delay for TCP Keep-Alive packets. Ignored when the `keepAlive`
+  option is `false` or `undefined` (default: `1000` ms)
+- `maxSockets` - Maximum number of sockets to allow per host (default:
+  `Infinity`)
+- `maxFreeSockets` - Maximum number of sockets to leave open in a free
+  state. Only relevant if `keepAlive` is set to `true` (default: `256`)
 - `headers` - An object containing extra HTTP headers that should be
   used when making HTTP requests to he APM Server
 - `size` - The maxiumum compressed body size (in bytes) of each HTTP

@@ -40,7 +40,7 @@ function Client (opts) {
   }
 
   this._transport = require(opts.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
-  this._agent = new this._transport.Agent({keepAlive: opts.keepAlive}) // TODO: Consider use of maxSockets and maxFreeSockets
+  this._agent = new this._transport.Agent(opts)
   this._ended = false
   this._destroyed = false
 
