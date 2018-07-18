@@ -20,10 +20,9 @@
   },
   "devDependencies": {
     "https-pem": "^2.0.0",
-    "nock": "^9.2.6",
     "semver": "^5.5.0",
     "standard": "^11.0.1",
-    "tape": "^4.9.0"
+    "tape": "^4.9.1"
   },
   "repository": {
     "type": "git",
