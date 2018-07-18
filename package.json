@@ -10,6 +10,9 @@
     "coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
     "test": "standard && nyc node test/test.js"
   },
+  "engines": {
+    "node" : ">=6.0.0"
+  },
   "author": "Thomas Watson <w@tson.dk> (https://twitter.com/wa7son)",
   "license": "MIT",
   "dependencies": {
