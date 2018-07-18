@@ -11,40 +11,121 @@ const pkg = require('./package')
 
 module.exports = Client
 
+// All sockets on the agent are unreffed when they are created. This means that
+// when those are the only handles left, the `beforeExit` event will be
+// emitted. By listening for this we can make sure to end the requests properly
+// before exiting. This way we don't keep the process running until the `time`
+// timeout happens.
+const clients = []
+process.once('beforeExit', function () {
+  clients.forEach(function (client) {
+    if (!client) return // clients remove them selfs from the array when they end
+    client.end()
+  })
+})
+
 function Client (opts, onerror) {
+  if (!(this instanceof Client)) return new Client(opts, onerror)
+
   opts = normalizeOptions(opts)
   onerror = onerror || throwerr
 
-  const serialize = ndjson.serialize()
-  // TODO: Is there a race condition between the `time` config option and the request timeout option?
-  const chopper = new StreamChopper(opts).on('stream', onStream(opts, onerror))
+  const errorproxy = (err) => {
+    if (this._destroyed === false) onerror(err)
+  }
 
-  // All sockets on the agent are unreffed when they are created. This means
-  // that when those are the only handles left, the `beforeExit` event will be
-  // emitted. By listening for this we can make sure to end the requests
-  // properly before exiting. This way we don't keep the process running until
-  // the `time` timeout happens.
-  // TODO: If you start too many clients (e.g. in a test), this will emit a too-many-listeners warning
-  process.once('beforeExit', function () {
-    opts.agent.ref() // re-ref the open socket handles
-    serialize.end()
+  this._transport = require(opts.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
+  this._agent = new this._transport.Agent({keepAlive: opts.keepAlive}) // TODO: Consider use of maxSockets and maxFreeSockets
+  this._ended = false
+  this._destroyed = false
+
+  this._stream = ndjson.serialize()
+  this._chopper = new StreamChopper(opts).on('stream', onStream(opts, this, errorproxy))
+
+  pump(this._stream, this._chopper, err => {
+    if (err) errorproxy(err)
   })
 
-  pump(serialize, chopper, function (err) {
-    if (err) onerror(err)
-  })
+  this._stream.on('error', errorproxy)
+  this._chopper.on('error', errorproxy)
 
-  return serialize
+  this._index = clients.length
+  clients.push(this)
 }
 
-function onStream (opts, onerror) {
+// re-ref the open socket handles
+Client.prototype._ref = function () {
+  Object.keys(this._agent.sockets).forEach(remote => {
+    this._agent.sockets[remote].forEach(function (socket) {
+      socket.ref()
+    })
+  })
+}
+
+Client.prototype._write = function (obj, cb) {
+  return this._stream.write(obj, cb)
+}
+
+Client.prototype.writeSpan = function (span, cb) {
+  return this._write({span}, cb)
+}
+
+Client.prototype.writeTransaction = function (transaction, cb) {
+  return this._write({transaction}, cb)
+}
+
+Client.prototype.writeError = function (error, cb) {
+  return this._write({error}, cb)
+}
+
+Client.prototype.flush = function (cb) {
+  // TODO: If there's backpreasure the ndjson stream might contain some
+  // unflushed data. This will not get flushed as part of this operation. But
+  // maybe that's ok
+  this._chopper.chop(cb)
+  return this
+}
+
+Client.prototype.end = function (cb) {
+  if (this._ended) return this
+  this._ended = true
+  clients[this._index] = null // remove global reference to ease garbage collection
+  this._ref()
+  this._stream.end(cb)
+  return this
+}
+
+Client.prototype.destroy = function () {
+  if (this._destroyed) return this
+  this._destroyed = true
+  this._stream.destroy()
+  this._chopper.destroy()
+  this._agent.destroy()
+  return this
+}
+
+function onStream (opts, client, onerror) {
   const meta = opts.meta
-  const transport = opts.transport
   const serverTimeout = opts.serverTimeout
-  opts = getRequestOptions(opts)
+  opts = getRequestOptions(opts, client._agent)
 
   return function (stream, next) {
-    const req = transport.request(opts, onResult(onerror))
+    const onerrorproxy = (err) => {
+      stream.removeListener('error', onerrorproxy)
+      compressor.removeListener('error', onerrorproxy)
+      req.removeListener('error', onerrorproxy)
+      stream.destroy()
+      onerror(err)
+    }
+
+    const req = client._transport.request(opts, onResult(onerror))
+    const compressor = zlib.createGzip()
+
+    // Mointor streams for errors so that we can make sure to destory the
+    // output stream as soon as that occurs
+    stream.on('error', onerrorproxy)
+    compressor.on('error', onerrorproxy)
+    req.on('error', onerrorproxy)
 
     req.on('socket', function (socket) {
       // Sockets will automatically be unreffed by the HTTP agent when they are
@@ -53,24 +134,27 @@ function onStream (opts, onerror) {
       socket.unref()
     })
 
-    // TODO: It doesn't really make sense to set req.serverTimeout on a
-    // streaming request before all the data is sent. We need find a solution
-    // for how to handle timeout of the response.
     if (Number.isFinite(serverTimeout)) {
       req.setTimeout(serverTimeout, function () {
         req.abort()
       })
     }
 
-    pump(stream, zlib.createGzip(), req, function (err) {
-      if (err) onerror(err)
-      // Add listener for req errors in case a timeout occurs AFTER the request
-      // finishes
+    pump(stream, compressor, req, function () {
+      // This function is technically called with an error, but because we use
+      // end-of-stream above to listen for errors on all the streams in the
+      // pipeline manually, we can safely ignore it.
       //
-      // TODO: This will produce two errors, which might not be that nice
-      // - First one is caught by the if-sentence above (premature closure)
-      // - Second one is caught by the listener below (socket hung up)
-      req.on('error', onerror)
+      // We do this for two reasons:
+      //
+      // 1) This callback might be called a few ticks too late, in which case a
+      //    race condition could occur where the user would write to the output
+      //    stream before the rest of the system discovered that it was
+      //    unwritable
+      //
+      // 2) The error might occured post the end of the stream. In that case we
+      //    would not get it here as the internal error listener would have
+      //    been removed and the stream would throw the error instead
       next()
     })
 
@@ -113,31 +197,14 @@ function normalizeOptions (opts) {
 
   // process
   normalized.serverUrl = parseUrl(normalized.serverUrl)
-  normalized.transport = require(normalized.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
-  normalized.agent = getAgent(normalized)
 
   return normalized
 }
 
-function getAgent (opts) {
-  // TODO: Consider use of maxSockets and maxFreeSockets
-  const agent = new opts.transport.Agent({keepAlive: opts.keepAlive})
-
-  agent.ref = function () {
-    Object.keys(agent.sockets).forEach(function (remote) {
-      agent.sockets[remote].forEach(function (socket) {
-        socket.ref()
-      })
-    })
-  }
-
-  return agent
-}
-
-function getRequestOptions (opts) {
+function getRequestOptions (opts, agent) {
   const defaultPath = '/v2/intake'
   return {
-    agent: opts.agent,
+    agent: agent,
     rejectUnauthorized: opts.rejectUnauthorized !== false,
     hostname: opts.serverUrl.hostname,
     port: opts.serverUrl.port,

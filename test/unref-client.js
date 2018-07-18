@@ -2,7 +2,7 @@
 
 const Client = require('../')
 
-const stream = Client({
+const client = new Client({
   serverUrl: process.argv[2],
   secretToken: 'secret',
   userAgent: 'foo',
@@ -13,4 +13,4 @@ const stream = Client({
 
 process.stdout.write(String(Date.now()))
 
-stream.write({hello: 'world'}) // Don't end the stream
+client.writeSpan({hello: 'world'}) // Don't end the stream

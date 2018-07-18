@@ -37,13 +37,12 @@ function APMServer (opts, onreq) {
       opts = {}
     }
     server.listen(function () {
-      const stream = Client(Object.assign({
+      onclient(new Client(Object.assign({
         serverUrl: `http${secure ? 's' : ''}://localhost:${server.address().port}`,
         secretToken: 'secret',
         userAgent: 'foo',
         meta: onmeta
-      }, opts), onerror)
-      onclient(stream)
+      }, opts), onerror))
     })
     return server
   }
