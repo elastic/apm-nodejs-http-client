@@ -1,6 +1,7 @@
 'use strict'
 
 const path = require('path')
+const os = require('os')
 const exec = require('child_process').exec
 const http = require('http')
 const test = require('tape')
@@ -12,7 +13,8 @@ const Client = require('../')
 const APMServer = utils.APMServer
 const processReq = utils.processReq
 const assertReq = utils.assertReq
-const onmeta = utils.onmeta
+const assertMetadata = utils.assertMetadata
+const validOpts = utils.validOpts
 
 /**
  * Setup and config
@@ -27,57 +29,35 @@ test('package', function (t) {
 })
 
 test('throw if missing required options', function (t) {
-  t.throws(function () {
-    new Client() // eslint-disable-line no-new
-  })
-  t.end()
-})
-
-test('throw if only userAgent is provided', function (t) {
-  t.throws(function () {
-    new Client({userAgent: 'foo'}) // eslint-disable-line no-new
-  })
-  t.end()
-})
-
-test('throw if only meta is provided', function (t) {
-  t.throws(function () {
-    new Client({meta: onmeta}) // eslint-disable-line no-new
-  })
-  t.end()
-})
-
-test('only userAgent and meta should be required', function (t) {
-  t.doesNotThrow(function () {
-    new Client({ // eslint-disable-line no-new
-      userAgent: 'foo',
-      meta: onmeta
-    })
-  })
+  t.throws(() => new Client())
+  t.throws(() => new Client({agentName: 'foo'}))
+  t.throws(() => new Client({agentVersion: 'foo'}))
+  t.throws(() => new Client({serviceName: 'foo'}))
+  t.throws(() => new Client({userAgent: 'foo'}))
+  t.throws(() => new Client({agentName: 'foo', agentVersion: 'foo', serviceName: 'foo'}))
+  t.throws(() => new Client({agentName: 'foo', agentVersion: 'foo', userAgent: 'foo'}))
+  t.throws(() => new Client({agentName: 'foo', serviceName: 'foo', userAgent: 'foo'}))
+  t.throws(() => new Client({agentVersion: 'foo', serviceName: 'foo', userAgent: 'foo'}))
+  t.doesNotThrow(() => new Client({agentName: 'foo', agentVersion: 'foo', serviceName: 'foo', userAgent: 'foo'}))
   t.end()
 })
 
 test('should work without new', function (t) {
-  const client = Client({
-    userAgent: 'foo',
-    meta: onmeta
-  })
+  const client = Client(validOpts())
   t.ok(client instanceof Client)
   t.end()
 })
 
 test('null value config options shouldn\'t throw', function (t) {
   t.doesNotThrow(function () {
-    new Client({ // eslint-disable-line no-new
-      userAgent: 'foo', // valid, so we don't throw
-      meta: onmeta, // valid, so we don't throw
+    new Client(validOpts({ // eslint-disable-line no-new
       size: null,
       time: null,
       serverTimeout: null,
       type: null,
       serverUrl: null,
       keepAlive: null
-    })
+    }))
   })
   t.end()
 })
@@ -91,11 +71,9 @@ test('no secretToken', function (t) {
     t.end()
   })
   server.listen(function () {
-    const client = new Client({
-      serverUrl: 'http://localhost:' + server.address().port,
-      userAgent: 'foo',
-      meta: onmeta
-    })
+    const client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + server.address().port
+    }))
     client.sendSpan({foo: 42})
     client.end()
   })
@@ -109,14 +87,12 @@ test('custom headers', function (t) {
     server.close()
     t.end()
   }).listen(function () {
-    const client = new Client({
+    const client = new Client(validOpts({
       serverUrl: 'http://localhost:' + server.address().port,
-      userAgent: 'foo',
-      meta: onmeta,
       headers: {
         'X-Foo': 'bar'
       }
-    })
+    }))
     client.sendSpan({foo: 42})
     client.end()
   })
@@ -130,11 +106,9 @@ test('serverUrl contains path', function (t) {
     server.close()
     t.end()
   }).listen(function () {
-    const client = new Client({
-      serverUrl: 'http://localhost:' + server.address().port + '/subpath',
-      userAgent: 'foo',
-      meta: onmeta
-    })
+    const client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + server.address().port + '/subpath'
+    }))
     client.sendSpan({foo: 42})
     client.end()
   })
@@ -170,6 +144,146 @@ test('allow unauthorized TLS if asked', function (t) {
   })
 })
 
+test('metadata', function (t) {
+  t.plan(12)
+  const opts = {
+    agentName: 'custom-agentName',
+    agentVersion: 'custom-agentVersion',
+    serviceName: 'custom-serviceName',
+    serviceVersion: 'custom-serviceVersion',
+    frameworkName: 'custom-frameworkName',
+    frameworkVersion: 'custom-frameworkVersion',
+    hostname: 'custom-hostname'
+  }
+  const server = APMServer(function (req, res) {
+    req = processReq(req)
+    req.once('data', function (obj) {
+      t.deepEqual(obj, {
+        metadata: {
+          service: {
+            name: 'custom-serviceName',
+            version: 'custom-serviceVersion',
+            runtime: {
+              name: 'node',
+              version: process.version
+            },
+            language: {
+              name: 'javascript'
+            },
+            agent: {
+              name: 'custom-agentName',
+              version: 'custom-agentVersion'
+            },
+            framework: {
+              name: 'custom-frameworkName',
+              version: 'custom-frameworkVersion'
+            }
+          },
+          process: {
+            pid: process.pid,
+            ppid: process.ppid,
+            title: process.title,
+            argv: process.argv
+          },
+          system: {
+            hostname: 'custom-hostname',
+            architecture: process.arch,
+            platform: process.platform
+          }
+        }
+      })
+      t.ok(semver.valid(obj.metadata.service.runtime.version))
+      t.ok(obj.metadata.process.pid > 0)
+      t.ok(obj.metadata.process.ppid > 0)
+      t.ok(/node$/.test(obj.metadata.process.title))
+      t.ok(Array.isArray(obj.metadata.process.argv))
+      t.ok(obj.metadata.process.argv.every(arg => typeof arg === 'string'))
+      t.ok(obj.metadata.process.argv.every(arg => arg.length > 0))
+      t.equal(typeof obj.metadata.system.architecture, 'string')
+      t.ok(obj.metadata.system.architecture.length > 0)
+      t.equal(typeof obj.metadata.system.platform, 'string')
+      t.ok(obj.metadata.system.platform.length > 0)
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client(opts, function (client) {
+    client.sendSpan({foo: 42})
+    client.end()
+  })
+})
+
+test('metadata - default values', function (t) {
+  t.plan(1)
+  const opts = {
+    agentName: 'custom-agentName',
+    agentVersion: 'custom-agentVersion',
+    serviceName: 'custom-serviceName'
+  }
+  const server = APMServer(function (req, res) {
+    req = processReq(req)
+    req.once('data', function (obj) {
+      t.deepEqual(obj, {
+        metadata: {
+          service: {
+            name: 'custom-serviceName',
+            runtime: {
+              name: 'node',
+              version: process.version
+            },
+            language: {
+              name: 'javascript'
+            },
+            agent: {
+              name: 'custom-agentName',
+              version: 'custom-agentVersion'
+            }
+          },
+          process: {
+            pid: process.pid,
+            ppid: process.ppid,
+            title: process.title,
+            argv: process.argv
+          },
+          system: {
+            hostname: os.hostname(),
+            architecture: process.arch,
+            platform: process.platform
+          }
+        }
+      })
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client(opts, function (client) {
+    client.sendSpan({foo: 42})
+    client.end()
+  })
+})
+
+test('agentName', function (t) {
+  t.plan(1)
+  const server = APMServer(function (req, res) {
+    req = processReq(req)
+    req.once('data', function (obj) {
+      t.equal(obj.metadata.service.name, 'custom')
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client({serviceName: 'custom'}, function (client) {
+    client.sendSpan({foo: 42})
+    client.end()
+  })
+})
+
 /**
  * Normal operation
  */
@@ -180,16 +294,18 @@ dataTypes.forEach(function (dataType) {
   const sendFn = 'send' + dataType.charAt(0).toUpperCase() + dataType.substr(1)
 
   test(`client.${sendFn}() + client.flush()`, function (t) {
-    t.plan(2 + assertReq.asserts)
+    t.plan(1 + assertReq.asserts + assertMetadata.asserts)
     const datas = [
-      {metadata: {}},
+      assertMetadata,
       {[dataType]: {foo: 42}}
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        t.deepEqual(obj, datas.shift())
+        const expect = datas.shift()
+        if (typeof expect === 'function') expect(t, obj)
+        else t.deepEqual(obj, expect)
       })
       req.on('end', function () {
         res.end()
@@ -203,16 +319,18 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`client.${sendFn}(callback) + client.flush()`, function (t) {
-    t.plan(3 + assertReq.asserts)
+    t.plan(2 + assertReq.asserts + assertMetadata.asserts)
     const datas = [
-      {metadata: {}},
+      assertMetadata,
       {[dataType]: {foo: 42}}
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        t.deepEqual(obj, datas.shift())
+        const expect = datas.shift()
+        if (typeof expect === 'function') expect(t, obj)
+        else t.deepEqual(obj, expect)
       })
       req.on('end', function () {
         res.end()
@@ -230,16 +348,18 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`client.${sendFn}() + client.end()`, function (t) {
-    t.plan(2 + assertReq.asserts)
+    t.plan(1 + assertReq.asserts + assertMetadata.asserts)
     const datas = [
-      {metadata: {}},
+      assertMetadata,
       {[dataType]: {foo: 42}}
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        t.deepEqual(obj, datas.shift())
+        const expect = datas.shift()
+        if (typeof expect === 'function') expect(t, obj)
+        else t.deepEqual(obj, expect)
       })
       req.on('end', function () {
         res.end()
@@ -253,16 +373,18 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`single client.${sendFn}`, function (t) {
-    t.plan(2 + assertReq.asserts)
+    t.plan(1 + assertReq.asserts + assertMetadata.asserts)
     const datas = [
-      {metadata: {}},
+      assertMetadata,
       {[dataType]: {foo: 42}}
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        t.deepEqual(obj, datas.shift())
+        const expect = datas.shift()
+        if (typeof expect === 'function') expect(t, obj)
+        else t.deepEqual(obj, expect)
       })
       req.on('end', function () {
         res.end()
@@ -275,9 +397,9 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`multiple client.${sendFn} (same request)`, function (t) {
-    t.plan(4 + assertReq.asserts)
+    t.plan(3 + assertReq.asserts + assertMetadata.asserts)
     const datas = [
-      {metadata: {}},
+      assertMetadata,
       {[dataType]: {req: 1}},
       {[dataType]: {req: 2}},
       {[dataType]: {req: 3}}
@@ -286,7 +408,9 @@ dataTypes.forEach(function (dataType) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        t.deepEqual(obj, datas.shift())
+        const expect = datas.shift()
+        if (typeof expect === 'function') expect(t, obj)
+        else t.deepEqual(obj, expect)
       })
       req.on('end', function () {
         res.end()
@@ -301,7 +425,7 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`multiple client.${sendFn} (multiple requests)`, function (t) {
-    t.plan(8 + assertReq.asserts * 2)
+    t.plan(6 + assertReq.asserts * 2 + assertMetadata.asserts * 2)
 
     let clientReqNum = 0
     let clientSendNum = 0
@@ -309,11 +433,11 @@ dataTypes.forEach(function (dataType) {
     let client
 
     const datas = [
-      {metadata: {}},
+      assertMetadata,
       {[dataType]: {req: 1, send: 1}},
       {[dataType]: {req: 1, send: 2}},
       {[dataType]: {req: 1, send: 3}},
-      {metadata: {}},
+      assertMetadata,
       {[dataType]: {req: 2, send: 4}},
       {[dataType]: {req: 2, send: 5}},
       {[dataType]: {req: 2, send: 6}}
@@ -324,7 +448,9 @@ dataTypes.forEach(function (dataType) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        t.deepEqual(obj, datas.shift())
+        const expect = datas.shift()
+        if (typeof expect === 'function') expect(t, obj)
+        else t.deepEqual(obj, expect)
       })
       req.on('end', function () {
         res.end()
@@ -350,16 +476,18 @@ dataTypes.forEach(function (dataType) {
 })
 
 test('client.flush(callback) - with active request', function (t) {
-  t.plan(5 + assertReq.asserts)
+  t.plan(4 + assertReq.asserts + assertMetadata.asserts)
   const datas = [
-    {metadata: {}},
+    assertMetadata,
     {span: {foo: 42}}
   ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, datas.shift())
+      const expect = datas.shift()
+      if (typeof expect === 'function') expect(t, obj)
+      else t.deepEqual(obj, expect)
     })
     req.on('end', function () {
       res.end()
@@ -377,19 +505,21 @@ test('client.flush(callback) - with active request', function (t) {
 })
 
 test('client.flush(callback) - with queued request', function (t) {
-  t.plan(6 + assertReq.asserts * 2)
+  t.plan(4 + assertReq.asserts * 2 + assertMetadata.asserts * 2)
   let requests = 0
   const datas = [
-    {metadata: {}},
+    assertMetadata,
     {span: {req: 1}},
-    {metadata: {}},
+    assertMetadata,
     {span: {req: 2}}
   ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, datas.shift())
+      const expect = datas.shift()
+      if (typeof expect === 'function') expect(t, obj)
+      else t.deepEqual(obj, expect)
     })
     req.on('end', function () {
       res.end()
@@ -410,13 +540,13 @@ test('client.flush(callback) - with queued request', function (t) {
 })
 
 test('2nd flush before 1st flush have finished', function (t) {
-  t.plan(6 + assertReq.asserts * 2)
+  t.plan(4 + assertReq.asserts * 2 + assertMetadata.asserts * 2)
   let requestStarts = 0
   let requestEnds = 0
   const datas = [
-    {metadata: {}},
+    assertMetadata,
     {span: {req: 1}},
-    {metadata: {}},
+    assertMetadata,
     {span: {req: 2}}
   ]
   const server = APMServer(function (req, res) {
@@ -424,7 +554,9 @@ test('2nd flush before 1st flush have finished', function (t) {
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, datas.shift())
+      const expect = datas.shift()
+      if (typeof expect === 'function') expect(t, obj)
+      else t.deepEqual(obj, expect)
     })
     req.on('end', function () {
       requestEnds++
@@ -445,16 +577,18 @@ test('2nd flush before 1st flush have finished', function (t) {
 })
 
 test('client.end(callback)', function (t) {
-  t.plan(3 + assertReq.asserts)
+  t.plan(2 + assertReq.asserts + assertMetadata.asserts)
   const datas = [
-    {metadata: {}},
+    assertMetadata,
     {span: {foo: 42}}
   ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, datas.shift())
+      const expect = datas.shift()
+      if (typeof expect === 'function') expect(t, obj)
+      else t.deepEqual(obj, expect)
     })
     req.on('end', function () {
       res.end()
@@ -474,10 +608,10 @@ test('client.end(callback)', function (t) {
  */
 
 test('client should not hold the process open', function (t) {
-  t.plan(3 + assertReq.asserts)
+  t.plan(2 + assertReq.asserts + assertMetadata.asserts)
 
   const datas = [
-    {metadata: {}},
+    assertMetadata,
     {span: {hello: 'world'}}
   ]
 
@@ -485,7 +619,9 @@ test('client should not hold the process open', function (t) {
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, datas.shift())
+      const expect = datas.shift()
+      if (typeof expect === 'function') expect(t, obj)
+      else t.deepEqual(obj, expect)
     })
     req.on('end', function () {
       res.statusCode = 202
@@ -523,11 +659,9 @@ test('Event: close - if ndjson stream ends', function (t) {
       server.close()
     }, 10)
   }).listen(function () {
-    client = new Client({
-      serverUrl: 'http://localhost:' + server.address().port,
-      userAgent: 'foo',
-      meta: onmeta
-    })
+    client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + server.address().port
+    }))
 
     client.on('finish', function () {
       t.fail('should not emit finish event')
@@ -551,11 +685,9 @@ test('Event: close - if ndjson stream is destroyed', function (t) {
       server.close()
     }, 10)
   }).listen(function () {
-    client = new Client({
-      serverUrl: 'http://localhost:' + server.address().port,
-      userAgent: 'foo',
-      meta: onmeta
-    })
+    client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + server.address().port
+    }))
 
     client.on('finish', function () {
       t.fail('should not emit finish event')
@@ -579,11 +711,9 @@ test('Event: close - if chopper ends', function (t) {
       server.close()
     }, 10)
   }).listen(function () {
-    client = new Client({
-      serverUrl: 'http://localhost:' + server.address().port,
-      userAgent: 'foo',
-      meta: onmeta
-    })
+    client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + server.address().port
+    }))
 
     client.on('finish', function () {
       t.fail('should not emit finish event')
@@ -607,11 +737,9 @@ test('Event: close - if chopper is destroyed', function (t) {
       server.close()
     }, 10)
   }).listen(function () {
-    client = new Client({
-      serverUrl: 'http://localhost:' + server.address().port,
-      userAgent: 'foo',
-      meta: onmeta
-    })
+    client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + server.address().port
+    }))
 
     client.on('finish', function () {
       t.fail('should not emit finish event')
@@ -756,11 +884,11 @@ test('socket hang up', function (t) {
 })
 
 test('socket hang up - continue with new request', function (t) {
-  t.plan(6 + assertReq.asserts * 2)
+  t.plan(5 + assertReq.asserts * 2 + assertMetadata.asserts)
   let reqs = 0
   let client
   const datas = [
-    {metadata: {}},
+    assertMetadata,
     {span: {req: 2}}
   ]
   const server = APMServer(function (req, res) {
@@ -777,7 +905,9 @@ test('socket hang up - continue with new request', function (t) {
 
     req = processReq(req)
     req.on('data', function (obj) {
-      t.deepEqual(obj, datas.shift())
+      const expect = datas.shift()
+      if (typeof expect === 'function') expect(t, obj)
+      else t.deepEqual(obj, expect)
     })
     req.on('end', function () {
       t.pass('should end request')
@@ -841,10 +971,7 @@ test('socket timeout - client request too slow', function (t) {
 
 test('client.destroy() - on fresh client', function (t) {
   t.plan(1)
-  const client = new Client({
-    userAgent: 'foo',
-    meta: onmeta
-  })
+  const client = new Client(validOpts())
   client.on('finish', function () {
     t.fail('should not emit finish')
   })
@@ -862,10 +989,7 @@ test('client.destroy() - should not allow more writes', function (t) {
   t.plan(12)
   let count = 0
 
-  const client = new Client({
-    userAgent: 'foo',
-    meta: onmeta
-  })
+  const client = new Client(validOpts())
   client.on('error', function (err) {
     t.ok(err instanceof Error, 'should emit error ' + err.message)
   })
@@ -908,11 +1032,9 @@ test('client.destroy() - on ended client', function (t) {
   })
 
   server.listen(function () {
-    client = new Client({
-      serverUrl: 'http://localhost:' + server.address().port,
-      userAgent: 'foo',
-      meta: onmeta
-    })
+    client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + server.address().port
+    }))
     client.on('finish', function () {
       t.pass('should emit finish only once')
     })
@@ -940,11 +1062,9 @@ test('client.destroy() - on client with request in progress', function (t) {
   })
 
   server.listen(function () {
-    client = new Client({
-      serverUrl: 'http://localhost:' + server.address().port,
-      userAgent: 'foo',
-      meta: onmeta
-    })
+    client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + server.address().port
+    }))
     client.on('finish', function () {
       t.fail('should not emit finish')
     })

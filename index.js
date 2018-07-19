@@ -1,6 +1,7 @@
 'use strict'
 
 const util = require('util')
+const os = require('os')
 const parseUrl = require('url').parse
 const zlib = require('zlib')
 const Writable = require('readable-stream').Writable
@@ -10,11 +11,20 @@ const eos = require('end-of-stream')
 const safeStringify = require('fast-safe-stringify')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
+const truncate = require('unicode-byte-truncate')
 const pkg = require('./package')
+
+module.exports = Client
 
 const flush = Symbol('flush')
 
-module.exports = Client
+const hostname = os.hostname()
+const requiredOpts = [
+  'agentName',
+  'agentVersion',
+  'serviceName',
+  'userAgent'
+]
 
 // All sockets on the agent are unreffed when they are created. This means that
 // when those are the only handles left, the `beforeExit` event will be
@@ -152,9 +162,8 @@ Client.prototype.destroy = function (err) {
 }
 
 function onStream (opts, client, onerror) {
-  const meta = opts.meta
   const serverTimeout = opts.serverTimeout
-  opts = getRequestOptions(opts, client._agent)
+  const requestOpts = getRequestOptions(opts, client._agent)
 
   return function (stream, next) {
     const onerrorproxy = (err) => {
@@ -167,7 +176,7 @@ function onStream (opts, client, onerror) {
 
     client._active = true
 
-    const req = client._transport.request(opts, onResult(onerror))
+    const req = client._transport.request(requestOpts, onResult(onerror))
     const compressor = zlib.createGzip()
 
     // Mointor streams for errors so that we can make sure to destory the
@@ -215,7 +224,7 @@ function onStream (opts, client, onerror) {
     })
 
     // All requests to the APM Server must start with a metadata object
-    stream.write(safeStringify({metadata: meta()}) + '\n')
+    stream.write(safeStringify({metadata: metadata(opts)}) + '\n')
   }
 }
 
@@ -238,8 +247,8 @@ function onResult (onerror) {
 }
 
 function normalizeOptions (opts) {
-  if (!opts.userAgent) throw new Error('Missing required option: userAgent')
-  if (!opts.meta) throw new Error('Missing required option: meta')
+  const missing = requiredOpts.filter(name => !opts[name])
+  if (missing.length > 0) throw new Error('Missing required option(s): ' + missing.join(', '))
 
   const normalized = Object.assign({}, opts, {objectMode: true})
 
@@ -248,6 +257,8 @@ function normalizeOptions (opts) {
   if (!normalized.time && normalized.time !== 0) normalized.time = 10000
   if (!normalized.serverTimeout && normalized.serverTimeout !== 0) normalized.serverTimeout = 15000
   if (!normalized.serverUrl) normalized.serverUrl = 'http://localhost:8200'
+  if (!normalized.hostname) normalized.hostname = hostname
+  if (!normalized.truncateStringsAt) normalized.truncateStringsAt = 1024
   normalized.keepAlive = normalized.keepAlive !== false
 
   // process
@@ -277,4 +288,45 @@ function getHeaders (opts) {
   headers['Accept'] = 'application/json'
   headers['User-Agent'] = opts.userAgent + ' ' + pkg.name + '/' + pkg.version
   return Object.assign(headers, opts.headers)
+}
+
+function metadata (opts) {
+  var payload = {
+    service: {
+      name: opts.serviceName,
+      runtime: {
+        name: process.release.name,
+        version: process.version
+      },
+      language: {
+        name: 'javascript'
+      },
+      agent: {
+        name: opts.agentName,
+        version: opts.agentVersion
+      }
+    },
+    process: {
+      pid: process.pid,
+      ppid: process.ppid,
+      title: truncate(String(process.title), opts.truncateStringsAt),
+      argv: process.argv
+    },
+    system: {
+      hostname: opts.hostname,
+      architecture: process.arch,
+      platform: process.platform
+    }
+  }
+
+  if (opts.serviceVersion) payload.service.version = opts.serviceVersion
+
+  if (opts.frameworkName || opts.frameworkVersion) {
+    payload.service.framework = {
+      name: opts.frameworkName,
+      version: opts.frameworkVersion
+    }
+  }
+
+  return payload
 }

@@ -26,13 +26,10 @@ npm install elastic-apm-http-client
 const Client = require('elastic-apm-http-client')
 
 const client = new Client({
-  userAgent: 'My Custom Elastic APM Agent',
-  meta: function () {
-    return {
-      // meta data object sent as the first ndjson object in all HTTP
-      // requests to the APM Server
-    }
-  }
+  serviceName: 'My App',
+  agentName: 'my-nodejs-agent',
+  agentVersion: require('./package.json').version,
+  userAgent: 'My Custom Elastic APM Agent'
 })
 
 const span = {
@@ -57,14 +54,22 @@ Arguments:
 
 - `options` - An object containing config options (see below)
 
+Data sent to the APM Server as part of the metadata package:
+
+- `agentName` - (required) The APM agent name
+- `agentVersion` - (required) The APM agent version
+- `serviceName` - (required) The name of the service being instrumented
+- `serviceVersion` - The version of the service being instrumented
+- `frameworkName` - If the service being instrumented is running a
+  specific framework, use this config option to log its name
+- `frameworkVersion` - If the service being instrumented is running a
+  specific framework, use this config option to log its version
+- `hostname` - Custom hostname (default: OS hostname)
+
 HTTP client configuration:
 
 - `userAgent` - (required) The HTTP user agent that your module should
   identify it self as
-- `meta` - (required) A function which will be called every time the a
-  new HTTP request is being made to the APM Server. It's expected that
-  you return a metadata object. This object will be sent as the first
-  ndjson object to the API
 - `secretToken` - The Elastic APM intake API secret token
 - `serverUrl` - The APM Server URL (default: `http://localhost:8200`)
 - `headers` - An object containing extra HTTP headers that should be
@@ -96,6 +101,12 @@ Streaming configuration:
 - `time` - The maxiumum number of milliseconds a streaming HTTP request
   to the APM Server can be ongoing before it's ended (default: `10000`
   ms)
+
+Data sanitizing configuration:
+
+- `truncateStringsAt` - Maximum size in bytes for strings stored as
+  Elasticsearch keywords. Strings larger than this will be trucated
+  (default: `1024` bytes)
 
 ### Event: `close`
 
