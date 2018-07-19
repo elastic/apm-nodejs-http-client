@@ -52,9 +52,9 @@ Server.
 
 Arguments:
 
-- `options` - An object containing config options
+- `options` - An object containing config options (see below)
 
-Config options:
+HTTP client configuration:
 
 - `userAgent` - (required) The HTTP user agent that your module should
   identify it self as
@@ -64,6 +64,8 @@ Config options:
   ndjson object to the API
 - `secretToken` - The Elastic APM intake API secret token
 - `serverUrl` - The APM Server URL (default: `http://localhost:8200`)
+- `headers` - An object containing extra HTTP headers that should be
+  used when making HTTP requests to he APM Server
 - `rejectUnauthorized` - Set to `false` if the client shouldn't verify
   the APM Server TLS certificates (default: `true`)
 - `serverTimeout` - HTTP request timeout in milliseconds. If no data is
@@ -80,8 +82,9 @@ Config options:
   `Infinity`)
 - `maxFreeSockets` - Maximum number of sockets to leave open in a free
   state. Only relevant if `keepAlive` is set to `true` (default: `256`)
-- `headers` - An object containing extra HTTP headers that should be
-  used when making HTTP requests to he APM Server
+
+Streaming configuration:
+
 - `size` - The maxiumum compressed body size (in bytes) of each HTTP
   request to the APM Server. An overshoot of up to the size of the
   internal zlib buffer should be expected as the buffer is flushed after
