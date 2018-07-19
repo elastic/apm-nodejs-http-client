@@ -350,7 +350,7 @@ dataTypes.forEach(function (dataType) {
 })
 
 test('client.flush(callback)', function (t) {
-  t.plan(3 + assertReq.asserts)
+  t.plan(4 + assertReq.asserts)
   const datas = [
     {metadata: {}},
     {span: {foo: 42}}
@@ -368,8 +368,9 @@ test('client.flush(callback)', function (t) {
     })
   }).client(function (client) {
     client.sendSpan({foo: 42})
+    t.equal(client._active, true, 'an outgoing HTTP request should be active')
     client.flush(function () {
-      t.pass('should call callback')
+      t.equal(client._active, false, 'the outgoing HTTP request should be done')
     })
   })
 })

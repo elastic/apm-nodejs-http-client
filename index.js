@@ -43,6 +43,8 @@ function Client (opts) {
   this._agent = new this._transport.Agent(opts)
   this._ended = false
   this._destroyed = false
+  this._active = false
+  this._onflushed = null
 
   this._stream = ndjson.serialize()
   this._chopper = new StreamChopper(opts).on('stream', onStream(opts, this, errorproxy))
@@ -94,10 +96,15 @@ Client.prototype.flush = function (cb) {
     return
   }
   if (this._ended) return // TODO: call bacllback?
-  // TODO: If there's backpreasure the ndjson stream might contain some
-  // unflushed data. This will not get flushed as part of this operation. But
-  // maybe that's ok
-  this._chopper.chop(cb)
+
+  if (cb && this._active) {
+    // if there's an outgoing http request, queue the callback to be called
+    // when we're sure that the data has left the system
+    this._onflushed = cb
+    this._chopper.chop()
+  } else {
+    this._chopper.chop(cb)
+  }
 }
 
 Client.prototype.end = function (cb) {
@@ -136,6 +143,8 @@ function onStream (opts, client, onerror) {
       onerror(err)
     }
 
+    client._active = true
+
     const req = client._transport.request(opts, onResult(onerror))
     const compressor = zlib.createGzip()
 
@@ -173,6 +182,13 @@ function onStream (opts, client, onerror) {
       // 2) The error might occured post the end of the stream. In that case we
       //    would not get it here as the internal error listener would have
       //    been removed and the stream would throw the error instead
+
+      client._active = false
+      if (client._onflushed) {
+        client._onflushed()
+        client._onflushed = null
+      }
+
       next()
     })
 
