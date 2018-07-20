@@ -35,10 +35,6 @@ const client = new Client({
   }
 })
 
-client.on('error', function (err) {
-  console.log('Client encountered and error:', err.message)
-})
-
 client.sendSpan(span)
 ```
 
@@ -47,7 +43,7 @@ client.sendSpan(span)
 ### `new Client(options)`
 
 Construct a new `client` object. Data given to the client will be
-converted to JSON, compressed using gzip, and streamed to the APM
+converted to ndjson, compressed using gzip, and streamed to the APM
 Server.
 
 Arguments:
