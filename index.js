@@ -168,9 +168,9 @@ function onStream (opts, client, onerror) {
     }
 
     pump(stream, compressor, req, function () {
-      // This function is technically called with an error, but because we use
-      // end-of-stream above to listen for errors on all the streams in the
-      // pipeline manually, we can safely ignore it.
+      // This function is technically called with an error, but because we
+      // manually attach error listeners on all the streams in the pipeline
+      // above, we can safely ignore it.
       //
       // We do this for two reasons:
       //
@@ -179,7 +179,7 @@ function onStream (opts, client, onerror) {
       //    stream before the rest of the system discovered that it was
       //    unwritable
       //
-      // 2) The error might occured post the end of the stream. In that case we
+      // 2) The error might occur post the end of the stream. In that case we
       //    would not get it here as the internal error listener would have
       //    been removed and the stream would throw the error instead
 
