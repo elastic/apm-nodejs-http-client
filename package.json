@@ -20,7 +20,8 @@
     "fast-stream-to-buffer": "^1.0.0",
     "ndjson": "^1.5.0",
     "pump": "^3.0.0",
-    "stream-chopper": "^1.1.0"
+    "readable-stream": "^2.3.6",
+    "stream-chopper": "^1.1.1"
   },
   "devDependencies": {
     "codecov": "^3.0.4",

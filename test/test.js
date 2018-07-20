@@ -145,7 +145,7 @@ test('reject unauthorized TLS by default', function (t) {
   const server = APMServer({secure: true}, function (req, res) {
     t.fail('should should not get request')
   }).client(function (client) {
-    client.on('error', function (err) {
+    client.on('warning', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'self signed certificate')
       t.equal(err.code, 'DEPTH_ZERO_SELF_SIGNED_CERT')
@@ -349,8 +349,8 @@ dataTypes.forEach(function (dataType) {
   })
 })
 
-test('client.flush(callback)', function (t) {
-  t.plan(4 + assertReq.asserts)
+test('client.flush(callback) - with active request', function (t) {
+  t.plan(5 + assertReq.asserts)
   const datas = [
     {metadata: {}},
     {span: {foo: 42}}
@@ -367,11 +367,80 @@ test('client.flush(callback)', function (t) {
       t.end()
     })
   }).client(function (client) {
+    t.equal(client._active, false, 'no outgoing HTTP request to begin with')
     client.sendSpan({foo: 42})
     t.equal(client._active, true, 'an outgoing HTTP request should be active')
     client.flush(function () {
       t.equal(client._active, false, 'the outgoing HTTP request should be done')
     })
+  })
+})
+
+test('client.flush(callback) - with queued request', function (t) {
+  t.plan(6 + assertReq.asserts * 2)
+  let requests = 0
+  const datas = [
+    {metadata: {}},
+    {span: {req: 1}},
+    {metadata: {}},
+    {span: {req: 2}}
+  ]
+  const server = APMServer(function (req, res) {
+    assertReq(t, req)
+    req = processReq(req)
+    req.on('data', function (obj) {
+      t.deepEqual(obj, datas.shift())
+    })
+    req.on('end', function () {
+      res.end()
+      if (++requests === 2) {
+        t.end()
+        server.close()
+      }
+    })
+  }).client(function (client) {
+    client.sendSpan({req: 1})
+    client.flush()
+    client.sendSpan({req: 2})
+    t.equal(client._active, true, 'an outgoing HTTP request should be active')
+    client.flush(function () {
+      t.equal(client._active, false, 'the outgoing HTTP request should be done')
+    })
+  })
+})
+
+test('2nd flush before 1st flush have finished', function (t) {
+  t.plan(6 + assertReq.asserts * 2)
+  let requestStarts = 0
+  let requestEnds = 0
+  const datas = [
+    {metadata: {}},
+    {span: {req: 1}},
+    {metadata: {}},
+    {span: {req: 2}}
+  ]
+  const server = APMServer(function (req, res) {
+    requestStarts++
+    assertReq(t, req)
+    req = processReq(req)
+    req.on('data', function (obj) {
+      t.deepEqual(obj, datas.shift())
+    })
+    req.on('end', function () {
+      requestEnds++
+      res.end()
+    })
+  }).client(function (client) {
+    client.sendSpan({req: 1})
+    client.flush()
+    client.sendSpan({req: 2})
+    client.flush()
+    setTimeout(function () {
+      t.equal(requestStarts, 2, 'should have received 2 requests')
+      t.equal(requestEnds, 2, 'should have received 2 requests completely')
+      t.end()
+      server.close()
+    }, 100)
   })
 })
 
@@ -448,7 +517,7 @@ test.skip('write after end', function (t) {
   const server = APMServer(function (req, res) {
     t.fail('should never get any request')
   }).client(function (client) {
-    client.on('error', function (err) {
+    client.on('warning', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'write after end')
       server.close()
@@ -464,7 +533,7 @@ test('request with error - no body', function (t) {
     res.statusCode = 418
     res.end()
   }).client(function (client) {
-    client.on('error', function (err) {
+    client.on('warning', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected response code from APM Server: 418')
       t.equal(err.result, undefined)
@@ -481,7 +550,7 @@ test('request with error - non json body', function (t) {
     res.statusCode = 418
     res.end('boom!')
   }).client(function (client) {
-    client.on('error', function (err) {
+    client.on('warning', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected response code from APM Server: 418')
       t.equal(err.result, 'boom!')
@@ -499,7 +568,7 @@ test('request with error - invalid json body', function (t) {
     res.setHeader('Content-Type', 'application/json')
     res.end('boom!')
   }).client(function (client) {
-    client.on('error', function (err) {
+    client.on('warning', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected response code from APM Server: 418')
       t.equal(err.result, 'boom!')
@@ -518,7 +587,7 @@ test('request with error - json body without error property', function (t) {
     res.setHeader('Content-Type', 'application/json')
     res.end(body)
   }).client(function (client) {
-    client.on('error', function (err) {
+    client.on('warning', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected response code from APM Server: 418')
       t.equal(err.result, body)
@@ -536,7 +605,7 @@ test('request with error - json body with error property', function (t) {
     res.setHeader('Content-Type', 'application/json')
     res.end(JSON.stringify({error: 'bar'}))
   }).client(function (client) {
-    client.on('error', function (err) {
+    client.on('warning', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected response code from APM Server: 418')
       t.equal(err.result, 'bar')
@@ -552,7 +621,7 @@ test('socket hang up', function (t) {
   const server = APMServer(function (req, res) {
     req.socket.destroy()
   }).client(function (client) {
-    client.on('error', function (err) {
+    client.on('warning', function (err) {
       t.equal(err.message, 'socket hang up')
       t.equal(err.code, 'ECONNRESET')
       server.close()
@@ -583,7 +652,7 @@ test('socket hang up - continue with new request', function (t) {
     // will receive the gzip header once the write have been made on the
     // client. If we were to attach it to the gunzip+ndjson, it would not fire
     req.on('data', function () {
-      client.end()
+      client.flush()
     })
 
     req = processReq(req)
@@ -594,17 +663,17 @@ test('socket hang up - continue with new request', function (t) {
       t.pass('should end request')
       res.end()
       server.close()
-      t.end()
     })
   }).client(function (_client) {
     client = _client
-    client.on('error', function (err) {
+    client.on('warning', function (err) {
       t.equal(err.message, 'socket hang up')
       t.equal(err.code, 'ECONNRESET')
       client.sendSpan({req: 2})
     })
     client.on('finish', function () {
       t.equal(reqs, 2, 'should emit finish after last request')
+      t.end()
     })
     client.sendSpan({req: 1})
   })
@@ -615,7 +684,7 @@ test('socket timeout - server response too slow', function (t) {
     req.resume()
   }).client({serverTimeout: 1000}, function (client) {
     const start = Date.now()
-    client.on('error', function (err) {
+    client.on('warning', function (err) {
       const end = Date.now()
       const delta = end - start
       t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
@@ -637,7 +706,7 @@ test('socket timeout - client request too slow', function (t) {
     })
   }).client({serverTimeout: 1000}, function (client) {
     const start = Date.now()
-    client.on('error', function (err) {
+    client.on('warning', function (err) {
       const end = Date.now()
       const delta = end - start
       t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
@@ -663,26 +732,26 @@ test('client.destroy() - on fresh client', function (t) {
 })
 
 test('client.destroy() - should not allow more writes', function (t) {
-  t.plan(5)
+  t.plan(10)
+  let count = 0
 
   const client = new Client({
     userAgent: 'foo',
     meta: onmeta
   })
   client.on('error', function (err) {
-    t.ok(err instanceof Error)
+    t.ok(err instanceof Error, 'should emit error ' + err.message)
   })
   client.destroy()
-  client.sendSpan({foo: 42}, fail)
-  client.sendTransaction({foo: 42}, fail)
-  client.sendError({foo: 42}, fail)
-  client.flush(fail)
-  client.end(fail)
+  client.sendSpan({foo: 42}, done)
+  client.sendTransaction({foo: 42}, done)
+  client.sendError({foo: 42}, done)
+  client.flush(done)
+  client.end(done)
 
-  t.end()
-
-  function fail () {
-    t.fail('should not call callback')
+  function done () {
+    t.pass('should still call callback even though it\'s destroyed')
+    if (++count === 5) t.end()
   }
 })
 

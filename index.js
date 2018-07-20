@@ -3,13 +3,15 @@
 const util = require('util')
 const parseUrl = require('url').parse
 const zlib = require('zlib')
-const EventEmitter = require('events')
+const Writable = require('readable-stream').Writable
 const pump = require('pump')
 const ndjson = require('ndjson')
 const safeStringify = require('fast-safe-stringify')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
 const pkg = require('./package')
+
+const flush = Symbol('flush')
 
 module.exports = Client
 
@@ -26,34 +28,34 @@ process.once('beforeExit', function () {
   })
 })
 
-util.inherits(Client, EventEmitter)
+util.inherits(Client, Writable)
 
 function Client (opts) {
   if (!(this instanceof Client)) return new Client(opts)
 
   opts = normalizeOptions(opts)
 
-  EventEmitter.call(this, opts)
+  Writable.call(this, opts)
 
   const errorproxy = (err) => {
-    if (this._destroyed === false) this.emit('error', err)
+    // Emit as warning if the error is recoverable. If we emitted it as an
+    // error, the Client object would be destroyed
+    if (this._destroyed === false) this.emit('warning', err)
   }
 
   this._transport = require(opts.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
   this._agent = new this._transport.Agent(opts)
-  this._ended = false
-  this._destroyed = false
   this._active = false
+  this._destroyed = false
   this._onflushed = null
 
   this._stream = ndjson.serialize()
   this._chopper = new StreamChopper(opts).on('stream', onStream(opts, this, errorproxy))
 
-  this._stream.on('error', errorproxy)
-  this._chopper.on('error', errorproxy)
-  this._chopper.once('finish', () => {
-    this.emit('finish')
+  this._stream.on('error', (err) => {
+    if (this._destroyed === false) this.emit('error', err)
   })
+  this._chopper.on('error', errorproxy)
 
   pump(this._stream, this._chopper)
 
@@ -70,63 +72,69 @@ Client.prototype._ref = function () {
   })
 }
 
-Client.prototype._write = function (obj, cb) {
+Client.prototype._write = function (obj, enc, cb) {
   if (this._destroyed) {
-    this.emit('error', new Error('data sent to destroyed Elastic APM client'))
-    return
+    this.emit('error', new Error('write called on destroyed Elastic APM client'))
+    cb()
+  } else if (obj === flush) {
+    if (this._active) {
+      this._onflushed = cb
+      this._chopper.chop()
+    } else {
+      this._chopper.chop(cb)
+    }
+  } else {
+    this._stream.write(obj, cb)
   }
-  return this._stream.write(obj, cb)
 }
 
 Client.prototype.sendSpan = function (span, cb) {
-  return this._write({span}, cb)
+  return this.write({span}, cb)
 }
 
 Client.prototype.sendTransaction = function (transaction, cb) {
-  return this._write({transaction}, cb)
+  return this.write({transaction}, cb)
 }
 
 Client.prototype.sendError = function (error, cb) {
-  return this._write({error}, cb)
+  return this.write({error}, cb)
 }
 
 Client.prototype.flush = function (cb) {
   if (this._destroyed) {
     this.emit('error', new Error('flush called on destroyed Elastic APM client'))
+    if (cb) process.nextTick(cb)
     return
   }
-  if (this._ended) return // TODO: call bacllback?
 
-  if (cb && this._active) {
-    // if there's an outgoing http request, queue the callback to be called
-    // when we're sure that the data has left the system
-    this._onflushed = cb
-    this._chopper.chop()
-  } else {
-    this._chopper.chop(cb)
-  }
+  return this.write(flush, cb)
 }
 
-Client.prototype.end = function (cb) {
+Client.prototype._final = function (cb) {
   if (this._destroyed) {
     this.emit('error', new Error('end called on destroyed Elastic APM client'))
+    cb()
     return
   }
-  if (this._ended) return // TODO: call callback?
-  this._ended = true
   clients[this._index] = null // remove global reference to ease garbage collection
-  if (cb) this.once('finish', cb)
   this._ref()
   this._stream.end()
+  cb()
 }
 
-Client.prototype.destroy = function () {
+// Overwrite destroy instead of using _destroy because readable-stream@2 can't
+// be trusted
+Client.prototype.destroy = function (err) {
   if (this._destroyed) return
   this._destroyed = true
+  if (err) this.emit('error', err)
   clients[this._index] = null // remove global reference to ease garbage collection
   this._stream.destroy()
   this._chopper.destroy()
   this._agent.destroy()
+  process.nextTick(() => {
+    this.emit('close')
+  })
 }
 
 function onStream (opts, client, onerror) {
@@ -219,7 +227,7 @@ function normalizeOptions (opts) {
   if (!opts.userAgent) throw new Error('Missing required option: userAgent')
   if (!opts.meta) throw new Error('Missing required option: meta')
 
-  const normalized = Object.assign({}, opts)
+  const normalized = Object.assign({}, opts, {objectMode: true})
 
   // default values
   if (!normalized.size && normalized.size !== 0) normalized.size = 1024 * 1024

@@ -99,9 +99,19 @@ Streaming configuration:
 Emitted if an error occurs. The listener callback is passed a single
 Error argument when called.
 
+The client cannot recover from errors.
+
+### Event: `warning`
+
+Emitted if an error occurs. The listener callback is passed a single
+Error argument when called.
+
+The client can receover from warnings.
+
 ### Event: `finish`
 
-Emitted when the client are done sending data to the APM Server.
+Emitted when the client are done sending data to the APM Server. No more
+data can be sent after this event.
 
 ### `client.sendSpan(span[, callback])`
 
