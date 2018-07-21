@@ -105,8 +105,8 @@ The client is not closed when the `error` event is emitted.
 
 ### Event: `finish`
 
-Emitted when the client are done sending data to the APM Server. No more
-data can be sent after this event.
+The `finish` event is emitted after the `client.end()` method has been
+called, and all data has been flushed to the underlying system.
 
 ### `client.sendSpan(span[, callback])`
 
@@ -116,7 +116,7 @@ Arguments:
 
 - `span` - A span object that can be serialized to JSON
 - `callback` - Callback is called when the `span` have been flushed to
-  the underlying stream
+  the underlying system
 
 ### `client.sendTransaction(transaction[, callback])`
 
@@ -126,7 +126,7 @@ Arguments:
 
 - `transaction` - A transaction object that can be serialized to JSON
 - `callback` - Callback is called when the `transaction` have been
-  flushed to the underlying stream
+  flushed to the underlying system
 
 ### `client.sendError(error[, callback])`
 
@@ -136,7 +136,7 @@ Arguments:
 
 - `error` - A error object that can be serialized to JSON
 - `callback` - Callback is called when the `error` have been flushed to
-  the underlying stream
+  the underlying system
 
 ### `client.flush([callback])
 
