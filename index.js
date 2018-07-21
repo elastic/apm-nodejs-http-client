@@ -52,8 +52,11 @@ function Client (opts) {
   this._transport = require(opts.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
   this._agent = new this._transport.Agent(opts)
   this._stream = ndjson.serialize()
-  this._chopper = new StreamChopper(opts)
-    .on('stream', onStream(opts, this, errorproxy))
+  this._chopper = new StreamChopper({
+    size: opts.size,
+    time: opts.time,
+    type: StreamChopper.overflow
+  }).on('stream', onStream(opts, this, errorproxy))
 
   this._stream.on('error', errorproxy)
   this._chopper.on('error', errorproxy)
@@ -244,7 +247,6 @@ function normalizeOptions (opts) {
   if (!normalized.size && normalized.size !== 0) normalized.size = 1024 * 1024
   if (!normalized.time && normalized.time !== 0) normalized.time = 10000
   if (!normalized.serverTimeout && normalized.serverTimeout !== 0) normalized.serverTimeout = 15000
-  if (!normalized.type) normalized.type = StreamChopper.overflow
   if (!normalized.serverUrl) normalized.serverUrl = 'http://localhost:8200'
   normalized.keepAlive = normalized.keepAlive !== false
 
