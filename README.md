@@ -90,19 +90,18 @@ Streaming configuration:
   to the APM Server can be ongoing before it's ended (default: `10000`
   ms)
 
+### Event: `close`
+
+The `close` event is emitted when the client and any of its underlying
+resources have been closed. The event indicates that no more events will
+be emitted, and no more data can be sent by the client.
+
 ### Event: `error`
 
 Emitted if an error occurs. The listener callback is passed a single
 Error argument when called.
 
-The client cannot recover from errors.
-
-### Event: `warning`
-
-Emitted if an error occurs. The listener callback is passed a single
-Error argument when called.
-
-The client can receover from warnings.
+The client is not closed when the `error` event is emitted.
 
 ### Event: `finish`
 

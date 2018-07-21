@@ -6,6 +6,7 @@ const zlib = require('zlib')
 const Writable = require('readable-stream').Writable
 const pump = require('pump')
 const ndjson = require('ndjson')
+const eos = require('end-of-stream')
 const safeStringify = require('fast-safe-stringify')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
@@ -38,9 +39,11 @@ function Client (opts) {
   Writable.call(this, opts)
 
   const errorproxy = (err) => {
-    // Emit as warning if the error is recoverable. If we emitted it as an
-    // error, the Client object would be destroyed
-    if (this._destroyed === false) this.emit('warning', err)
+    if (this._destroyed === false) this.emit('error', err)
+  }
+
+  const fail = () => {
+    if (this._writableState.ending === false) this.destroy() // TODO: ending vs ended?
   }
 
   this._active = false
@@ -52,10 +55,10 @@ function Client (opts) {
   this._chopper = new StreamChopper(opts)
     .on('stream', onStream(opts, this, errorproxy))
 
-  this._stream.on('error', (err) => {
-    if (this._destroyed === false) this.emit('error', err)
-  })
+  this._stream.on('error', errorproxy)
   this._chopper.on('error', errorproxy)
+  eos(this._stream, {error: false}, fail)
+  eos(this._chopper, {error: false}, fail)
 
   pump(this._stream, this._chopper)
 

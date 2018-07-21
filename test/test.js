@@ -145,7 +145,7 @@ test('reject unauthorized TLS by default', function (t) {
   const server = APMServer({secure: true}, function (req, res) {
     t.fail('should should not get request')
   }).client(function (client) {
-    client.on('warning', function (err) {
+    client.on('error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'self signed certificate')
       t.equal(err.code, 'DEPTH_ZERO_SELF_SIGNED_CERT')
@@ -512,12 +512,124 @@ test('client should not hold the process open', function (t) {
  * Edge cases
  */
 
+test('Event: close - if ndjson stream ends', function (t) {
+  t.plan(1)
+  let client
+  const server = APMServer(function (req, res) {
+    client._stream.end()
+    setTimeout(function () {
+      // wait a little to allow close to be emitted
+      t.end()
+      server.close()
+    }, 10)
+  }).listen(function () {
+    client = new Client({
+      serverUrl: 'http://localhost:' + server.address().port,
+      userAgent: 'foo',
+      meta: onmeta
+    })
+
+    client.on('finish', function () {
+      t.fail('should not emit finish event')
+    })
+    client.on('close', function () {
+      t.pass('should emit close event')
+    })
+
+    client.sendSpan({req: 1})
+  })
+})
+
+test('Event: close - if ndjson stream is destroyed', function (t) {
+  t.plan(1)
+  let client
+  const server = APMServer(function (req, res) {
+    client._stream.destroy()
+    setTimeout(function () {
+      // wait a little to allow close to be emitted
+      t.end()
+      server.close()
+    }, 10)
+  }).listen(function () {
+    client = new Client({
+      serverUrl: 'http://localhost:' + server.address().port,
+      userAgent: 'foo',
+      meta: onmeta
+    })
+
+    client.on('finish', function () {
+      t.fail('should not emit finish event')
+    })
+    client.on('close', function () {
+      t.pass('should emit close event')
+    })
+
+    client.sendSpan({req: 1})
+  })
+})
+
+test('Event: close - if chopper ends', function (t) {
+  t.plan(1)
+  let client
+  const server = APMServer(function (req, res) {
+    client._chopper.end()
+    setTimeout(function () {
+      // wait a little to allow close to be emitted
+      t.end()
+      server.close()
+    }, 10)
+  }).listen(function () {
+    client = new Client({
+      serverUrl: 'http://localhost:' + server.address().port,
+      userAgent: 'foo',
+      meta: onmeta
+    })
+
+    client.on('finish', function () {
+      t.fail('should not emit finish event')
+    })
+    client.on('close', function () {
+      t.pass('should emit close event')
+    })
+
+    client.sendSpan({req: 1})
+  })
+})
+
+test('Event: close - if chopper is destroyed', function (t) {
+  t.plan(1)
+  let client
+  const server = APMServer(function (req, res) {
+    client._chopper.destroy()
+    setTimeout(function () {
+      // wait a little to allow close to be emitted
+      t.end()
+      server.close()
+    }, 10)
+  }).listen(function () {
+    client = new Client({
+      serverUrl: 'http://localhost:' + server.address().port,
+      userAgent: 'foo',
+      meta: onmeta
+    })
+
+    client.on('finish', function () {
+      t.fail('should not emit finish event')
+    })
+    client.on('close', function () {
+      t.pass('should emit close event')
+    })
+
+    client.sendSpan({req: 1})
+  })
+})
+
 test('write after end', function (t) {
   t.plan(2)
   const server = APMServer(function (req, res) {
     t.fail('should never get any request')
   }).client(function (client) {
-    client.on('warning', function (err) {
+    client.on('error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'write after end')
       server.close()
@@ -533,7 +645,7 @@ test('request with error - no body', function (t) {
     res.statusCode = 418
     res.end()
   }).client(function (client) {
-    client.on('warning', function (err) {
+    client.on('error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected response code from APM Server: 418')
       t.equal(err.result, undefined)
@@ -550,7 +662,7 @@ test('request with error - non json body', function (t) {
     res.statusCode = 418
     res.end('boom!')
   }).client(function (client) {
-    client.on('warning', function (err) {
+    client.on('error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected response code from APM Server: 418')
       t.equal(err.result, 'boom!')
@@ -568,7 +680,7 @@ test('request with error - invalid json body', function (t) {
     res.setHeader('Content-Type', 'application/json')
     res.end('boom!')
   }).client(function (client) {
-    client.on('warning', function (err) {
+    client.on('error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected response code from APM Server: 418')
       t.equal(err.result, 'boom!')
@@ -587,7 +699,7 @@ test('request with error - json body without error property', function (t) {
     res.setHeader('Content-Type', 'application/json')
     res.end(body)
   }).client(function (client) {
-    client.on('warning', function (err) {
+    client.on('error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected response code from APM Server: 418')
       t.equal(err.result, body)
@@ -605,7 +717,7 @@ test('request with error - json body with error property', function (t) {
     res.setHeader('Content-Type', 'application/json')
     res.end(JSON.stringify({error: 'bar'}))
   }).client(function (client) {
-    client.on('warning', function (err) {
+    client.on('error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected response code from APM Server: 418')
       t.equal(err.result, 'bar')
@@ -621,12 +733,20 @@ test('socket hang up', function (t) {
   const server = APMServer(function (req, res) {
     req.socket.destroy()
   }).client(function (client) {
-    client.on('warning', function (err) {
+    let closed = false
+    client.on('error', function (err) {
       t.equal(err.message, 'socket hang up')
       t.equal(err.code, 'ECONNRESET')
-      server.close()
-      client.destroy()
-      t.end()
+      // wait a little in case 'close' is emitted async
+      setTimeout(function () {
+        t.equal(closed, false)
+        t.end()
+        server.close()
+        client.destroy()
+      }, 50)
+    })
+    client.on('close', function () {
+      closed = true
     })
     client.on('finish', function () {
       t.fail('should not emit finish')
@@ -666,7 +786,7 @@ test('socket hang up - continue with new request', function (t) {
     })
   }).client(function (_client) {
     client = _client
-    client.on('warning', function (err) {
+    client.on('error', function (err) {
       t.equal(err.message, 'socket hang up')
       t.equal(err.code, 'ECONNRESET')
       client.sendSpan({req: 2})
@@ -684,7 +804,7 @@ test('socket timeout - server response too slow', function (t) {
     req.resume()
   }).client({serverTimeout: 1000}, function (client) {
     const start = Date.now()
-    client.on('warning', function (err) {
+    client.on('error', function (err) {
       const end = Date.now()
       const delta = end - start
       t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
@@ -706,7 +826,7 @@ test('socket timeout - client request too slow', function (t) {
     })
   }).client({serverTimeout: 1000}, function (client) {
     const start = Date.now()
-    client.on('warning', function (err) {
+    client.on('error', function (err) {
       const end = Date.now()
       const delta = end - start
       t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
@@ -720,6 +840,7 @@ test('socket timeout - client request too slow', function (t) {
 })
 
 test('client.destroy() - on fresh client', function (t) {
+  t.plan(1)
   const client = new Client({
     userAgent: 'foo',
     meta: onmeta
@@ -727,12 +848,18 @@ test('client.destroy() - on fresh client', function (t) {
   client.on('finish', function () {
     t.fail('should not emit finish')
   })
+  client.on('close', function () {
+    t.pass('should emit close')
+  })
   client.destroy()
-  t.end()
+  process.nextTick(function () {
+    // wait a little to allow close to be emitted
+    t.end()
+  })
 })
 
 test('client.destroy() - should not allow more writes', function (t) {
-  t.plan(10)
+  t.plan(12)
   let count = 0
 
   const client = new Client({
@@ -741,6 +868,12 @@ test('client.destroy() - should not allow more writes', function (t) {
   })
   client.on('error', function (err) {
     t.ok(err instanceof Error, 'should emit error ' + err.message)
+  })
+  client.on('finish', function () {
+    t.pass('should emit finish') // emitted because of client.end()
+  })
+  client.on('close', function () {
+    t.pass('should emit close') // emitted because of client.destroy()
   })
   client.destroy()
   client.sendSpan({foo: 42}, done)
@@ -756,7 +889,7 @@ test('client.destroy() - should not allow more writes', function (t) {
 })
 
 test('client.destroy() - on ended client', function (t) {
-  t.plan(1)
+  t.plan(2)
   let client
 
   // create a server that doesn't unref incoming sockets to see if
@@ -767,7 +900,10 @@ test('client.destroy() - on ended client', function (t) {
       res.end()
       client.destroy()
       server.close()
-      t.end()
+      process.nextTick(function () {
+        // wait a little to allow close to be emitted
+        t.end()
+      })
     })
   })
 
@@ -780,12 +916,16 @@ test('client.destroy() - on ended client', function (t) {
     client.on('finish', function () {
       t.pass('should emit finish only once')
     })
+    client.on('close', function () {
+      t.pass('should emit close event')
+    })
     client.sendSpan({foo: 42})
     client.end()
   })
 })
 
 test('client.destroy() - on client with request in progress', function (t) {
+  t.plan(1)
   let client
 
   // create a server that doesn't unref incoming sockets to see if
@@ -793,7 +933,10 @@ test('client.destroy() - on client with request in progress', function (t) {
   const server = http.createServer(function (req, res) {
     server.close()
     client.destroy()
-    t.end()
+    process.nextTick(function () {
+      // wait a little to allow close to be emitted
+      t.end()
+    })
   })
 
   server.listen(function () {
@@ -804,6 +947,9 @@ test('client.destroy() - on client with request in progress', function (t) {
     })
     client.on('finish', function () {
       t.fail('should not emit finish')
+    })
+    client.on('close', function () {
+      t.pass('should emit close event')
     })
     client.sendSpan({foo: 42})
   })
