@@ -35,6 +35,13 @@ const client = new Client({
   }
 })
 
+const span = {
+  name: 'SELECT FROM users',
+  duration: 42,
+  start: 0,
+  type: 'db.mysql.query'
+}
+
 client.sendSpan(span)
 ```
 
