@@ -138,7 +138,7 @@ Arguments:
 - `callback` - Callback is called when the `error` have been flushed to
   the underlying system
 
-### `client.flush([callback])
+### `client.flush([callback])`
 
 Flush the internal buffer and end the current HTTP request to the APM
 Server. If no HTTP request is in process nothing happens.
@@ -149,7 +149,7 @@ Arguments:
   flushed and the HTTP request ended. If no HTTP request is in progress
   the callback is called in the next tick.
 
-### `client.end([callback])
+### `client.end([callback])`
 
 Calling the `client.end()` method signals that no more data will be sent
 to the `client`. If the internal buffer contains any data, this is
