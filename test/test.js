@@ -512,7 +512,7 @@ test('client should not hold the process open', function (t) {
  * Edge cases
  */
 
-test.skip('write after end', function (t) {
+test('write after end', function (t) {
   t.plan(2)
   const server = APMServer(function (req, res) {
     t.fail('should never get any request')
