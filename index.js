@@ -130,7 +130,7 @@ Client.prototype._final = function (cb) {
 // be trusted. After a stream is destroyed, we want a call to either
 // client.write() or client.end() to both emit an error and call the provided
 // callback. Unfortunately, in readable-stream@2 and Node.js <10, this is not
-// consistant. This has been fixed in Node.js 10 and will also be fixed in
+// consistent. This has been fixed in Node.js 10 and will also be fixed in
 // readable-stream@3.
 Client.prototype.destroy = function (err) {
   if (this._destroyed) return
