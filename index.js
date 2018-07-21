@@ -107,6 +107,10 @@ Client.prototype.flush = function (cb) {
     return
   }
 
+  // Write the special "flush" signal. We do this so that the order of writes
+  // and flushes are kept. If we where to just flush the client right here, the
+  // internal Writable buffer might still contain data that hasn't yet been
+  // given to the _write function.
   return this.write(flush, cb)
 }
 
@@ -123,7 +127,11 @@ Client.prototype._final = function (cb) {
 }
 
 // Overwrite destroy instead of using _destroy because readable-stream@2 can't
-// be trusted
+// be trusted. After a stream is destroyed, we want a call to either
+// client.write() or client.end() to both emit an error and call the provided
+// callback. Unfortunately, in readable-stream@2 and Node.js <10, this is not
+// consistant. This has been fixed in Node.js 10 and will also be fixed in
+// readable-stream@3.
 Client.prototype.destroy = function (err) {
   if (this._destroyed) return
   this._destroyed = true
