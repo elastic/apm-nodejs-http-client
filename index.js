@@ -43,14 +43,14 @@ function Client (opts) {
     if (this._destroyed === false) this.emit('warning', err)
   }
 
-  this._transport = require(opts.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
-  this._agent = new this._transport.Agent(opts)
   this._active = false
   this._destroyed = false
   this._onflushed = null
-
+  this._transport = require(opts.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
+  this._agent = new this._transport.Agent(opts)
   this._stream = ndjson.serialize()
-  this._chopper = new StreamChopper(opts).on('stream', onStream(opts, this, errorproxy))
+  this._chopper = new StreamChopper(opts)
+    .on('stream', onStream(opts, this, errorproxy))
 
   this._stream.on('error', (err) => {
     if (this._destroyed === false) this.emit('error', err)
