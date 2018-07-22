@@ -43,7 +43,7 @@ function Client (opts) {
   }
 
   const fail = () => {
-    if (this._writableState.ending === false) this.destroy() // TODO: ending vs ended?
+    if (this._writableState.ending === false) this.destroy()
   }
 
   this._active = false
