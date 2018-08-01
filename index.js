@@ -46,6 +46,8 @@ function Client (opts) {
     if (this._writableState.ending === false) this.destroy()
   }
 
+  this._received = 0 // number of events given to the client for reporting
+  this.sent = 0 // number of events written to the socket
   this._active = false
   this._destroyed = false
   this._onflushed = null
@@ -90,6 +92,7 @@ Client.prototype._write = function (obj, enc, cb) {
       this._chopper.chop(cb)
     }
   } else {
+    this._received++
     this._stream.write(obj, cb)
   }
 }
@@ -205,6 +208,7 @@ function onStream (opts, client, onerror) {
       //    would not get it here as the internal error listener would have
       //    been removed and the stream would throw the error instead
 
+      client.sent = client._received
       client._active = false
       if (client._onflushed) {
         client._onflushed()
