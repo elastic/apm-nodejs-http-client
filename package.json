@@ -7,19 +7,30 @@
     "test": "test"
   },
   "scripts": {
-    "test": "standard && tape test.js"
+    "coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
+    "test": "standard && nyc node test/test.js"
+  },
+  "engines": {
+    "node": "6 || 8 || 10"
   },
   "author": "Thomas Watson <w@tson.dk> (https://twitter.com/wa7son)",
   "license": "MIT",
   "dependencies": {
-    "fast-safe-stringify": "^2.0.4"
+    "end-of-stream": "^1.4.1",
+    "fast-safe-stringify": "^2.0.4",
+    "fast-stream-to-buffer": "^1.0.0",
+    "ndjson": "^1.5.0",
+    "pump": "^3.0.0",
+    "readable-stream": "^2.3.6",
+    "stream-chopper": "^1.1.1"
   },
   "devDependencies": {
+    "codecov": "^3.0.4",
     "https-pem": "^2.0.0",
-    "nock": "^9.2.6",
+    "nyc": "^12.0.2",
     "semver": "^5.5.0",
     "standard": "^11.0.1",
-    "tape": "^4.9.0"
+    "tape": "^4.9.1"
   },
   "repository": {
     "type": "git",
