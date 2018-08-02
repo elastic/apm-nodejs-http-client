@@ -5,10 +5,10 @@ const Client = require('../')
 const client = new Client({
   serverUrl: process.argv[2],
   secretToken: 'secret',
-  userAgent: 'foo',
-  meta: function () {
-    return {}
-  }
+  agentName: 'my-agent-name',
+  agentVersion: 'my-agent-version',
+  serviceName: 'my-service-name',
+  userAgent: 'my-user-agent'
 })
 
 process.stdout.write(String(Date.now()))

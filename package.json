@@ -22,7 +22,8 @@
     "ndjson": "^1.5.0",
     "pump": "^3.0.0",
     "readable-stream": "^2.3.6",
-    "stream-chopper": "^1.1.1"
+    "stream-chopper": "^1.1.1",
+    "unicode-byte-truncate": "^1.0.0"
   },
   "devDependencies": {
     "codecov": "^3.0.4",
