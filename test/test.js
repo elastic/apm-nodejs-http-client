@@ -469,6 +469,41 @@ test('client.end(callback)', function (t) {
   })
 })
 
+test('client.sent', function (t) {
+  t.plan(8)
+  let client
+  let requests = 0
+  const server = APMServer(function (req, res) {
+    requests++
+    t.equal(client.sent, 3 * (requests - 1))
+    req.resume()
+    req.on('end', function () {
+      t.equal(client.sent, 3 * requests)
+      res.end()
+      if (requests === 2) {
+        server.close()
+        t.end()
+      }
+    })
+  }).client(function (_client) {
+    client = _client
+    client.sendError({foo: 42})
+    client.sendSpan({foo: 42})
+    client.sendTransaction({foo: 42})
+    t.equal(client.sent, 0)
+    client.flush(function () {
+      t.equal(client.sent, 3)
+      client.sendError({foo: 42})
+      client.sendSpan({foo: 42})
+      client.sendTransaction({foo: 42})
+      t.equal(client.sent, 3)
+      client.flush(function () {
+        t.equal(client.sent, 6)
+      })
+    })
+  })
+})
+
 /**
  * Side effects
  */

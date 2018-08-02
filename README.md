@@ -116,6 +116,12 @@ The client is not closed when the `error` event is emitted.
 The `finish` event is emitted after the `client.end()` method has been
 called, and all data has been flushed to the underlying system.
 
+### `client.sent`
+
+An integer indicating the number of events (spans, transactions, or errors)
+sent by the client. An event is considered sent when the HTTP request
+used to transmit it have ended.
+
 ### `client.sendSpan(span[, callback])`
 
 Send a span to the APM Server.
