@@ -105,9 +105,17 @@ Streaming configuration:
 
 Data sanitizing configuration:
 
-- `truncateStringsAt` - Maximum size in bytes for strings stored as
+- `truncateKeywordsAt` - Maximum size in bytes for strings stored as
   Elasticsearch keywords. Strings larger than this will be trucated
   (default: `1024` bytes)
+- `truncateErrorMessagesAt` - The maximum size in bytes for error
+  messages. Messages above this length will be truncated. Set to `-1` do
+  disable truncation. This applies to the following properties:
+  `error.exception.message` and `error.log.message` (default: `2048`
+  bytes)
+- `truncateSourceLinesAt` - The maximum size in bytes for souce code
+  lines in stack traces. Lines above this length will be truncated
+  (default: `1000` bytes)
 
 ### Event: `close`
 

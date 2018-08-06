@@ -11,7 +11,7 @@ const eos = require('end-of-stream')
 const safeStringify = require('fast-safe-stringify')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
-const truncate = require('unicode-byte-truncate')
+const truncate = require('./lib/truncate')
 const pkg = require('./package')
 
 module.exports = Client
@@ -44,7 +44,7 @@ util.inherits(Client, Writable)
 function Client (opts) {
   if (!(this instanceof Client)) return new Client(opts)
 
-  opts = normalizeOptions(opts)
+  this._opts = opts = normalizeOptions(opts)
 
   Writable.call(this, opts)
 
@@ -108,14 +108,17 @@ Client.prototype._write = function (obj, enc, cb) {
 }
 
 Client.prototype.sendSpan = function (span, cb) {
+  truncate.span(span, this._opts)
   return this.write({span}, cb)
 }
 
 Client.prototype.sendTransaction = function (transaction, cb) {
+  truncate.transaction(transaction, this._opts)
   return this.write({transaction}, cb)
 }
 
 Client.prototype.sendError = function (error, cb) {
+  truncate.error(error, this._opts)
   return this.write({error}, cb)
 }
 
@@ -228,7 +231,9 @@ function onStream (opts, client, onerror) {
     })
 
     // All requests to the APM Server must start with a metadata object
-    stream.write(safeStringify({metadata: metadata(opts)}) + '\n')
+    const metadata = getMetadata(opts)
+    truncate.metadata(metadata, opts)
+    stream.write(safeStringify({metadata}) + '\n')
   }
 }
 
@@ -262,7 +267,9 @@ function normalizeOptions (opts) {
   if (!normalized.serverTimeout && normalized.serverTimeout !== 0) normalized.serverTimeout = 15000
   if (!normalized.serverUrl) normalized.serverUrl = 'http://localhost:8200'
   if (!normalized.hostname) normalized.hostname = hostname
-  if (!normalized.truncateStringsAt) normalized.truncateStringsAt = 1024
+  if (!normalized.truncateKeywordsAt) normalized.truncateKeywordsAt = 1024
+  if (!normalized.truncateErrorMessagesAt) normalized.truncateErrorMessagesAt = 2048
+  if (!normalized.truncateSourceLinesAt) normalized.truncateSourceLinesAt = 1000
   normalized.keepAlive = normalized.keepAlive !== false
 
   // process
@@ -294,7 +301,7 @@ function getHeaders (opts) {
   return Object.assign(headers, opts.headers)
 }
 
-function metadata (opts) {
+function getMetadata (opts) {
   var payload = {
     service: {
       name: opts.serviceName,
@@ -313,7 +320,7 @@ function metadata (opts) {
     process: {
       pid: process.pid,
       ppid: process.ppid,
-      title: truncate(String(process.title), opts.truncateStringsAt),
+      title: process.title,
       argv: process.argv
     },
     system: {

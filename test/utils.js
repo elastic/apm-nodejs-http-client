@@ -13,6 +13,7 @@ exports.APMServer = APMServer
 exports.processReq = processReq
 exports.assertReq = assertReq
 exports.assertMetadata = assertMetadata
+exports.assertEvent = assertEvent
 exports.validOpts = validOpts
 
 function APMServer (opts, onreq) {
@@ -93,6 +94,30 @@ function assertMetadata (t, obj) {
   t.ok(system.platform.length > 0)
 }
 assertMetadata.asserts = 22
+
+function assertEvent (expect) {
+  return function (t, obj) {
+    const key = Object.keys(expect)[0]
+    const val = expect[key]
+    switch (key) {
+      case 'transaction':
+        if (!('name' in val)) val.name = 'undefined'
+        if (!('type' in val)) val.type = 'undefined'
+        if (!('result' in val)) val.result = 'undefined'
+        break
+      case 'span':
+        if (!('name' in val)) val.name = 'undefined'
+        if (!('type' in val)) val.type = 'undefined'
+        break
+      case 'error':
+        break
+      default:
+        t.fail('unexpected event type: ' + key)
+    }
+    t.deepEqual(obj, expect)
+  }
+}
+assertEvent.asserts = 1
 
 function validOpts (opts) {
   return Object.assign({
