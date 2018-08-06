@@ -6,8 +6,8 @@ const zlib = require('zlib')
 const semver = require('semver')
 const pem = require('https-pem')
 const ndjson = require('ndjson')
-const pkg = require('../package')
-const Client = require('../')
+const pkg = require('../../package')
+const Client = require('../../')
 
 exports.APMServer = APMServer
 exports.processReq = processReq
@@ -80,11 +80,20 @@ function assertMetadata (t, obj) {
   const _process = metadata.process
   t.ok(_process.pid > 0)
   t.ok(_process.ppid > 0)
-  t.ok(/(\/node|^node)$/.test(_process.title), `process.title should match /(\\/node|^node)$/ (was: ${_process.title})`)
+
+  if (_process.title.length === 1) {
+    // because of truncation test
+    t.equal(_process.title, process.title[0])
+  } else {
+    const regex = /(\/node|^node)$/
+    t.ok(regex.test(_process.title), `process.title should match ${regex} (was: ${_process.title})`)
+  }
+
   t.ok(Array.isArray(_process.argv), 'process.title should be an array')
   t.ok(_process.argv.length >= 2, 'process.title should contain at least two elements')
   t.ok(/\/node$/.test(_process.argv[0]), `process.argv[0] should match /\\/node$/ (was: ${_process.argv[0]})`)
-  t.ok(/\/test\/(test|unref-client)\.js$/.test(_process.argv[1]), `process.argv[1] should match /\\/test\\/(test|unref-client)\\.js$/ (was: ${_process.argv[1]})"`)
+  const regex = /(\/test\/(test|truncate|lib\/unref-client)\.js|node_modules\/\.bin\/tape)$/
+  t.ok(regex.test(_process.argv[1]), `process.argv[1] should match ${regex} (was: ${_process.argv[1]})"`)
   const system = metadata.system
   t.ok(typeof system.hostname, 'string')
   t.ok(system.hostname.length > 0)

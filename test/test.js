@@ -6,7 +6,7 @@ const exec = require('child_process').exec
 const http = require('http')
 const test = require('tape')
 const semver = require('semver')
-const utils = require('./utils')
+const utils = require('./lib/utils')
 const pkg = require('../package')
 const Client = require('../')
 
@@ -649,7 +649,7 @@ test('client should not hold the process open', function (t) {
 
   server.listen(function () {
     const url = 'http://localhost:' + server.address().port
-    const file = path.join(__dirname, 'unref-client.js')
+    const file = path.join(__dirname, 'lib', 'unref-client.js')
     exec(`node ${file} ${url}`, function (err, stdout, stderr) {
       if (err) throw err
       const end = Date.now()

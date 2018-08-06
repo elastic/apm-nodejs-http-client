@@ -1,6 +1,6 @@
 'use strict'
 
-const Client = require('../')
+const Client = require('../../')
 
 const client = new Client({
   serverUrl: process.argv[2],

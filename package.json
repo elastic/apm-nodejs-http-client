@@ -8,7 +8,7 @@
   },
   "scripts": {
     "coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
-    "test": "standard && nyc node test/test.js"
+    "test": "standard && nyc tape test/*.js"
   },
   "engines": {
     "node": "6 || 8 || 10"
