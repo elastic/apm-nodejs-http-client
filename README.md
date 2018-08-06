@@ -109,6 +109,12 @@ Data sanitizing configuration:
   Elasticsearch keywords. Strings larger than this will be trucated
   (default: `1024` bytes)
 
+Debug options:
+
+- `payloadLogFile` - Specify a file path to which a copy of all data
+  sent to the APM Server should be written. The data will be in ndjson
+  format and will be uncompressed
+
 ### Event: `close`
 
 The `close` event is emitted when the client and any of its underlying

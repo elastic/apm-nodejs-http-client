@@ -220,6 +220,13 @@ function onStream (opts, client, onerror) {
       next()
     })
 
+    if (opts.payloadLogFile) {
+      if (!client._payloadLogFile) {
+        client._payloadLogFile = require('fs').createWriteStream(opts.payloadLogFile, {flags: 'a'})
+      }
+      pump(stream, client._payloadLogFile)
+    }
+
     // All requests to the APM Server must start with a metadata object
     stream.write(ndjson.serialize({metadata: metadata(opts)}))
   }

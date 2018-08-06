@@ -1,9 +1,11 @@
 'use strict'
 
 const path = require('path')
+const fs = require('fs')
 const os = require('os')
 const exec = require('child_process').exec
 const http = require('http')
+const ndjson = require('ndjson')
 const test = require('tape')
 const semver = require('semver')
 const utils = require('./utils')
@@ -280,6 +282,42 @@ test('agentName', function (t) {
     })
   }).client({serviceName: 'custom'}, function (client) {
     client.sendSpan({foo: 42})
+    client.end()
+  })
+})
+
+test('payloadLogFile', function (t) {
+  const filename = path.join(os.tmpdir(), Date.now() + '.ndsjon')
+  const server = APMServer(function (req, res) {
+    const fileObjects = []
+    const serverObjects = []
+
+    fs.createReadStream(filename)
+      .pipe(ndjson.parse())
+      .on('data', function (obj) {
+        fileObjects.push(obj)
+      })
+
+    req = processReq(req)
+
+    req.on('data', function (obj) {
+      serverObjects.push(obj)
+    })
+
+    req.on('end', function () {
+      res.end()
+      server.close()
+
+      t.equal(fileObjects.length, 4)
+      t.equal(serverObjects.length, 4)
+      t.deepEqual(fileObjects, serverObjects)
+
+      t.end()
+    })
+  }).client({payloadLogFile: filename}, function (client) {
+    client.sendTransaction({req: 1})
+    client.sendSpan({req: 2})
+    client.sendError({req: 3})
     client.end()
   })
 })
