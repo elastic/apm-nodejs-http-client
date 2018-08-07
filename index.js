@@ -103,11 +103,11 @@ Client.prototype._write = function (obj, enc, cb) {
     }
   } else {
     if ('transaction' in obj) {
-      truncate.transaction(obj, this._opts)
+      truncate.transaction(obj.transaction, this._opts)
     } else if ('span' in obj) {
-      truncate.span(obj, this._opts)
+      truncate.span(obj.span, this._opts)
     } else if ('error' in obj) {
-      truncate.error(obj, this._opts)
+      truncate.error(obj.error, this._opts)
     }
     this._received++
     this._stream.write(obj, cb)
