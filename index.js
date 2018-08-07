@@ -102,23 +102,27 @@ Client.prototype._write = function (obj, enc, cb) {
       this._chopper.chop(cb)
     }
   } else {
+    if ('transaction' in obj) {
+      truncate.transaction(obj, this._opts)
+    } else if ('span' in obj) {
+      truncate.span(obj, this._opts)
+    } else if ('error' in obj) {
+      truncate.error(obj, this._opts)
+    }
     this._received++
     this._stream.write(obj, cb)
   }
 }
 
 Client.prototype.sendSpan = function (span, cb) {
-  truncate.span(span, this._opts)
   return this.write({span}, cb)
 }
 
 Client.prototype.sendTransaction = function (transaction, cb) {
-  truncate.transaction(transaction, this._opts)
   return this.write({transaction}, cb)
 }
 
 Client.prototype.sendError = function (error, cb) {
-  truncate.error(error, this._opts)
   return this.write({error}, cb)
 }
 
