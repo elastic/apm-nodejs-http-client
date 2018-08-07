@@ -109,7 +109,7 @@ Data sanitizing configuration:
   Elasticsearch keywords. Strings larger than this will be trucated
   (default: `1024` bytes)
 - `truncateErrorMessagesAt` - The maximum size in bytes for error
-  messages. Messages above this length will be truncated. Set to `-1` do
+  messages. Messages above this length will be truncated. Set to `-1` to
   disable truncation. This applies to the following properties:
   `error.exception.message` and `error.log.message` (default: `2048`
   bytes)
