@@ -604,17 +604,14 @@ test('client.end(callback)', function (t) {
 })
 
 test('client.sent', function (t) {
-  t.plan(8)
+  t.plan(4)
   let client
   let requests = 0
   const server = APMServer(function (req, res) {
-    requests++
-    t.equal(client.sent, 3 * (requests - 1))
     req.resume()
     req.on('end', function () {
-      t.equal(client.sent, 3 * requests)
       res.end()
-      if (requests === 2) {
+      if (++requests === 2) {
         server.close()
         t.end()
       }
@@ -624,15 +621,15 @@ test('client.sent', function (t) {
     client.sendError({foo: 42})
     client.sendSpan({foo: 42})
     client.sendTransaction({foo: 42})
-    t.equal(client.sent, 0)
+    t.equal(client.sent, 0, 'after 1st round of sending')
     client.flush(function () {
-      t.equal(client.sent, 3)
+      t.equal(client.sent, 3, 'after 1st flush')
       client.sendError({foo: 42})
       client.sendSpan({foo: 42})
       client.sendTransaction({foo: 42})
-      t.equal(client.sent, 3)
+      t.equal(client.sent, 3, 'after 2nd round of sending')
       client.flush(function () {
-        t.equal(client.sent, 6)
+        t.equal(client.sent, 6, 'after 2nd flush')
       })
     })
   })
@@ -687,7 +684,7 @@ test('Event: close - if ndjson stream ends', function (t) {
   t.plan(1)
   let client
   const server = APMServer(function (req, res) {
-    client._stream.end()
+    client._chopper.end()
     setTimeout(function () {
       // wait a little to allow close to be emitted
       t.end()
@@ -713,7 +710,7 @@ test('Event: close - if ndjson stream is destroyed', function (t) {
   t.plan(1)
   let client
   const server = APMServer(function (req, res) {
-    client._stream.destroy()
+    client._chopper.destroy()
     setTimeout(function () {
       // wait a little to allow close to be emitted
       t.end()
