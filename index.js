@@ -224,7 +224,9 @@ function onStream (opts, client, onerror) {
       if (!client._payloadLogFile) {
         client._payloadLogFile = require('fs').createWriteStream(opts.payloadLogFile, {flags: 'a'})
       }
-      pump(stream, client._payloadLogFile)
+      stream.on('data', function (chunk) {
+        client._payloadLogFile.write(chunk)
+      })
     }
 
     // All requests to the APM Server must start with a metadata object
