@@ -9,8 +9,8 @@ const pump = require('pump')
 const eos = require('end-of-stream')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
-const truncate = require('unicode-byte-truncate')
 const ndjson = require('./lib/ndjson')
+const truncate = require('./lib/truncate')
 const pkg = require('./package')
 
 module.exports = Client
@@ -43,7 +43,7 @@ util.inherits(Client, Writable)
 function Client (opts) {
   if (!(this instanceof Client)) return new Client(opts)
 
-  opts = normalizeOptions(opts)
+  this._opts = opts = normalizeOptions(opts)
 
   Writable.call(this, opts)
 
@@ -96,6 +96,13 @@ Client.prototype._write = function (obj, enc, cb) {
       this._chopper.chop(cb)
     }
   } else {
+    if ('transaction' in obj) {
+      truncate.transaction(obj.transaction, this._opts)
+    } else if ('span' in obj) {
+      truncate.span(obj.span, this._opts)
+    } else if ('error' in obj) {
+      truncate.error(obj.error, this._opts)
+    }
     this._received++
     this._chopper.write(ndjson.serialize(obj), cb)
   }
@@ -221,7 +228,9 @@ function onStream (opts, client, onerror) {
     })
 
     // All requests to the APM Server must start with a metadata object
-    stream.write(ndjson.serialize({metadata: metadata(opts)}))
+    const metadata = getMetadata(opts)
+    truncate.metadata(metadata, opts)
+    stream.write(ndjson.serialize({metadata}))
   }
 }
 
@@ -255,7 +264,9 @@ function normalizeOptions (opts) {
   if (!normalized.serverTimeout && normalized.serverTimeout !== 0) normalized.serverTimeout = 15000
   if (!normalized.serverUrl) normalized.serverUrl = 'http://localhost:8200'
   if (!normalized.hostname) normalized.hostname = hostname
-  if (!normalized.truncateStringsAt) normalized.truncateStringsAt = 1024
+  if (!normalized.truncateKeywordsAt) normalized.truncateKeywordsAt = 1024
+  if (!normalized.truncateErrorMessagesAt) normalized.truncateErrorMessagesAt = 2048
+  if (!normalized.truncateSourceLinesAt) normalized.truncateSourceLinesAt = 1000
   normalized.keepAlive = normalized.keepAlive !== false
 
   // process
@@ -287,7 +298,7 @@ function getHeaders (opts) {
   return Object.assign(headers, opts.headers)
 }
 
-function metadata (opts) {
+function getMetadata (opts) {
   var payload = {
     service: {
       name: opts.serviceName,
@@ -306,7 +317,7 @@ function metadata (opts) {
     process: {
       pid: process.pid,
       ppid: process.ppid,
-      title: truncate(String(process.title), opts.truncateStringsAt),
+      title: process.title,
       argv: process.argv
     },
     system: {

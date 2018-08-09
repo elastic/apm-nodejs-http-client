@@ -6,13 +6,14 @@ const zlib = require('zlib')
 const semver = require('semver')
 const pem = require('https-pem')
 const ndjson = require('ndjson')
-const pkg = require('../package')
-const Client = require('../')
+const pkg = require('../../package')
+const Client = require('../../')
 
 exports.APMServer = APMServer
 exports.processReq = processReq
 exports.assertReq = assertReq
 exports.assertMetadata = assertMetadata
+exports.assertEvent = assertEvent
 exports.validOpts = validOpts
 
 function APMServer (opts, onreq) {
@@ -79,11 +80,20 @@ function assertMetadata (t, obj) {
   const _process = metadata.process
   t.ok(_process.pid > 0)
   t.ok(_process.ppid > 0)
-  t.ok(/(\/node|^node)$/.test(_process.title), `process.title should match /(\\/node|^node)$/ (was: ${_process.title})`)
+
+  if (_process.title.length === 1) {
+    // because of truncation test
+    t.equal(_process.title, process.title[0])
+  } else {
+    const regex = /(\/node|^node)$/
+    t.ok(regex.test(_process.title), `process.title should match ${regex} (was: ${_process.title})`)
+  }
+
   t.ok(Array.isArray(_process.argv), 'process.title should be an array')
   t.ok(_process.argv.length >= 2, 'process.title should contain at least two elements')
   t.ok(/\/node$/.test(_process.argv[0]), `process.argv[0] should match /\\/node$/ (was: ${_process.argv[0]})`)
-  t.ok(/\/test\/(test|unref-client)\.js$/.test(_process.argv[1]), `process.argv[1] should match /\\/test\\/(test|unref-client)\\.js$/ (was: ${_process.argv[1]})"`)
+  const regex = /(\/test\/(test|truncate|lib\/unref-client)\.js|node_modules\/\.bin\/tape)$/
+  t.ok(regex.test(_process.argv[1]), `process.argv[1] should match ${regex} (was: ${_process.argv[1]})"`)
   const system = metadata.system
   t.ok(typeof system.hostname, 'string')
   t.ok(system.hostname.length > 0)
@@ -93,6 +103,30 @@ function assertMetadata (t, obj) {
   t.ok(system.platform.length > 0)
 }
 assertMetadata.asserts = 22
+
+function assertEvent (expect) {
+  return function (t, obj) {
+    const key = Object.keys(expect)[0]
+    const val = expect[key]
+    switch (key) {
+      case 'transaction':
+        if (!('name' in val)) val.name = 'undefined'
+        if (!('type' in val)) val.type = 'undefined'
+        if (!('result' in val)) val.result = 'undefined'
+        break
+      case 'span':
+        if (!('name' in val)) val.name = 'undefined'
+        if (!('type' in val)) val.type = 'undefined'
+        break
+      case 'error':
+        break
+      default:
+        t.fail('unexpected event type: ' + key)
+    }
+    t.deepEqual(obj, expect)
+  }
+}
+assertEvent.asserts = 1
 
 function validOpts (opts) {
   return Object.assign({

@@ -6,7 +6,7 @@ const exec = require('child_process').exec
 const http = require('http')
 const test = require('tape')
 const semver = require('semver')
-const utils = require('./utils')
+const utils = require('./lib/utils')
 const pkg = require('../package')
 const Client = require('../')
 
@@ -14,6 +14,7 @@ const APMServer = utils.APMServer
 const processReq = utils.processReq
 const assertReq = utils.assertReq
 const assertMetadata = utils.assertMetadata
+const assertEvent = utils.assertEvent
 const validOpts = utils.validOpts
 
 /**
@@ -294,18 +295,16 @@ dataTypes.forEach(function (dataType) {
   const sendFn = 'send' + dataType.charAt(0).toUpperCase() + dataType.substr(1)
 
   test(`client.${sendFn}() + client.flush()`, function (t) {
-    t.plan(1 + assertReq.asserts + assertMetadata.asserts)
+    t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
-      {[dataType]: {foo: 42}}
+      assertEvent({[dataType]: {foo: 42}})
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        const expect = datas.shift()
-        if (typeof expect === 'function') expect(t, obj)
-        else t.deepEqual(obj, expect)
+        datas.shift()(t, obj)
       })
       req.on('end', function () {
         res.end()
@@ -319,18 +318,16 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`client.${sendFn}(callback) + client.flush()`, function (t) {
-    t.plan(2 + assertReq.asserts + assertMetadata.asserts)
+    t.plan(1 + assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
-      {[dataType]: {foo: 42}}
+      assertEvent({[dataType]: {foo: 42}})
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        const expect = datas.shift()
-        if (typeof expect === 'function') expect(t, obj)
-        else t.deepEqual(obj, expect)
+        datas.shift()(t, obj)
       })
       req.on('end', function () {
         res.end()
@@ -348,18 +345,16 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`client.${sendFn}() + client.end()`, function (t) {
-    t.plan(1 + assertReq.asserts + assertMetadata.asserts)
+    t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
-      {[dataType]: {foo: 42}}
+      assertEvent({[dataType]: {foo: 42}})
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        const expect = datas.shift()
-        if (typeof expect === 'function') expect(t, obj)
-        else t.deepEqual(obj, expect)
+        datas.shift()(t, obj)
       })
       req.on('end', function () {
         res.end()
@@ -373,18 +368,16 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`single client.${sendFn}`, function (t) {
-    t.plan(1 + assertReq.asserts + assertMetadata.asserts)
+    t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
-      {[dataType]: {foo: 42}}
+      assertEvent({[dataType]: {foo: 42}})
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        const expect = datas.shift()
-        if (typeof expect === 'function') expect(t, obj)
-        else t.deepEqual(obj, expect)
+        datas.shift()(t, obj)
       })
       req.on('end', function () {
         res.end()
@@ -397,20 +390,18 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`multiple client.${sendFn} (same request)`, function (t) {
-    t.plan(3 + assertReq.asserts + assertMetadata.asserts)
+    t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts * 3)
     const datas = [
       assertMetadata,
-      {[dataType]: {req: 1}},
-      {[dataType]: {req: 2}},
-      {[dataType]: {req: 3}}
+      assertEvent({[dataType]: {req: 1}}),
+      assertEvent({[dataType]: {req: 2}}),
+      assertEvent({[dataType]: {req: 3}})
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        const expect = datas.shift()
-        if (typeof expect === 'function') expect(t, obj)
-        else t.deepEqual(obj, expect)
+        datas.shift()(t, obj)
       })
       req.on('end', function () {
         res.end()
@@ -425,7 +416,7 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`multiple client.${sendFn} (multiple requests)`, function (t) {
-    t.plan(6 + assertReq.asserts * 2 + assertMetadata.asserts * 2)
+    t.plan(assertReq.asserts * 2 + assertMetadata.asserts * 2 + assertEvent.asserts * 6)
 
     let clientReqNum = 0
     let clientSendNum = 0
@@ -434,13 +425,13 @@ dataTypes.forEach(function (dataType) {
 
     const datas = [
       assertMetadata,
-      {[dataType]: {req: 1, send: 1}},
-      {[dataType]: {req: 1, send: 2}},
-      {[dataType]: {req: 1, send: 3}},
+      assertEvent({[dataType]: {req: 1, send: 1}}),
+      assertEvent({[dataType]: {req: 1, send: 2}}),
+      assertEvent({[dataType]: {req: 1, send: 3}}),
       assertMetadata,
-      {[dataType]: {req: 2, send: 4}},
-      {[dataType]: {req: 2, send: 5}},
-      {[dataType]: {req: 2, send: 6}}
+      assertEvent({[dataType]: {req: 2, send: 4}}),
+      assertEvent({[dataType]: {req: 2, send: 5}}),
+      assertEvent({[dataType]: {req: 2, send: 6}})
     ]
 
     const server = APMServer(function (req, res) {
@@ -448,9 +439,7 @@ dataTypes.forEach(function (dataType) {
       assertReq(t, req)
       req = processReq(req)
       req.on('data', function (obj) {
-        const expect = datas.shift()
-        if (typeof expect === 'function') expect(t, obj)
-        else t.deepEqual(obj, expect)
+        datas.shift()(t, obj)
       })
       req.on('end', function () {
         res.end()
@@ -479,7 +468,7 @@ test('client.flush(callback) - with active request', function (t) {
   t.plan(4 + assertReq.asserts + assertMetadata.asserts)
   const datas = [
     assertMetadata,
-    {span: {foo: 42}}
+    {span: {foo: 42, name: 'undefined', type: 'undefined'}}
   ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
@@ -509,9 +498,9 @@ test('client.flush(callback) - with queued request', function (t) {
   let requests = 0
   const datas = [
     assertMetadata,
-    {span: {req: 1}},
+    {span: {req: 1, name: 'undefined', type: 'undefined'}},
     assertMetadata,
-    {span: {req: 2}}
+    {span: {req: 2, name: 'undefined', type: 'undefined'}}
   ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
@@ -545,9 +534,9 @@ test('2nd flush before 1st flush have finished', function (t) {
   let requestEnds = 0
   const datas = [
     assertMetadata,
-    {span: {req: 1}},
+    {span: {req: 1, name: 'undefined', type: 'undefined'}},
     assertMetadata,
-    {span: {req: 2}}
+    {span: {req: 2, name: 'undefined', type: 'undefined'}}
   ]
   const server = APMServer(function (req, res) {
     requestStarts++
@@ -577,18 +566,16 @@ test('2nd flush before 1st flush have finished', function (t) {
 })
 
 test('client.end(callback)', function (t) {
-  t.plan(2 + assertReq.asserts + assertMetadata.asserts)
+  t.plan(1 + assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
   const datas = [
     assertMetadata,
-    {span: {foo: 42}}
+    assertEvent({span: {foo: 42}})
   ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      const expect = datas.shift()
-      if (typeof expect === 'function') expect(t, obj)
-      else t.deepEqual(obj, expect)
+      datas.shift()(t, obj)
     })
     req.on('end', function () {
       res.end()
@@ -640,20 +627,18 @@ test('client.sent', function (t) {
  */
 
 test('client should not hold the process open', function (t) {
-  t.plan(2 + assertReq.asserts + assertMetadata.asserts)
+  t.plan(1 + assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
 
   const datas = [
     assertMetadata,
-    {span: {hello: 'world'}}
+    assertEvent({span: {hello: 'world'}})
   ]
 
   const server = APMServer(function (req, res) {
     assertReq(t, req)
     req = processReq(req)
     req.on('data', function (obj) {
-      const expect = datas.shift()
-      if (typeof expect === 'function') expect(t, obj)
-      else t.deepEqual(obj, expect)
+      datas.shift()(t, obj)
     })
     req.on('end', function () {
       res.statusCode = 202
@@ -664,7 +649,7 @@ test('client should not hold the process open', function (t) {
 
   server.listen(function () {
     const url = 'http://localhost:' + server.address().port
-    const file = path.join(__dirname, 'unref-client.js')
+    const file = path.join(__dirname, 'lib', 'unref-client.js')
     exec(`node ${file} ${url}`, function (err, stdout, stderr) {
       if (err) throw err
       const end = Date.now()
@@ -916,12 +901,12 @@ test('socket hang up', function (t) {
 })
 
 test('socket hang up - continue with new request', function (t) {
-  t.plan(5 + assertReq.asserts * 2 + assertMetadata.asserts)
+  t.plan(4 + assertReq.asserts * 2 + assertMetadata.asserts + assertEvent.asserts)
   let reqs = 0
   let client
   const datas = [
     assertMetadata,
-    {span: {req: 2}}
+    assertEvent({span: {req: 2}})
   ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
@@ -937,9 +922,7 @@ test('socket hang up - continue with new request', function (t) {
 
     req = processReq(req)
     req.on('data', function (obj) {
-      const expect = datas.shift()
-      if (typeof expect === 'function') expect(t, obj)
-      else t.deepEqual(obj, expect)
+      datas.shift()(t, obj)
     })
     req.on('end', function () {
       t.pass('should end request')
