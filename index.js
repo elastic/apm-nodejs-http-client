@@ -6,11 +6,10 @@ const parseUrl = require('url').parse
 const zlib = require('zlib')
 const Writable = require('readable-stream').Writable
 const pump = require('pump')
-const ndjson = require('ndjson')
 const eos = require('end-of-stream')
-const safeStringify = require('fast-safe-stringify')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
+const ndjson = require('./lib/ndjson')
 const truncate = require('./lib/truncate')
 const pkg = require('./package')
 
@@ -63,19 +62,14 @@ function Client (opts) {
   this._onflushed = null
   this._transport = require(opts.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
   this._agent = new this._transport.Agent(opts)
-  this._stream = ndjson.serialize()
   this._chopper = new StreamChopper({
     size: opts.size,
     time: opts.time,
     type: StreamChopper.overflow
   }).on('stream', onStream(opts, this, errorproxy))
 
-  this._stream.on('error', errorproxy)
   this._chopper.on('error', errorproxy)
-  eos(this._stream, {error: false}, fail)
   eos(this._chopper, {error: false}, fail)
-
-  pump(this._stream, this._chopper)
 
   this._index = clients.length
   clients.push(this)
@@ -110,7 +104,7 @@ Client.prototype._write = function (obj, enc, cb) {
       truncate.error(obj.error, this._opts)
     }
     this._received++
-    this._stream.write(obj, cb)
+    this._chopper.write(ndjson.serialize(obj), cb)
   }
 }
 
@@ -148,7 +142,7 @@ Client.prototype._final = function (cb) {
   }
   clients[this._index] = null // remove global reference to ease garbage collection
   this._ref()
-  this._stream.end()
+  this._chopper.end()
   cb()
 }
 
@@ -163,7 +157,6 @@ Client.prototype.destroy = function (err) {
   this._destroyed = true
   if (err) this.emit('error', err)
   clients[this._index] = null // remove global reference to ease garbage collection
-  this._stream.destroy()
   this._chopper.destroy()
   this._agent.destroy()
   process.nextTick(() => {
@@ -237,7 +230,7 @@ function onStream (opts, client, onerror) {
     // All requests to the APM Server must start with a metadata object
     const metadata = getMetadata(opts)
     truncate.metadata(metadata, opts)
-    stream.write(safeStringify({metadata}) + '\n')
+    stream.write(ndjson.serialize({metadata}))
   }
 }
 

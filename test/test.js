@@ -669,7 +669,7 @@ test('Event: close - if ndjson stream ends', function (t) {
   t.plan(1)
   let client
   const server = APMServer(function (req, res) {
-    client._stream.end()
+    client._chopper.end()
     setTimeout(function () {
       // wait a little to allow close to be emitted
       t.end()
@@ -695,7 +695,7 @@ test('Event: close - if ndjson stream is destroyed', function (t) {
   t.plan(1)
   let client
   const server = APMServer(function (req, res) {
-    client._stream.destroy()
+    client._chopper.destroy()
     setTimeout(function () {
       // wait a little to allow close to be emitted
       t.end()
