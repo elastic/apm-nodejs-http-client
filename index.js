@@ -220,10 +220,14 @@ function onStream (opts, client, onerror) {
       next()
     })
 
+    // Only intended for local debugging
     if (opts.payloadLogFile) {
       if (!client._payloadLogFile) {
         client._payloadLogFile = require('fs').createWriteStream(opts.payloadLogFile, {flags: 'a'})
       }
+
+      // Manually write to the file instead of using pipe/pump so that the file
+      // handle isn't closed when the stream ends
       stream.on('data', function (chunk) {
         client._payloadLogFile.write(chunk)
       })
