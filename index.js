@@ -16,6 +16,10 @@ const pkg = require('./package')
 module.exports = Client
 
 const flush = Symbol('flush')
+const metadataSym = Symbol('metadata')
+const transactionSym = Symbol('transaction')
+const spanSym = Symbol('span')
+const errorSym = Symbol('error')
 
 const hostname = os.hostname()
 const requiredOpts = [
@@ -55,6 +59,7 @@ function Client (opts) {
     if (this._writableState.ending === false) this.destroy()
   }
 
+  this._corkTimer = null
   this._received = 0 // number of events given to the client for reporting
   this.sent = 0 // number of events written to the socket
   this._active = false
@@ -89,35 +94,127 @@ Client.prototype._write = function (obj, enc, cb) {
     this.emit('error', new Error('write called on destroyed Elastic APM client'))
     cb()
   } else if (obj === flush) {
-    if (this._active) {
-      this._onflushed = cb
-      this._chopper.chop()
-    } else {
-      this._chopper.chop(cb)
-    }
+    this._writeFlush(cb)
   } else {
-    if ('transaction' in obj) {
-      truncate.transaction(obj.transaction, this._opts)
-    } else if ('span' in obj) {
-      truncate.span(obj.span, this._opts)
-    } else if ('error' in obj) {
-      truncate.error(obj.error, this._opts)
-    }
     this._received++
-    this._chopper.write(ndjson.serialize(obj), cb)
+    this._chopper.write(this._encode(obj, enc), cb)
   }
 }
 
+Client.prototype._writev = function (objs, cb) {
+  if (this._destroyed) {
+    this.emit('error', new Error('write called on destroyed Elastic APM client'))
+    cb()
+    return
+  }
+
+  let offset = 0
+
+  const processBatch = () => {
+    let index = -1
+    for (let i = offset; i < objs.length; i++) {
+      if (objs[i].chunk === flush) {
+        index = i
+        break
+      }
+    }
+
+    if (offset === 0 && index === -1) {
+      // normally there's no flush object queued, so here's a shortcut that just
+      // skips all the complicated splitting logic
+      this._writevCleaned(objs, cb)
+    } else if (index === -1) {
+      // no more flush elements in the queue, just write the rest
+      this._writevCleaned(objs.slice(offset), cb)
+    } else if (index > offset) {
+      // there's a few items in the queue before we need to flush, let's first write those
+      this._writevCleaned(objs.slice(offset, index), processBatch)
+      offset = index
+    } else if (index === objs.length - 1) {
+      // the last item in the queue is a flush
+      this._writeFlush(cb)
+    } else {
+      // the next item in the queue is a flush
+      this._writeFlush(processBatch)
+      offset++
+    }
+  }
+
+  processBatch()
+}
+
+Client.prototype._writevCleaned = function (objs, cb) {
+  const chunk = objs.reduce((result, obj) => {
+    return result + this._encode(obj.chunk, obj.encoding)
+  }, '')
+
+  this._received += objs.length
+  this._chopper.write(chunk, cb)
+}
+
+Client.prototype._writeFlush = function (cb) {
+  if (this._active) {
+    this._onflushed = cb
+    this._chopper.chop()
+  } else {
+    this._chopper.chop(cb)
+  }
+}
+
+Client.prototype._maybeCork = function () {
+  if (!this._writableState.corked && this._opts.bufferWindowTime !== -1) {
+    this.cork()
+    if (this._corkTimer && this._corkTimer.refresh) {
+      // the refresh function was added in Node 10.2.0
+      this._corkTimer.refresh()
+    } else {
+      this._corkTimer = setTimeout(() => {
+        this.uncork()
+      }, this._opts.bufferWindowTime)
+    }
+  } else if (this._writableState.length >= this._opts.bufferWindowSize) {
+    this._maybeUncork()
+  }
+}
+
+Client.prototype._maybeUncork = function () {
+  if (!this._writableState.corked) {
+    this.uncork()
+    if (this._corkTimer) clearTimeout(this._corkTimer)
+  }
+}
+
+Client.prototype._encode = function (obj, enc) {
+  switch (enc) {
+    case spanSym:
+      truncate.span(obj.span, this._opts)
+      break
+    case transactionSym:
+      truncate.transaction(obj.transaction, this._opts)
+      break
+    case metadataSym:
+      truncate.metadata(obj.metadata, this._opts)
+      break
+    case errorSym:
+      truncate.error(obj.error, this._opts)
+      break
+  }
+  return ndjson.serialize(obj)
+}
+
 Client.prototype.sendSpan = function (span, cb) {
-  return this.write({span}, cb)
+  this._maybeCork()
+  return this.write({span}, spanSym, cb)
 }
 
 Client.prototype.sendTransaction = function (transaction, cb) {
-  return this.write({transaction}, cb)
+  this._maybeCork()
+  return this.write({transaction}, transactionSym, cb)
 }
 
 Client.prototype.sendError = function (error, cb) {
-  return this.write({error}, cb)
+  this._maybeCork()
+  return this.write({error}, errorSym, cb)
 }
 
 Client.prototype.flush = function (cb) {
@@ -126,6 +223,8 @@ Client.prototype.flush = function (cb) {
     if (cb) process.nextTick(cb)
     return
   }
+
+  this._maybeUncork()
 
   // Write the special "flush" signal. We do this so that the order of writes
   // and flushes are kept. If we where to just flush the client right here, the
@@ -241,9 +340,7 @@ function onStream (opts, client, onerror) {
     }
 
     // All requests to the APM Server must start with a metadata object
-    const metadata = getMetadata(opts)
-    truncate.metadata(metadata, opts)
-    stream.write(ndjson.serialize({metadata}))
+    stream.write(client._encode({metadata: getMetadata(opts)}, metadataSym))
   }
 }
 
@@ -280,6 +377,8 @@ function normalizeOptions (opts) {
   if (!normalized.truncateKeywordsAt) normalized.truncateKeywordsAt = 1024
   if (!normalized.truncateErrorMessagesAt) normalized.truncateErrorMessagesAt = 2048
   if (!normalized.truncateSourceLinesAt) normalized.truncateSourceLinesAt = 1000
+  if (!normalized.bufferWindowTime) normalized.bufferWindowTime = 20
+  if (!normalized.bufferWindowSize) normalized.bufferWindowSize = 50
   normalized.keepAlive = normalized.keepAlive !== false
 
   // process
