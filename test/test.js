@@ -1,9 +1,11 @@
 'use strict'
 
 const path = require('path')
+const fs = require('fs')
 const os = require('os')
 const exec = require('child_process').exec
 const http = require('http')
+const ndjson = require('ndjson')
 const test = require('tape')
 const semver = require('semver')
 const utils = require('./lib/utils')
@@ -282,6 +284,52 @@ test('agentName', function (t) {
   }).client({serviceName: 'custom'}, function (client) {
     client.sendSpan({foo: 42})
     client.end()
+  })
+})
+
+test('payloadLogFile', function (t) {
+  t.plan(6)
+
+  const receivedObjects = []
+  const filename = path.join(os.tmpdir(), Date.now() + '.ndsjon')
+  let requests = 0
+
+  const server = APMServer(function (req, res) {
+    requests++
+
+    req = processReq(req)
+
+    req.on('data', function (obj) {
+      receivedObjects.push(obj)
+    })
+
+    req.on('end', function () {
+      res.end()
+
+      if (requests === 2) {
+        server.close()
+        t.equal(receivedObjects.length, 5, 'should have received 5 objects')
+
+        const file = fs.createReadStream(filename).pipe(ndjson.parse())
+
+        file.on('data', function (obj) {
+          const expected = receivedObjects.shift()
+          const n = 5 - receivedObjects.length
+          t.deepEqual(obj, expected, `expected line ${n} in the log file to match item no ${n} received by the server`)
+        })
+
+        file.on('end', function () {
+          t.end()
+        })
+      }
+    })
+  }).client({payloadLogFile: filename}, function (client) {
+    client.sendTransaction({req: 1})
+    client.sendSpan({req: 2}, function () {
+      client._chopper.chop() // force the client to make a 2nd request so that we test reusing the file across requests
+      client.sendError({req: 3})
+      client.end()
+    })
   })
 })
 
