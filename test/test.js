@@ -325,11 +325,10 @@ test('payloadLogFile', function (t) {
     })
   }).client({payloadLogFile: filename}, function (client) {
     client.sendTransaction({req: 1})
-    client.sendSpan({req: 2}, function () {
-      client._chopper.chop() // force the client to make a 2nd request so that we test reusing the file across requests
-      client.sendError({req: 3})
-      client.end()
-    })
+    client.sendSpan({req: 2})
+    client.flush() // force the client to make a 2nd request so that we test reusing the file across requests
+    client.sendError({req: 3})
+    client.end()
   })
 })
 
