@@ -178,7 +178,7 @@ Client.prototype._maybeCork = function () {
 }
 
 Client.prototype._maybeUncork = function () {
-  if (!this._writableState.corked) {
+  if (this._writableState.corked) {
     this.uncork()
     if (this._corkTimer) clearTimeout(this._corkTimer)
   }
