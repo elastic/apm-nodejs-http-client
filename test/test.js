@@ -291,7 +291,7 @@ test('payloadLogFile', function (t) {
   t.plan(6)
 
   const receivedObjects = []
-  const filename = path.join(os.tmpdir(), Date.now() + '.ndsjon')
+  const filename = path.join(os.tmpdir(), Date.now() + '.ndjson')
   let requests = 0
 
   const server = APMServer(function (req, res) {
