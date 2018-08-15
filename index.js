@@ -180,7 +180,13 @@ Client.prototype._maybeCork = function () {
 
 Client.prototype._maybeUncork = function () {
   if (this._writableState.corked) {
-    this.uncork()
+    // Wait till next tick, so that the current write that triggered the call
+    // to `_maybeUncork` have time to be added to the queue. If we didn't do
+    // this, that last write would trigger a single call to `_write`.
+    process.nextTick(() => {
+      this.uncork()
+    })
+
     if (this._corkTimer) clearTimeout(this._corkTimer)
   }
 }
