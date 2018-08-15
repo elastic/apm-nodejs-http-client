@@ -16,12 +16,6 @@ const pkg = require('./package')
 module.exports = Client
 
 const flush = Symbol('flush')
-
-Client.metadataEnc = Symbol('metadata')
-Client.transactionEnc = Symbol('transaction')
-Client.spanEnc = Symbol('span')
-Client.errorEnc = Symbol('error')
-
 const hostname = os.hostname()
 const requiredOpts = [
   'agentName',
@@ -44,6 +38,13 @@ process.once('beforeExit', function () {
 })
 
 util.inherits(Client, Writable)
+
+Client.encoding = Object.freeze({
+  METADATA: Symbol('metadata'),
+  TRANSACTION: Symbol('transaction'),
+  SPAN: Symbol('span'),
+  ERROR: Symbol('error')
+})
 
 function Client (opts) {
   if (!(this instanceof Client)) return new Client(opts)
@@ -193,16 +194,16 @@ Client.prototype._maybeUncork = function () {
 
 Client.prototype._encode = function (obj, enc) {
   switch (enc) {
-    case Client.spanEnc:
+    case Client.encoding.SPAN:
       truncate.span(obj.span, this._opts)
       break
-    case Client.transactionEnc:
+    case Client.encoding.TRANSACTION:
       truncate.transaction(obj.transaction, this._opts)
       break
-    case Client.metadataEnc:
+    case Client.encoding.METADATA:
       truncate.metadata(obj.metadata, this._opts)
       break
-    case Client.errorEnc:
+    case Client.encoding.ERROR:
       truncate.error(obj.error, this._opts)
       break
   }
@@ -211,17 +212,17 @@ Client.prototype._encode = function (obj, enc) {
 
 Client.prototype.sendSpan = function (span, cb) {
   this._maybeCork()
-  return this.write({span}, Client.spanEnc, cb)
+  return this.write({span}, Client.encoding.SPAN, cb)
 }
 
 Client.prototype.sendTransaction = function (transaction, cb) {
   this._maybeCork()
-  return this.write({transaction}, Client.transactionEnc, cb)
+  return this.write({transaction}, Client.encoding.TRANSACTION, cb)
 }
 
 Client.prototype.sendError = function (error, cb) {
   this._maybeCork()
-  return this.write({error}, Client.errorEnc, cb)
+  return this.write({error}, Client.encoding.ERROR, cb)
 }
 
 Client.prototype.flush = function (cb) {
@@ -347,7 +348,7 @@ function onStream (opts, client, onerror) {
     }
 
     // All requests to the APM Server must start with a metadata object
-    stream.write(client._encode({metadata: getMetadata(opts)}, Client.metadataEnc))
+    stream.write(client._encode({metadata: getMetadata(opts)}, Client.encoding.METADATA))
   }
 }
 
