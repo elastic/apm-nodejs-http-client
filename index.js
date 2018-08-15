@@ -16,10 +16,11 @@ const pkg = require('./package')
 module.exports = Client
 
 const flush = Symbol('flush')
-const metadataSym = Symbol('metadata')
-const transactionSym = Symbol('transaction')
-const spanSym = Symbol('span')
-const errorSym = Symbol('error')
+
+Client.metadataEnc = Symbol('metadata')
+Client.transactionEnc = Symbol('transaction')
+Client.spanEnc = Symbol('span')
+Client.errorEnc = Symbol('error')
 
 const hostname = os.hostname()
 const requiredOpts = [
@@ -186,16 +187,16 @@ Client.prototype._maybeUncork = function () {
 
 Client.prototype._encode = function (obj, enc) {
   switch (enc) {
-    case spanSym:
+    case Client.spanEnc:
       truncate.span(obj.span, this._opts)
       break
-    case transactionSym:
+    case Client.transactionEnc:
       truncate.transaction(obj.transaction, this._opts)
       break
-    case metadataSym:
+    case Client.metadataEnc:
       truncate.metadata(obj.metadata, this._opts)
       break
-    case errorSym:
+    case Client.errorEnc:
       truncate.error(obj.error, this._opts)
       break
   }
@@ -204,17 +205,17 @@ Client.prototype._encode = function (obj, enc) {
 
 Client.prototype.sendSpan = function (span, cb) {
   this._maybeCork()
-  return this.write({span}, spanSym, cb)
+  return this.write({span}, Client.spanEnc, cb)
 }
 
 Client.prototype.sendTransaction = function (transaction, cb) {
   this._maybeCork()
-  return this.write({transaction}, transactionSym, cb)
+  return this.write({transaction}, Client.transactionEnc, cb)
 }
 
 Client.prototype.sendError = function (error, cb) {
   this._maybeCork()
-  return this.write({error}, errorSym, cb)
+  return this.write({error}, Client.errorEnc, cb)
 }
 
 Client.prototype.flush = function (cb) {
@@ -340,7 +341,7 @@ function onStream (opts, client, onerror) {
     }
 
     // All requests to the APM Server must start with a metadata object
-    stream.write(client._encode({metadata: getMetadata(opts)}, metadataSym))
+    stream.write(client._encode({metadata: getMetadata(opts)}, Client.metadataEnc))
   }
 }
 
