@@ -90,12 +90,11 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`write on destroyed (${dataType})`, function (t) {
-    const server = APMServer().client({bufferWindowSize: 1}, function (client) {
+    const server = APMServer(function (req, res) {
+      t.fail('should not send anything to the APM Server')
+    }).client({bufferWindowSize: 1}, function (client) {
       client.on('error', function (err) {
-        t.ok(err instanceof Error)
-        t.equal(err.message, 'write called on destroyed Elastic APM client')
-        server.close()
-        t.end()
+        t.error(err)
       })
 
       client[sendFn]({req: 1})
@@ -103,6 +102,11 @@ dataTypes.forEach(function (dataType) {
 
       // Destroy the client before the _writev function have a chance to be called
       client.destroy()
+
+      setTimeout(function () {
+        server.close()
+        t.end()
+      }, 10)
     })
   })
 })

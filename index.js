@@ -105,7 +105,9 @@ Client.prototype._write = function (obj, enc, cb) {
 
 Client.prototype._writev = function (objs, cb) {
   if (this._destroyed) {
-    this.emit('error', new Error('write called on destroyed Elastic APM client'))
+    // We should only get to point if the client was destroyed in the same tick
+    // as data was written to a corked client. To now trip users up about this,
+    // let's just silently ignnore it.
     cb()
     return
   }
