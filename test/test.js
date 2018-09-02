@@ -168,7 +168,7 @@ test('metadata', function (t) {
             version: 'custom-serviceVersion',
             runtime: {
               name: 'node',
-              version: process.version
+              version: process.versions.node
             },
             language: {
               name: 'javascript'
@@ -234,7 +234,7 @@ test('metadata - default values', function (t) {
             name: 'custom-serviceName',
             runtime: {
               name: 'node',
-              version: process.version
+              version: process.versions.node
             },
             language: {
               name: 'javascript'
