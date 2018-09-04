@@ -72,7 +72,7 @@ function assertMetadata (t, obj) {
   const service = metadata.service
   t.equal(service.name, 'my-service-name')
   t.equal(service.runtime.name, 'node')
-  t.equal(service.runtime.version, process.version)
+  t.equal(service.runtime.version, process.versions.node)
   t.ok(semver.valid(service.runtime.version))
   t.equal(service.language.name, 'javascript')
   t.equal(service.agent.name, 'my-agent-name')
