@@ -66,7 +66,7 @@ function assertReq (t, req) {
 assertReq.asserts = 7
 
 function assertMetadata (t, obj) {
-  t.deepEqual(Object.keys(obj), ['metadata'])
+  t.deepEqual(Object.keys(obj), ['metadata'], 'should receive metadata')
   const metadata = obj.metadata
   t.deepEqual(Object.keys(metadata), ['service', 'process', 'system'])
   const service = metadata.service
@@ -92,7 +92,7 @@ function assertMetadata (t, obj) {
   t.ok(Array.isArray(_process.argv), 'process.title should be an array')
   t.ok(_process.argv.length >= 2, 'process.title should contain at least two elements')
   t.ok(/\/node$/.test(_process.argv[0]), `process.argv[0] should match /\\/node$/ (was: ${_process.argv[0]})`)
-  const regex = /(\/test\/(test|truncate|lib\/unref-client)\.js|node_modules\/\.bin\/tape)$/
+  const regex = /(\/test\/(test|backoff|truncate|lib\/unref-client)\.js|node_modules\/\.bin\/tape)$/
   t.ok(regex.test(_process.argv[1]), `process.argv[1] should match ${regex} (was: ${_process.argv[1]})"`)
   const system = metadata.system
   t.ok(typeof system.hostname, 'string')

@@ -4,7 +4,7 @@ const util = require('util')
 const os = require('os')
 const parseUrl = require('url').parse
 const zlib = require('zlib')
-const Writable = require('readable-stream').Writable
+const {Writable, PassThrough} = require('readable-stream')
 const pump = require('pump')
 const eos = require('end-of-stream')
 const streamToBuffer = require('fast-stream-to-buffer')
@@ -54,6 +54,20 @@ function Client (opts) {
   Writable.call(this, opts)
 
   const errorproxy = (err) => {
+    this._errors++
+
+    const retryIndex = this._errors === 0 ? 0 : this._errors - 1
+    const backoff = (Math.min(retryIndex, 6) ** 2) * 1000
+
+    if (backoff > 0) {
+      this._chopper.resetTimer(-1) // disable timer to prepare for back-off mode
+      this._backoffTimer = setTimeout(() => {
+        this._backoffTimer = null
+        this._chopper.resetTimer(this._chopperTime)
+        if (this._backoffCallback) this._backoffCallback()
+      }, backoff)
+    }
+
     if (this.destroyed === false) this.emit('request-error', err)
   }
 
@@ -64,6 +78,11 @@ function Client (opts) {
   this._corkTimer = null
   this._received = 0 // number of events given to the client for reporting
   this.sent = 0 // number of events written to the socket
+  this._errors = 0 // number of requests that resulted in an error (dropped connection, non-2xx etc)
+  this._chopperSize = opts.size // needed to set highWatermark on buffer if we enter back-off mode
+  this._chopperTime = opts.time // needed to restore the normal time if we enter back-off mode
+  this._backoffTimer = null
+  this._backoffCallback = null
   this._active = false
   this._onflushed = null
   this._transport = require(opts.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
@@ -246,36 +265,12 @@ function onStream (opts, client, onerror) {
   const requestOpts = getRequestOptions(opts, client._agent)
 
   return function (stream, next) {
-    const onerrorproxy = (err) => {
-      stream.removeListener('error', onerrorproxy)
-      req.removeListener('error', onerrorproxy)
-      destroyStream(stream)
-      onerror(err)
-    }
-
+    let buffer, req
     client._active = true
 
-    const req = client._transport.request(requestOpts, onResult(onerror))
-
-    // Mointor streams for errors so that we can make sure to destory the
-    // output stream as soon as that occurs
     stream.on('error', onerrorproxy)
-    req.on('error', onerrorproxy)
 
-    req.on('socket', function (socket) {
-      // Sockets will automatically be unreffed by the HTTP agent when they are
-      // not in use by an HTTP request, but as we're keeping the HTTP request
-      // open, we need to unref the socket manually
-      socket.unref()
-    })
-
-    if (Number.isFinite(serverTimeout)) {
-      req.setTimeout(serverTimeout, function () {
-        req.abort()
-      })
-    }
-
-    pump(stream, req, function () {
+    pump(stream, requestProxy(requestOpts, onResult(client, onerror)), function () {
       // This function is technically called with an error, but because we
       // manually attach error listeners on all the streams in the pipeline
       // above, we can safely ignore it.
@@ -316,10 +311,70 @@ function onStream (opts, client, onerror) {
 
     // All requests to the APM Server must start with a metadata object
     stream.write(client._encode({metadata: getMetadata(opts)}, Client.encoding.METADATA))
+
+    // Under normal opperation, just make a request and return it. If
+    // instructed to back off, make a temporary buffer to hold data until the
+    // request can be made
+    function requestProxy (opts, onresponse) {
+      if (client._backoffTimer) {
+        buffer = new PassThrough({highWaterMark: client._chopperSize * 2}) // twice as large to allow overflow
+        buffer.on('error', onerrorproxy)
+
+        eos(stream, function () {
+          client._backoffCallback = null
+          if (client._backoffTimer) {
+            // drop all data - back-off still in effect
+            buffer.destroy()
+          }
+        })
+
+        client._backoffCallback = function () {
+          client._backoffCallback = null
+          req = makeRequest(opts, onresponse)
+          buffer.pipe(req)
+        }
+
+        return buffer
+      } else {
+        return makeRequest(opts, onresponse)
+      }
+    }
+
+    function makeRequest (opts, onresponse) {
+      const req = client._transport.request(opts, onresponse)
+
+      req.on('error', onerrorproxy)
+
+      req.on('socket', function (socket) {
+        // Sockets will automatically be unreffed by the HTTP agent when they are
+        // not in use by an HTTP request, but as we're keeping the HTTP request
+        // open, we need to unref the socket manually
+        socket.unref()
+      })
+
+      if (Number.isFinite(serverTimeout)) {
+        req.setTimeout(serverTimeout, function () {
+          req.abort()
+        })
+      }
+
+      return req
+    }
+
+    // This function is attached to the error event of the different streams so
+    // that we can make sure to destroy the output stream as soon as an error
+    // occurs
+    function onerrorproxy (err) {
+      stream.removeListener('error', onerrorproxy)
+      if (buffer) buffer.removeListener('error', onerrorproxy)
+      if (req) req.removeListener('error', onerrorproxy)
+      destroyStream(stream)
+      onerror(err)
+    }
   }
 }
 
-function onResult (onerror) {
+function onResult (client, onerror) {
   return streamToBuffer.onStream(function (err, buf, res) {
     if (err) return onerror(err)
     if (res.statusCode < 200 || res.statusCode > 299) {
@@ -345,6 +400,9 @@ function onResult (onerror) {
       }
 
       onerror(err)
+    } else {
+      client._errors = 0
+      client._chopper.resetTimer(client._chopperTime)
     }
   })
 }
