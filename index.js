@@ -317,7 +317,7 @@ function getMetadata (opts) {
       name: opts.serviceName,
       runtime: {
         name: process.release.name,
-        version: process.version
+        version: process.versions.node
       },
       language: {
         name: 'javascript'
