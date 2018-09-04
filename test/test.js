@@ -295,7 +295,7 @@ test('payloadLogFile', function (t) {
   let requests = 0
 
   const server = APMServer(function (req, res) {
-    requests++
+    const request = ++requests
 
     req = processReq(req)
 
@@ -306,7 +306,7 @@ test('payloadLogFile', function (t) {
     req.on('end', function () {
       res.end()
 
-      if (requests === 2) {
+      if (request === 2) {
         server.close()
         t.equal(receivedObjects.length, 5, 'should have received 5 objects')
 
@@ -530,7 +530,7 @@ test('client.flush(callback) - with active request', function (t) {
       server.close()
       t.end()
     })
-  }).client(function (client) {
+  }).client({bufferWindowTime: -1}, function (client) {
     t.equal(client._active, false, 'no outgoing HTTP request to begin with')
     client.sendSpan({foo: 42})
     t.equal(client._active, true, 'an outgoing HTTP request should be active')
@@ -564,7 +564,7 @@ test('client.flush(callback) - with queued request', function (t) {
         server.close()
       }
     })
-  }).client(function (client) {
+  }).client({bufferWindowTime: -1}, function (client) {
     client.sendSpan({req: 1})
     client.flush()
     client.sendSpan({req: 2})
@@ -598,7 +598,7 @@ test('2nd flush before 1st flush have finished', function (t) {
       requestEnds++
       res.end()
     })
-  }).client(function (client) {
+  }).client({bufferWindowTime: -1}, function (client) {
     client.sendSpan({req: 1})
     client.flush()
     client.sendSpan({req: 2})
@@ -1051,7 +1051,7 @@ test('client.destroy() - should not allow more writes', function (t) {
   t.plan(12)
   let count = 0
 
-  const client = new Client(validOpts())
+  const client = new Client(validOpts({bufferWindowTime: -1}))
   client.on('error', function (err) {
     t.ok(err instanceof Error, 'should emit error ' + err.message)
   })

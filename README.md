@@ -102,6 +102,16 @@ Streaming configuration:
 - `time` - The maxiumum number of milliseconds a streaming HTTP request
   to the APM Server can be ongoing before it's ended (default: `10000`
   ms)
+- `bufferWindowTime` - Objects written in quick succession are buffered
+  and grouped into larger clusters that can be processed as a whole.
+  This config option controls the maximum time that buffer can live
+  before it's flushed (counted in milliseconds). Set to `-1` for no
+  buffering (default: `20` ms)
+- `bufferWindowSize` - Objects written in quick succession are buffered
+  and grouped into larger clusters that can be processed as a whole.
+  This config option controls the maximum size of that buffer (counted
+  in number of objects). Set to `-1` for no max size (default: `50`
+  objects)
 
 Data sanitizing configuration:
 
