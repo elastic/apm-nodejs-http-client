@@ -17,7 +17,7 @@
   "license": "MIT",
   "dependencies": {
     "end-of-stream": "^1.4.1",
-    "fast-safe-stringify": "^2.0.4",
+    "fast-safe-stringify": "^2.0.6",
     "fast-stream-to-buffer": "^1.0.0",
     "pump": "^3.0.0",
     "readable-stream": "^2.3.6",
