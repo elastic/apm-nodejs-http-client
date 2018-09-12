@@ -56,7 +56,7 @@ function processReq (req) {
 
 function assertReq (t, req) {
   t.equal(req.method, 'POST', 'should make a POST request')
-  t.equal(req.url, '/v2/intake', 'should send request to /v2/intake')
+  t.equal(req.url, '/intake/v2/events', 'should send request to /intake/v2/events')
   t.equal(req.headers['authorization'], 'Bearer secret', 'should add secret token')
   t.equal(req.headers['content-type'], 'application/x-ndjson', 'should send reqeust as ndjson')
   t.equal(req.headers['content-encoding'], 'gzip', 'should compress request')
