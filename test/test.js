@@ -104,7 +104,7 @@ test('custom headers', function (t) {
 test('serverUrl contains path', function (t) {
   t.plan(1)
   const server = APMServer(function (req, res) {
-    t.equal(req.url, '/subpath/v2/intake')
+    t.equal(req.url, '/subpath/intake/v2/events')
     res.end()
     server.close()
     t.end()
