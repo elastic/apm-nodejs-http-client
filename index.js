@@ -398,7 +398,7 @@ function normalizeOptions (opts) {
 }
 
 function getRequestOptions (opts, agent) {
-  const defaultPath = '/v2/intake'
+  const defaultPath = '/intake/v2/events'
   return {
     agent: agent,
     rejectUnauthorized: opts.rejectUnauthorized !== false,
