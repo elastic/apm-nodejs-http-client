@@ -669,6 +669,67 @@ test('client.sent', function (t) {
   })
 })
 
+test('should not open new request until it\'s needed after flush', function (t) {
+  let client
+  let requests = 0
+  let expectRequest = false
+  const server = APMServer(function (req, res) {
+    t.equal(expectRequest, true, 'should only send new request when expected')
+    expectRequest = false
+
+    req.resume()
+    req.on('end', function () {
+      res.end()
+
+      if (++requests === 2) {
+        server.close()
+        t.end()
+      } else {
+        setTimeout(sendData, 250)
+      }
+    })
+  }).client(function (_client) {
+    client = _client
+    sendData()
+  })
+
+  function sendData () {
+    expectRequest = true
+    client.sendError({foo: 42})
+    client.flush()
+  }
+})
+
+test('should not open new request until it\'s needed after timeout', function (t) {
+  let client
+  let requests = 0
+  let expectRequest = false
+  const server = APMServer(function (req, res) {
+    t.equal(expectRequest, true, 'should only send new request when expected')
+    expectRequest = false
+
+    req.resume()
+    req.on('end', function () {
+      res.end()
+
+      if (++requests === 2) {
+        server.close()
+        t.end()
+      } else {
+        setTimeout(sendData, 250)
+      }
+    })
+  }).client({ time: 1 }, function (_client) {
+    client = _client
+    sendData()
+  })
+
+  function sendData () {
+    expectRequest = true
+    client.sendError({foo: 42})
+  }
+})
+
 /**
  * Side effects
  */
