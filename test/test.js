@@ -101,6 +101,15 @@ test('custom headers', function (t) {
   })
 })
 
+test('serverUrl is invalid', function (t) {
+  t.throws(function () {
+    new Client(validOpts({ // eslint-disable-line no-new
+      serverUrl: 'invalid'
+    }))
+  })
+  t.end()
+})
+
 test('serverUrl contains path', function (t) {
   t.plan(1)
   const server = APMServer(function (req, res) {
