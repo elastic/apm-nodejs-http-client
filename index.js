@@ -57,7 +57,8 @@ function Client (opts) {
     this._errors++
 
     const retryIndex = this._errors === 0 ? 0 : this._errors - 1
-    const backoff = (Math.min(retryIndex, 6) ** 2) * 1000
+    const jitter = Math.random() * 0.2 + 0.9 // ±10% jitter
+    const backoff = (Math.min(retryIndex, 6) ** 2) * 1000 * jitter
 
     if (backoff > 0) {
       this._chopper.resetTimer(-1) // disable timer to prepare for back-off mode
