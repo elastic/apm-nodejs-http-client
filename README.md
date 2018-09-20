@@ -93,4 +93,4 @@ The callback function is called with 3 arguments:
 
 ## License
 
-[MIT](https://github.com/elastic/apm-nodejs-http-client/blob/master/LICENSE)
+[MIT](LICENSE)
