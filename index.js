@@ -379,7 +379,7 @@ function normalizeOptions (opts) {
   const normalized = Object.assign({}, opts, {objectMode: true})
 
   // default values
-  if (!normalized.size && normalized.size !== 0) normalized.size = 1024 * 1024
+  if (!normalized.size && normalized.size !== 0) normalized.size = 750 * 1024
   if (!normalized.time && normalized.time !== 0) normalized.time = 10000
   if (!normalized.serverTimeout && normalized.serverTimeout !== 0) normalized.serverTimeout = 15000
   if (!normalized.serverUrl) normalized.serverUrl = 'http://localhost:8200'
