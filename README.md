@@ -98,7 +98,7 @@ Streaming configuration:
   request to the APM Server. An overshoot of up to the size of the
   internal zlib buffer should be expected as the buffer is flushed after
   this limit is reached. The default zlib buffer size is 16 kb (default:
-  `1048576` bytes / 1 MB)
+  `768000` bytes)
 - `time` - The maxiumum number of milliseconds a streaming HTTP request
   to the APM Server can be ongoing before it's ended (default: `10000`
   ms)
