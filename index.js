@@ -72,11 +72,13 @@ function Client (opts) {
   this._chopper = new StreamChopper({
     size: opts.size,
     time: opts.time,
-    type: StreamChopper.overflow
+    type: StreamChopper.overflow,
+    transform () {
+      return zlib.createGzip()
+    }
   }).on('stream', onStream(opts, this, errorproxy))
 
-  this._chopper.on('error', errorproxy)
-  eos(this._chopper, {error: false}, fail)
+  eos(this._chopper, fail)
 
   this._index = clients.length
   clients.push(this)
@@ -280,21 +282,18 @@ function onStream (opts, client, onerror) {
   return function (stream, next) {
     const onerrorproxy = (err) => {
       stream.removeListener('error', onerrorproxy)
-      compressor.removeListener('error', onerrorproxy)
       req.removeListener('error', onerrorproxy)
-      stream.destroy()
+      destroyStream(stream)
       onerror(err)
     }
 
     client._active = true
 
     const req = client._transport.request(requestOpts, onResult(onerror))
-    const compressor = zlib.createGzip()
 
     // Mointor streams for errors so that we can make sure to destory the
     // output stream as soon as that occurs
     stream.on('error', onerrorproxy)
-    compressor.on('error', onerrorproxy)
     req.on('error', onerrorproxy)
 
     req.on('socket', function (socket) {
@@ -310,7 +309,7 @@ function onStream (opts, client, onerror) {
       })
     }
 
-    pump(stream, compressor, req, function () {
+    pump(stream, req, function () {
       // This function is technically called with an error, but because we
       // manually attach error listeners on all the streams in the pipeline
       // above, we can safely ignore it.
@@ -344,7 +343,7 @@ function onStream (opts, client, onerror) {
 
       // Manually write to the file instead of using pipe/pump so that the file
       // handle isn't closed when the stream ends
-      stream.on('data', function (chunk) {
+      stream.pipe(zlib.createGunzip()).on('data', function (chunk) {
         client._payloadLogFile.write(chunk)
       })
     }
@@ -459,4 +458,40 @@ function getMetadata (opts) {
   }
 
   return payload
+}
+
+function destroyStream (stream) {
+  if (stream instanceof zlib.Gzip ||
+      stream instanceof zlib.Gunzip ||
+      stream instanceof zlib.Deflate ||
+      stream instanceof zlib.DeflateRaw ||
+      stream instanceof zlib.Inflate ||
+      stream instanceof zlib.InflateRaw ||
+      stream instanceof zlib.Unzip) {
+    // Zlib streams doesn't have a destroy function in Node.js 6. On top of
+    // that simply calling destroy on a zlib stream in Node.js 8+ will result
+    // in a memory leak as the handle isn't closed (an operation normally done
+    // by calling close). So until that is fixed, we need to manually close the
+    // handle after destroying the stream.
+    //
+    // PR: https://github.com/nodejs/node/pull/23734
+    if (typeof stream.destroy === 'function') {
+      // Manually close the stream instead of calling `close()` as that would
+      // have emitted 'close' again when calling `destroy()`
+      if (stream._handle && typeof stream._handle.close === 'function') {
+        stream._handle.close()
+        stream._handle = null
+      }
+
+      stream.destroy()
+    } else if (typeof stream.close === 'function') {
+      stream.close()
+    }
+  } else {
+    // For other streams we assume calling destroy is enough
+    if (typeof stream.destroy === 'function') stream.destroy()
+    // Or if there's no destroy (which Node.js 6 will not have on regular
+    // streams), emit `close` as that should trigger almost the same effect
+    else if (typeof stream.emit === 'function') stream.emit('close')
+  }
 }
