@@ -100,8 +100,8 @@ Streaming configuration:
   this limit is reached. The default zlib buffer size is 16 kb (default:
   `768000` bytes)
 - `time` - The maxiumum number of milliseconds a streaming HTTP request
-  to the APM Server can be ongoing before it's ended (default: `10000`
-  ms)
+  to the APM Server can be ongoing before it's ended. Set to `-1` to
+  disable (default: `10000` ms)
 - `bufferWindowTime` - Objects written in quick succession are buffered
   and grouped into larger clusters that can be processed as a whole.
   This config option controls the maximum time that buffer can live
