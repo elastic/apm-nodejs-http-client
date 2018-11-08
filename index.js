@@ -357,15 +357,27 @@ function onResult (onerror) {
   return streamToBuffer.onStream(function (err, buf, res) {
     if (err) return onerror(err)
     if (res.statusCode < 200 || res.statusCode > 299) {
-      const err = new Error('Unexpected response code from APM Server: ' + res.statusCode)
+      const err = new Error('Unexpected APM Server response')
+
+      err.code = res.statusCode
+
       if (buf.length > 0) {
-        err.result = buf.toString('utf8')
-        if (res.headers['content-type'] === 'application/json') {
+        const body = buf.toString('utf8')
+        const contentType = res.headers['content-type']
+        if (contentType && contentType.indexOf('application/json') === 0) {
           try {
-            err.result = JSON.parse(err.result).error || err.result
-          } catch (e) {}
+            const data = JSON.parse(body)
+            err.accepted = data.accepted
+            err.errors = data.errors
+            if (!err.errors) err.response = body
+          } catch (e) {
+            err.response = body
+          }
+        } else {
+          err.response = body
         }
       }
+
       onerror(err)
     }
   })
