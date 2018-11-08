@@ -157,6 +157,25 @@ listener callback is passed a single Error argument when called.
 This means that the current request to the APM Server is terminated and
 that the data included in that request is lost.
 
+If a non-2xx response was received from the APM Server, the status code
+will be available on `error.code`.
+
+If the APM Serer responded with a structured error message, the `error`
+object will have the following properties:
+
+- `error.accepted` - An integer indicating how many events was accepted
+  as part of the failed request. If 100 events was sent to the APM
+  Server as part of the request, and the error reports only 98 as
+  accepted, it means that two events either wasn't received or couldn't
+  be processed for some reason
+- `error.errors` - An array of error messages. Each element in the array
+  is an object containing a `message` property (String) and an optional
+  `document` property (String). If the `document` property is given it
+  will contain the failed event as it was received by the APM Server
+
+If the APM returned an errro body that could not be parsed by the
+client, the raw body will be available on `error.response`.
+
 The client is not closed when the `request-error` event is emitted.
 
 ### `client.sent`

@@ -909,8 +909,11 @@ test('request with error - no body', function (t) {
   }).client(function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
-      t.equal(err.message, 'Unexpected response code from APM Server: 418')
-      t.equal(err.result, undefined)
+      t.equal(err.message, 'Unexpected APM Server response')
+      t.equal(err.code, 418)
+      t.equal(err.accepted, undefined)
+      t.equal(err.errors, undefined)
+      t.equal(err.response, undefined)
       server.close()
       t.end()
     })
@@ -926,8 +929,11 @@ test('request with error - non json body', function (t) {
   }).client(function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
-      t.equal(err.message, 'Unexpected response code from APM Server: 418')
-      t.equal(err.result, 'boom!')
+      t.equal(err.message, 'Unexpected APM Server response')
+      t.equal(err.code, 418)
+      t.equal(err.accepted, undefined)
+      t.equal(err.errors, undefined)
+      t.equal(err.response, 'boom!')
       server.close()
       t.end()
     })
@@ -944,8 +950,11 @@ test('request with error - invalid json body', function (t) {
   }).client(function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
-      t.equal(err.message, 'Unexpected response code from APM Server: 418')
-      t.equal(err.result, 'boom!')
+      t.equal(err.message, 'Unexpected APM Server response')
+      t.equal(err.code, 418)
+      t.equal(err.accepted, undefined)
+      t.equal(err.errors, undefined)
+      t.equal(err.response, 'boom!')
       server.close()
       t.end()
     })
@@ -954,7 +963,7 @@ test('request with error - invalid json body', function (t) {
   })
 })
 
-test('request with error - json body without error property', function (t) {
+test('request with error - json body without accepted or errors properties', function (t) {
   const body = JSON.stringify({foo: 'bar'})
   const server = APMServer(function (req, res) {
     res.statusCode = 418
@@ -963,8 +972,11 @@ test('request with error - json body without error property', function (t) {
   }).client(function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
-      t.equal(err.message, 'Unexpected response code from APM Server: 418')
-      t.equal(err.result, body)
+      t.equal(err.message, 'Unexpected APM Server response')
+      t.equal(err.code, 418)
+      t.equal(err.accepted, undefined)
+      t.equal(err.errors, undefined)
+      t.equal(err.response, body)
       server.close()
       t.end()
     })
@@ -973,16 +985,40 @@ test('request with error - json body without error property', function (t) {
   })
 })
 
-test('request with error - json body with error property', function (t) {
+test('request with error - json body with accepted and errors properties', function (t) {
   const server = APMServer(function (req, res) {
     res.statusCode = 418
     res.setHeader('Content-Type', 'application/json')
-    res.end(JSON.stringify({error: 'bar'}))
+    res.end(JSON.stringify({accepted: 42, errors: [{message: 'bar'}]}))
   }).client(function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
-      t.equal(err.message, 'Unexpected response code from APM Server: 418')
-      t.equal(err.result, 'bar')
+      t.equal(err.message, 'Unexpected APM Server response')
+      t.equal(err.code, 418)
+      t.equal(err.accepted, 42)
+      t.deepEqual(err.errors, [{message: 'bar'}])
+      t.equal(err.response, undefined)
+      server.close()
+      t.end()
+    })
+    client.sendSpan({foo: 42})
+    client.flush()
+  })
+})
+
+test('request with error - json body where Content-Type contains charset', function (t) {
+  const server = APMServer(function (req, res) {
+    res.statusCode = 418
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.end(JSON.stringify({accepted: 42, errors: [{message: 'bar'}]}))
+  }).client(function (client) {
+    client.on('request-error', function (err) {
+      t.ok(err instanceof Error)
+      t.equal(err.message, 'Unexpected APM Server response')
+      t.equal(err.code, 418)
+      t.equal(err.accepted, 42)
+      t.deepEqual(err.errors, [{message: 'bar'}])
+      t.equal(err.response, undefined)
       server.close()
       t.end()
     })
