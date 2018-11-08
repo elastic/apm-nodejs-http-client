@@ -144,12 +144,20 @@ be emitted, and no more data can be sent by the client.
 Emitted if an error occurs. The listener callback is passed a single
 Error argument when called.
 
-The client is not closed when the `error` event is emitted.
-
 ### Event: `finish`
 
 The `finish` event is emitted after the `client.end()` method has been
 called, and all data has been flushed to the underlying system.
+
+### Event: `request-error`
+
+Emitted if an error occurs while communicating with the APM Server. The
+listener callback is passed a single Error argument when called.
+
+This means that the current request to the APM Server is terminated and
+that the data included in that request is lost.
+
+The client is not closed when the `request-error` event is emitted.
 
 ### `client.sent`
 

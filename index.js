@@ -54,7 +54,7 @@ function Client (opts) {
   Writable.call(this, opts)
 
   const errorproxy = (err) => {
-    if (this._destroyed === false) this.emit('error', err)
+    if (this._destroyed === false) this.emit('request-error', err)
   }
 
   const fail = () => {
