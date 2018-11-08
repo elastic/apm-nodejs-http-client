@@ -54,7 +54,7 @@ function Client (opts) {
   Writable.call(this, opts)
 
   const errorproxy = (err) => {
-    if (this._destroyed === false) this.emit('request-error', err)
+    if (this.destroyed === false) this.emit('request-error', err)
   }
 
   const fail = () => {
@@ -65,7 +65,6 @@ function Client (opts) {
   this._received = 0 // number of events given to the client for reporting
   this.sent = 0 // number of events written to the socket
   this._active = false
-  this._destroyed = false
   this._onflushed = null
   this._transport = require(opts.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
   this._agent = new this._transport.Agent(opts)
@@ -94,10 +93,7 @@ Client.prototype._ref = function () {
 }
 
 Client.prototype._write = function (obj, enc, cb) {
-  if (this._destroyed) {
-    this.emit('error', new Error('write called on destroyed Elastic APM client'))
-    cb()
-  } else if (obj === flush) {
+  if (obj === flush) {
     this._writeFlush(cb)
   } else {
     this._received++
@@ -106,14 +102,6 @@ Client.prototype._write = function (obj, enc, cb) {
 }
 
 Client.prototype._writev = function (objs, cb) {
-  if (this._destroyed) {
-    // We should only get to this point if the client was destroyed in the same
-    // tick as data was written to a corked client. To not trip users up about
-    // this, let's just silently ignore it.
-    cb()
-    return
-  }
-
   let offset = 0
 
   const processBatch = () => {
@@ -230,7 +218,7 @@ Client.prototype.sendError = function (error, cb) {
 }
 
 Client.prototype.flush = function (cb) {
-  if (this._destroyed) {
+  if (this.destroyed) {
     this.emit('error', new Error('flush called on destroyed Elastic APM client'))
     if (cb) process.nextTick(cb)
     return
@@ -246,33 +234,17 @@ Client.prototype.flush = function (cb) {
 }
 
 Client.prototype._final = function (cb) {
-  if (this._destroyed) {
-    this.emit('error', new Error('end called on destroyed Elastic APM client'))
-    cb()
-    return
-  }
   clients[this._index] = null // remove global reference to ease garbage collection
   this._ref()
   this._chopper.end()
   cb()
 }
 
-// Overwrite destroy instead of using _destroy because readable-stream@2 can't
-// be trusted. After a stream is destroyed, we want a call to either
-// client.write() or client.end() to both emit an error and call the provided
-// callback. Unfortunately, in readable-stream@2 and Node.js <10, this is not
-// consistent. This has been fixed in Node.js 10 and will also be fixed in
-// readable-stream@3.
-Client.prototype.destroy = function (err) {
-  if (this._destroyed) return
-  this._destroyed = true
-  if (err) this.emit('error', err)
+Client.prototype._destroy = function (err, cb) {
   clients[this._index] = null // remove global reference to ease garbage collection
   this._chopper.destroy()
   this._agent.destroy()
-  process.nextTick(() => {
-    this.emit('close')
-  })
+  cb(err)
 }
 
 function onStream (opts, client, onerror) {
