@@ -177,7 +177,7 @@ Client.prototype._maybeUncork = function () {
     // to `_maybeUncork` have time to be added to the queue. If we didn't do
     // this, that last write would trigger a single call to `_write`.
     process.nextTick(() => {
-      if (!this.destroyed) this.uncork()
+      if (this.destroyed === false) this.uncork()
     })
 
     if (this._corkTimer) clearTimeout(this._corkTimer)
