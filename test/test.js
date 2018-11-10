@@ -1154,7 +1154,7 @@ test('client.destroy() - on fresh client', function (t) {
 })
 
 test('client.destroy() - should not allow more writes', function (t) {
-  t.plan(12)
+  t.plan(11)
   let count = 0
 
   const client = new Client(validOpts({bufferWindowTime: -1}))
