@@ -177,7 +177,7 @@ Client.prototype._maybeUncork = function () {
     // to `_maybeUncork` have time to be added to the queue. If we didn't do
     // this, that last write would trigger a single call to `_write`.
     process.nextTick(() => {
-      this.uncork()
+      if (!this.destroyed) this.uncork()
     })
 
     if (this._corkTimer) clearTimeout(this._corkTimer)
@@ -218,12 +218,6 @@ Client.prototype.sendError = function (error, cb) {
 }
 
 Client.prototype.flush = function (cb) {
-  if (this.destroyed) {
-    this.emit('error', new Error('flush called on destroyed Elastic APM client'))
-    if (cb) process.nextTick(cb)
-    return
-  }
-
   this._maybeUncork()
 
   // Write the special "flush" signal. We do this so that the order of writes
