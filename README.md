@@ -6,7 +6,8 @@
 [![Standard - JavaScript Style Guide](https://img.shields.io/badge/code%20style-standard-brightgreen.svg?style=flat)](https://github.com/feross/standard)
 
 A low-level HTTP client for communicating with the Elastic APM intake
-API.
+API version 2. For support for version 1, use version 5.x of this
+module.
 
 This module is meant for building other modules that needs to
 communicate with Elastic APM.
