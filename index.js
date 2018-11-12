@@ -24,6 +24,8 @@ const requiredOpts = [
   'userAgent'
 ]
 
+const node8 = process.version.indexOf('v8.') === 0
+
 // All sockets on the agent are unreffed when they are created. This means that
 // when those are the only handles left, the `beforeExit` event will be
 // emitted. By listening for this we can make sure to end the requests properly
@@ -256,6 +258,28 @@ function onStream (opts, client, onerror) {
     client._active = true
 
     const req = client._transport.request(requestOpts, onResult(onerror))
+
+    // Abort the current request if the server responds prior to the request
+    // being finished
+    req.on('response', function (res) {
+      if (!req.finished) {
+        // In Node.js 8, the zlib stream will emit a 'zlib binding closed'
+        // error when destroyed. Furthermore, the HTTP response will not emit
+        // any data events after the request have been destroyed, so it becomes
+        // impossible to see the error returned by the server if we abort the
+        // request. So for Node.js 8, we'll work around this by closing the
+        // stream gracefully.
+        //
+        // This results in the gzip buffer being flushed and a little more data
+        // being sent to the APM Server, but it's better than not getting the
+        // error body.
+        if (node8) {
+          stream.end()
+        } else {
+          destroyStream(stream)
+        }
+      }
+    })
 
     // Mointor streams for errors so that we can make sure to destory the
     // output stream as soon as that occurs
