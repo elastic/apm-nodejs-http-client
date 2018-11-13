@@ -206,17 +206,17 @@ Client.prototype._encode = function (obj, enc) {
 
 Client.prototype.sendSpan = function (span, cb) {
   this._maybeCork()
-  return this.write({span}, Client.encoding.SPAN, cb)
+  return this.write({ span }, Client.encoding.SPAN, cb)
 }
 
 Client.prototype.sendTransaction = function (transaction, cb) {
   this._maybeCork()
-  return this.write({transaction}, Client.encoding.TRANSACTION, cb)
+  return this.write({ transaction }, Client.encoding.TRANSACTION, cb)
 }
 
 Client.prototype.sendError = function (error, cb) {
   this._maybeCork()
-  return this.write({error}, Client.encoding.ERROR, cb)
+  return this.write({ error }, Client.encoding.ERROR, cb)
 }
 
 Client.prototype.flush = function (cb) {
@@ -328,7 +328,7 @@ function onStream (opts, client, onerror) {
     // Only intended for local debugging
     if (opts.payloadLogFile) {
       if (!client._payloadLogFile) {
-        client._payloadLogFile = require('fs').createWriteStream(opts.payloadLogFile, {flags: 'a'})
+        client._payloadLogFile = require('fs').createWriteStream(opts.payloadLogFile, { flags: 'a' })
       }
 
       // Manually write to the file instead of using pipe/pump so that the file
@@ -339,7 +339,7 @@ function onStream (opts, client, onerror) {
     }
 
     // All requests to the APM Server must start with a metadata object
-    stream.write(client._encode({metadata: getMetadata(opts)}, Client.encoding.METADATA))
+    stream.write(client._encode({ metadata: getMetadata(opts) }, Client.encoding.METADATA))
   }
 }
 
@@ -377,7 +377,7 @@ function normalizeOptions (opts) {
   const missing = requiredOpts.filter(name => !opts[name])
   if (missing.length > 0) throw new Error('Missing required option(s): ' + missing.join(', '))
 
-  const normalized = Object.assign({}, opts, {objectMode: true})
+  const normalized = Object.assign({}, opts, { objectMode: true })
 
   // default values
   if (!normalized.size && normalized.size !== 0) normalized.size = 750 * 1024
