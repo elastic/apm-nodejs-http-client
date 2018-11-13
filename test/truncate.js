@@ -11,8 +11,8 @@ const assertEvent = utils.assertEvent
 
 const options = [
   {}, // default options
-  {truncateKeywordsAt: 1, truncateErrorMessagesAt: 1, truncateSourceLinesAt: 1},
-  {truncateErrorMessagesAt: -1}
+  { truncateKeywordsAt: 1, truncateErrorMessagesAt: 1, truncateSourceLinesAt: 1 },
+  { truncateErrorMessagesAt: -1 }
 ]
 
 options.forEach(function (opts) {
@@ -107,8 +107,8 @@ options.forEach(function (opts) {
           name: genStr('a', keywordLen),
           type: genStr('b', keywordLen),
           stacktrace: [
-            {pre_context: [genStr('c', lineLen), genStr('d', lineLen)], context_line: genStr('e', lineLen), post_context: [genStr('f', lineLen), genStr('g', lineLen)]},
-            {pre_context: [genStr('h', lineLen), genStr('i', lineLen)], context_line: genStr('j', lineLen), post_context: [genStr('k', lineLen), genStr('l', lineLen)]}
+            { pre_context: [genStr('c', lineLen), genStr('d', lineLen)], context_line: genStr('e', lineLen), post_context: [genStr('f', lineLen), genStr('g', lineLen)] },
+            { pre_context: [genStr('h', lineLen), genStr('i', lineLen)], context_line: genStr('j', lineLen), post_context: [genStr('k', lineLen), genStr('l', lineLen)] }
           ]
         }
       })
@@ -129,8 +129,8 @@ options.forEach(function (opts) {
         name: genStr('a', veryLong),
         type: genStr('b', veryLong),
         stacktrace: [
-          {pre_context: [genStr('c', veryLong), genStr('d', veryLong)], context_line: genStr('e', veryLong), post_context: [genStr('f', veryLong), genStr('g', veryLong)]},
-          {pre_context: [genStr('h', veryLong), genStr('i', veryLong)], context_line: genStr('j', veryLong), post_context: [genStr('k', veryLong), genStr('l', veryLong)]}
+          { pre_context: [genStr('c', veryLong), genStr('d', veryLong)], context_line: genStr('e', veryLong), post_context: [genStr('f', veryLong), genStr('g', veryLong)] },
+          { pre_context: [genStr('h', veryLong), genStr('i', veryLong)], context_line: genStr('j', veryLong), post_context: [genStr('k', veryLong), genStr('l', veryLong)] }
         ]
       })
       client.flush()
@@ -149,8 +149,8 @@ options.forEach(function (opts) {
             message: genStr('c', errMsgLen),
             param_message: genStr('d', keywordLen),
             stacktrace: [
-              {pre_context: [genStr('e', lineLen), genStr('f', lineLen)], context_line: genStr('g', lineLen), post_context: [genStr('h', lineLen), genStr('i', lineLen)]},
-              {pre_context: [genStr('j', lineLen), genStr('k', lineLen)], context_line: genStr('l', lineLen), post_context: [genStr('m', lineLen), genStr('n', lineLen)]}
+              { pre_context: [genStr('e', lineLen), genStr('f', lineLen)], context_line: genStr('g', lineLen), post_context: [genStr('h', lineLen), genStr('i', lineLen)] },
+              { pre_context: [genStr('j', lineLen), genStr('k', lineLen)], context_line: genStr('l', lineLen), post_context: [genStr('m', lineLen), genStr('n', lineLen)] }
             ]
           },
           exception: {
@@ -159,8 +159,8 @@ options.forEach(function (opts) {
             code: genStr('q', keywordLen),
             module: genStr('r', keywordLen),
             stacktrace: [
-              {pre_context: [genStr('s', lineLen), genStr('t', lineLen)], context_line: genStr('u', lineLen), post_context: [genStr('v', lineLen), genStr('w', lineLen)]},
-              {pre_context: [genStr('x', lineLen), genStr('y', lineLen)], context_line: genStr('z', lineLen), post_context: [genStr('A', lineLen), genStr('B', lineLen)]}
+              { pre_context: [genStr('s', lineLen), genStr('t', lineLen)], context_line: genStr('u', lineLen), post_context: [genStr('v', lineLen), genStr('w', lineLen)] },
+              { pre_context: [genStr('x', lineLen), genStr('y', lineLen)], context_line: genStr('z', lineLen), post_context: [genStr('A', lineLen), genStr('B', lineLen)] }
             ]
           },
           context: {
@@ -205,8 +205,8 @@ options.forEach(function (opts) {
           message: genStr('c', veryLong),
           param_message: genStr('d', veryLong),
           stacktrace: [
-            {pre_context: [genStr('e', veryLong), genStr('f', veryLong)], context_line: genStr('g', veryLong), post_context: [genStr('h', veryLong), genStr('i', veryLong)]},
-            {pre_context: [genStr('j', veryLong), genStr('k', veryLong)], context_line: genStr('l', veryLong), post_context: [genStr('m', veryLong), genStr('n', veryLong)]}
+            { pre_context: [genStr('e', veryLong), genStr('f', veryLong)], context_line: genStr('g', veryLong), post_context: [genStr('h', veryLong), genStr('i', veryLong)] },
+            { pre_context: [genStr('j', veryLong), genStr('k', veryLong)], context_line: genStr('l', veryLong), post_context: [genStr('m', veryLong), genStr('n', veryLong)] }
           ]
         },
         exception: {
@@ -215,8 +215,8 @@ options.forEach(function (opts) {
           code: genStr('q', veryLong),
           module: genStr('r', veryLong),
           stacktrace: [
-            {pre_context: [genStr('s', veryLong), genStr('t', veryLong)], context_line: genStr('u', veryLong), post_context: [genStr('v', veryLong), genStr('w', veryLong)]},
-            {pre_context: [genStr('x', veryLong), genStr('y', veryLong)], context_line: genStr('z', veryLong), post_context: [genStr('A', veryLong), genStr('B', veryLong)]}
+            { pre_context: [genStr('s', veryLong), genStr('t', veryLong)], context_line: genStr('u', veryLong), post_context: [genStr('v', veryLong), genStr('w', veryLong)] },
+            { pre_context: [genStr('x', veryLong), genStr('y', veryLong)], context_line: genStr('z', veryLong), post_context: [genStr('A', veryLong), genStr('B', veryLong)] }
           ]
         },
         context: {

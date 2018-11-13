@@ -17,7 +17,7 @@ test('abort request if server responds early', function (t) {
 
   const datas = [
     assertMetadata,
-    assertEvent({span: {foo: 2}})
+    assertEvent({ span: { foo: 2 } })
   ]
 
   const timer = setTimeout(function () {
@@ -36,7 +36,7 @@ test('abort request if server responds early', function (t) {
       // Wait a little to ensure the current stream have ended, so the next
       // span will force a new stream to be created
       setTimeout(function () {
-        client.sendSpan({foo: 2})
+        client.sendSpan({ foo: 2 })
         client.flush()
       }, 50)
     } else if (reqNo === 2) {
@@ -55,7 +55,7 @@ test('abort request if server responds early', function (t) {
     }
   }).client(function (_client) {
     client = _client
-    client.sendSpan({foo: 1})
+    client.sendSpan({ foo: 1 })
     client.on('request-error', function (err) {
       t.equal(err.code, 500, 'should generate request-error with 500 status code')
       t.equal(err.response, 'bad', 'should generate request-error with expected body')

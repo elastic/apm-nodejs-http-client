@@ -14,12 +14,12 @@ dataTypes.forEach(function (dataType) {
     const server = APMServer().client(function (client) {
       // Send one less span than bufferWindowSize
       for (let n = 1; n <= 50; n++) {
-        client[sendFn]({req: n})
+        client[sendFn]({ req: n })
         t.ok(client._writableState.corked, 'should be corked')
       }
 
       // This span should trigger the uncork
-      client[sendFn]({req: 51})
+      client[sendFn]({ req: 51 })
 
       // Wait a little to allow the above write to finish before destroying
       process.nextTick(function () {
@@ -33,15 +33,15 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`bufferWindowSize - custom value (${dataType})`, function (t) {
-    const server = APMServer().client({bufferWindowSize: 5}, function (client) {
+    const server = APMServer().client({ bufferWindowSize: 5 }, function (client) {
       // Send one less span than bufferWindowSize
       for (let n = 1; n <= 5; n++) {
-        client[sendFn]({req: n})
+        client[sendFn]({ req: n })
         t.ok(client._writableState.corked, 'should be corked')
       }
 
       // This span should trigger the uncork
-      client[sendFn]({req: 6})
+      client[sendFn]({ req: 6 })
 
       // Wait a little to allow the above write to finish before destroying
       process.nextTick(function () {
@@ -56,7 +56,7 @@ dataTypes.forEach(function (dataType) {
 
   test(`bufferWindowTime - default value (${dataType})`, function (t) {
     const server = APMServer().client(function (client) {
-      client[sendFn]({req: 1})
+      client[sendFn]({ req: 1 })
       t.ok(client._writableState.corked, 'should be corked')
 
       // Wait twice as long as bufferWindowTime
@@ -70,8 +70,8 @@ dataTypes.forEach(function (dataType) {
   })
 
   test(`bufferWindowTime - custom value (${dataType})`, function (t) {
-    const server = APMServer().client({bufferWindowTime: 150}, function (client) {
-      client[sendFn]({req: 1})
+    const server = APMServer().client({ bufferWindowTime: 150 }, function (client) {
+      client[sendFn]({ req: 1 })
       t.ok(client._writableState.corked, 'should be corked')
 
       // Wait twice as long as the default bufferWindowTime
@@ -92,13 +92,13 @@ dataTypes.forEach(function (dataType) {
   test(`write on destroyed (${dataType})`, function (t) {
     const server = APMServer(function (req, res) {
       t.fail('should not send anything to the APM Server')
-    }).client({bufferWindowSize: 1}, function (client) {
+    }).client({ bufferWindowSize: 1 }, function (client) {
       client.on('error', function (err) {
         t.error(err)
       })
 
-      client[sendFn]({req: 1})
-      client[sendFn]({req: 2})
+      client[sendFn]({ req: 1 })
+      client[sendFn]({ req: 2 })
 
       // Destroy the client before the _writev function have a chance to be called
       client.destroy()

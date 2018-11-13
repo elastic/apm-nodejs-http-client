@@ -33,15 +33,15 @@ test('package', function (t) {
 
 test('throw if missing required options', function (t) {
   t.throws(() => new Client(), 'throws if no options are provided')
-  t.throws(() => new Client({agentName: 'foo'}), 'throws if only agentName is provided')
-  t.throws(() => new Client({agentVersion: 'foo'}), 'throws if only agentVersion is provided')
-  t.throws(() => new Client({serviceName: 'foo'}), 'throws if only serviceName is provided')
-  t.throws(() => new Client({userAgent: 'foo'}), 'throws if only userAgent is provided')
-  t.throws(() => new Client({agentName: 'foo', agentVersion: 'foo', serviceName: 'foo'}), 'throws if userAgent is missing')
-  t.throws(() => new Client({agentName: 'foo', agentVersion: 'foo', userAgent: 'foo'}), 'throws if serviceName is missing')
-  t.throws(() => new Client({agentName: 'foo', serviceName: 'foo', userAgent: 'foo'}), 'throws if agentVersion is missing')
-  t.throws(() => new Client({agentVersion: 'foo', serviceName: 'foo', userAgent: 'foo'}), 'throws if agentName is missing')
-  t.doesNotThrow(() => new Client({agentName: 'foo', agentVersion: 'foo', serviceName: 'foo', userAgent: 'foo'}), 'doesn\'t throw if required options are provided')
+  t.throws(() => new Client({ agentName: 'foo' }), 'throws if only agentName is provided')
+  t.throws(() => new Client({ agentVersion: 'foo' }), 'throws if only agentVersion is provided')
+  t.throws(() => new Client({ serviceName: 'foo' }), 'throws if only serviceName is provided')
+  t.throws(() => new Client({ userAgent: 'foo' }), 'throws if only userAgent is provided')
+  t.throws(() => new Client({ agentName: 'foo', agentVersion: 'foo', serviceName: 'foo' }), 'throws if userAgent is missing')
+  t.throws(() => new Client({ agentName: 'foo', agentVersion: 'foo', userAgent: 'foo' }), 'throws if serviceName is missing')
+  t.throws(() => new Client({ agentName: 'foo', serviceName: 'foo', userAgent: 'foo' }), 'throws if agentVersion is missing')
+  t.throws(() => new Client({ agentVersion: 'foo', serviceName: 'foo', userAgent: 'foo' }), 'throws if agentName is missing')
+  t.doesNotThrow(() => new Client({ agentName: 'foo', agentVersion: 'foo', serviceName: 'foo', userAgent: 'foo' }), 'doesn\'t throw if required options are provided')
   t.end()
 })
 
@@ -77,7 +77,7 @@ test('no secretToken', function (t) {
     const client = new Client(validOpts({
       serverUrl: 'http://localhost:' + server.address().port
     }))
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.end()
   })
 })
@@ -96,7 +96,7 @@ test('custom headers', function (t) {
         'X-Foo': 'bar'
       }
     }))
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.end()
   })
 })
@@ -121,14 +121,14 @@ test('serverUrl contains path', function (t) {
     const client = new Client(validOpts({
       serverUrl: 'http://localhost:' + server.address().port + '/subpath'
     }))
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.end()
   })
 })
 
 test('reject unauthorized TLS by default', function (t) {
   t.plan(3)
-  const server = APMServer({secure: true}, function (req, res) {
+  const server = APMServer({ secure: true }, function (req, res) {
     t.fail('should should not get request')
   }).client(function (client) {
     client.on('request-error', function (err) {
@@ -138,20 +138,20 @@ test('reject unauthorized TLS by default', function (t) {
       server.close()
       t.end()
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.end()
   })
 })
 
 test('allow unauthorized TLS if asked', function (t) {
   t.plan(1)
-  const server = APMServer({secure: true}, function (req, res) {
+  const server = APMServer({ secure: true }, function (req, res) {
     t.pass('should let request through')
     res.end()
     server.close()
     t.end()
-  }).client({rejectUnauthorized: false}, function (client) {
-    client.sendSpan({foo: 42})
+  }).client({ rejectUnauthorized: false }, function (client) {
+    client.sendSpan({ foo: 42 })
     client.end()
   })
 })
@@ -222,7 +222,7 @@ test('metadata', function (t) {
       t.end()
     })
   }).client(opts, function (client) {
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.end()
   })
 })
@@ -273,7 +273,7 @@ test('metadata - default values', function (t) {
       t.end()
     })
   }).client(opts, function (client) {
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.end()
   })
 })
@@ -290,8 +290,8 @@ test('agentName', function (t) {
       server.close()
       t.end()
     })
-  }).client({serviceName: 'custom'}, function (client) {
-    client.sendSpan({foo: 42})
+  }).client({ serviceName: 'custom' }, function (client) {
+    client.sendSpan({ foo: 42 })
     client.end()
   })
 })
@@ -332,11 +332,11 @@ test('payloadLogFile', function (t) {
         })
       }
     })
-  }).client({payloadLogFile: filename}, function (client) {
-    client.sendTransaction({req: 1})
-    client.sendSpan({req: 2})
+  }).client({ payloadLogFile: filename }, function (client) {
+    client.sendTransaction({ req: 1 })
+    client.sendSpan({ req: 2 })
     client.flush() // force the client to make a 2nd request so that we test reusing the file across requests
-    client.sendError({req: 3})
+    client.sendError({ req: 3 })
     client.end()
   })
 })
@@ -354,7 +354,7 @@ dataTypes.forEach(function (dataType) {
     t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
-      assertEvent({[dataType]: {foo: 42}})
+      assertEvent({ [dataType]: { foo: 42 } })
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
@@ -368,7 +368,7 @@ dataTypes.forEach(function (dataType) {
         t.end()
       })
     }).client(function (client) {
-      client[sendFn]({foo: 42})
+      client[sendFn]({ foo: 42 })
       client.flush()
     })
   })
@@ -377,7 +377,7 @@ dataTypes.forEach(function (dataType) {
     t.plan(1 + assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
-      assertEvent({[dataType]: {foo: 42}})
+      assertEvent({ [dataType]: { foo: 42 } })
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
@@ -392,7 +392,7 @@ dataTypes.forEach(function (dataType) {
       })
     }).client(function (client) {
       let nexttick = false
-      client[sendFn]({foo: 42}, function () {
+      client[sendFn]({ foo: 42 }, function () {
         t.ok(nexttick, 'should call callback')
       })
       client.flush()
@@ -404,7 +404,7 @@ dataTypes.forEach(function (dataType) {
     t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
-      assertEvent({[dataType]: {foo: 42}})
+      assertEvent({ [dataType]: { foo: 42 } })
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
@@ -418,7 +418,7 @@ dataTypes.forEach(function (dataType) {
         t.end()
       })
     }).client(function (client) {
-      client[sendFn]({foo: 42})
+      client[sendFn]({ foo: 42 })
       client.end()
     })
   })
@@ -427,7 +427,7 @@ dataTypes.forEach(function (dataType) {
     t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
-      assertEvent({[dataType]: {foo: 42}})
+      assertEvent({ [dataType]: { foo: 42 } })
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
@@ -440,8 +440,8 @@ dataTypes.forEach(function (dataType) {
         server.close()
         t.end()
       })
-    }).client({time: 100}, function (client) {
-      client[sendFn]({foo: 42})
+    }).client({ time: 100 }, function (client) {
+      client[sendFn]({ foo: 42 })
     })
   })
 
@@ -449,9 +449,9 @@ dataTypes.forEach(function (dataType) {
     t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts * 3)
     const datas = [
       assertMetadata,
-      assertEvent({[dataType]: {req: 1}}),
-      assertEvent({[dataType]: {req: 2}}),
-      assertEvent({[dataType]: {req: 3}})
+      assertEvent({ [dataType]: { req: 1 } }),
+      assertEvent({ [dataType]: { req: 2 } }),
+      assertEvent({ [dataType]: { req: 3 } })
     ]
     const server = APMServer(function (req, res) {
       assertReq(t, req)
@@ -464,10 +464,10 @@ dataTypes.forEach(function (dataType) {
         server.close()
         t.end()
       })
-    }).client({time: 100}, function (client) {
-      client[sendFn]({req: 1})
-      client[sendFn]({req: 2})
-      client[sendFn]({req: 3})
+    }).client({ time: 100 }, function (client) {
+      client[sendFn]({ req: 1 })
+      client[sendFn]({ req: 2 })
+      client[sendFn]({ req: 3 })
     })
   })
 
@@ -481,13 +481,13 @@ dataTypes.forEach(function (dataType) {
 
     const datas = [
       assertMetadata,
-      assertEvent({[dataType]: {req: 1, send: 1}}),
-      assertEvent({[dataType]: {req: 1, send: 2}}),
-      assertEvent({[dataType]: {req: 1, send: 3}}),
+      assertEvent({ [dataType]: { req: 1, send: 1 } }),
+      assertEvent({ [dataType]: { req: 1, send: 2 } }),
+      assertEvent({ [dataType]: { req: 1, send: 3 } }),
       assertMetadata,
-      assertEvent({[dataType]: {req: 2, send: 4}}),
-      assertEvent({[dataType]: {req: 2, send: 5}}),
-      assertEvent({[dataType]: {req: 2, send: 6}})
+      assertEvent({ [dataType]: { req: 2, send: 4 } }),
+      assertEvent({ [dataType]: { req: 2, send: 5 } }),
+      assertEvent({ [dataType]: { req: 2, send: 6 } })
     ]
 
     const server = APMServer(function (req, res) {
@@ -506,7 +506,7 @@ dataTypes.forEach(function (dataType) {
           t.end()
         }
       })
-    }).client({time: 100}, function (_client) {
+    }).client({ time: 100 }, function (_client) {
       client = _client
       send()
     })
@@ -514,7 +514,7 @@ dataTypes.forEach(function (dataType) {
     function send () {
       clientReqNum++
       for (let n = 0; n < 3; n++) {
-        client[sendFn]({req: clientReqNum, send: ++clientSendNum})
+        client[sendFn]({ req: clientReqNum, send: ++clientSendNum })
       }
     }
   })
@@ -524,7 +524,7 @@ test('client.flush(callback) - with active request', function (t) {
   t.plan(4 + assertReq.asserts + assertMetadata.asserts)
   const datas = [
     assertMetadata,
-    {span: {foo: 42, name: 'undefined', type: 'undefined'}}
+    { span: { foo: 42, name: 'undefined', type: 'undefined' } }
   ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
@@ -539,9 +539,9 @@ test('client.flush(callback) - with active request', function (t) {
       server.close()
       t.end()
     })
-  }).client({bufferWindowTime: -1}, function (client) {
+  }).client({ bufferWindowTime: -1 }, function (client) {
     t.equal(client._active, false, 'no outgoing HTTP request to begin with')
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     t.equal(client._active, true, 'an outgoing HTTP request should be active')
     client.flush(function () {
       t.equal(client._active, false, 'the outgoing HTTP request should be done')
@@ -554,9 +554,9 @@ test('client.flush(callback) - with queued request', function (t) {
   let requests = 0
   const datas = [
     assertMetadata,
-    {span: {req: 1, name: 'undefined', type: 'undefined'}},
+    { span: { req: 1, name: 'undefined', type: 'undefined' } },
     assertMetadata,
-    {span: {req: 2, name: 'undefined', type: 'undefined'}}
+    { span: { req: 2, name: 'undefined', type: 'undefined' } }
   ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
@@ -573,10 +573,10 @@ test('client.flush(callback) - with queued request', function (t) {
         server.close()
       }
     })
-  }).client({bufferWindowTime: -1}, function (client) {
-    client.sendSpan({req: 1})
+  }).client({ bufferWindowTime: -1 }, function (client) {
+    client.sendSpan({ req: 1 })
     client.flush()
-    client.sendSpan({req: 2})
+    client.sendSpan({ req: 2 })
     t.equal(client._active, true, 'an outgoing HTTP request should be active')
     client.flush(function () {
       t.equal(client._active, false, 'the outgoing HTTP request should be done')
@@ -590,9 +590,9 @@ test('2nd flush before 1st flush have finished', function (t) {
   let requestEnds = 0
   const datas = [
     assertMetadata,
-    {span: {req: 1, name: 'undefined', type: 'undefined'}},
+    { span: { req: 1, name: 'undefined', type: 'undefined' } },
     assertMetadata,
-    {span: {req: 2, name: 'undefined', type: 'undefined'}}
+    { span: { req: 2, name: 'undefined', type: 'undefined' } }
   ]
   const server = APMServer(function (req, res) {
     requestStarts++
@@ -607,10 +607,10 @@ test('2nd flush before 1st flush have finished', function (t) {
       requestEnds++
       res.end()
     })
-  }).client({bufferWindowTime: -1}, function (client) {
-    client.sendSpan({req: 1})
+  }).client({ bufferWindowTime: -1 }, function (client) {
+    client.sendSpan({ req: 1 })
     client.flush()
-    client.sendSpan({req: 2})
+    client.sendSpan({ req: 2 })
     client.flush()
     setTimeout(function () {
       t.equal(requestStarts, 2, 'should have received 2 requests')
@@ -625,7 +625,7 @@ test('client.end(callback)', function (t) {
   t.plan(1 + assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
   const datas = [
     assertMetadata,
-    assertEvent({span: {foo: 42}})
+    assertEvent({ span: { foo: 42 } })
   ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
@@ -639,7 +639,7 @@ test('client.end(callback)', function (t) {
       t.end()
     })
   }).client(function (client) {
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.end(function () {
       t.pass('should call callback')
     })
@@ -661,15 +661,15 @@ test('client.sent', function (t) {
     })
   }).client(function (_client) {
     client = _client
-    client.sendError({foo: 42})
-    client.sendSpan({foo: 42})
-    client.sendTransaction({foo: 42})
+    client.sendError({ foo: 42 })
+    client.sendSpan({ foo: 42 })
+    client.sendTransaction({ foo: 42 })
     t.equal(client.sent, 0, 'after 1st round of sending')
     client.flush(function () {
       t.equal(client.sent, 3, 'after 1st flush')
-      client.sendError({foo: 42})
-      client.sendSpan({foo: 42})
-      client.sendTransaction({foo: 42})
+      client.sendError({ foo: 42 })
+      client.sendSpan({ foo: 42 })
+      client.sendTransaction({ foo: 42 })
       t.equal(client.sent, 3, 'after 2nd round of sending')
       client.flush(function () {
         t.equal(client.sent, 6, 'after 2nd flush')
@@ -704,7 +704,7 @@ test('should not open new request until it\'s needed after flush', function (t) 
 
   function sendData () {
     expectRequest = true
-    client.sendError({foo: 42})
+    client.sendError({ foo: 42 })
     client.flush()
   }
 })
@@ -735,7 +735,7 @@ test('should not open new request until it\'s needed after timeout', function (t
 
   function sendData () {
     expectRequest = true
-    client.sendError({foo: 42})
+    client.sendError({ foo: 42 })
   }
 })
 
@@ -748,7 +748,7 @@ test('client should not hold the process open', function (t) {
 
   const datas = [
     assertMetadata,
-    assertEvent({span: {hello: 'world'}})
+    assertEvent({ span: { hello: 'world' } })
   ]
 
   const server = APMServer(function (req, res) {
@@ -804,7 +804,7 @@ test('Event: close - if ndjson stream ends', function (t) {
       t.pass('should emit close event')
     })
 
-    client.sendSpan({req: 1})
+    client.sendSpan({ req: 1 })
   })
 })
 
@@ -830,7 +830,7 @@ test('Event: close - if ndjson stream is destroyed', function (t) {
       t.pass('should emit close event')
     })
 
-    client.sendSpan({req: 1})
+    client.sendSpan({ req: 1 })
   })
 })
 
@@ -856,7 +856,7 @@ test('Event: close - if chopper ends', function (t) {
       t.pass('should emit close event')
     })
 
-    client.sendSpan({req: 1})
+    client.sendSpan({ req: 1 })
   })
 })
 
@@ -882,7 +882,7 @@ test('Event: close - if chopper is destroyed', function (t) {
       t.pass('should emit close event')
     })
 
-    client.sendSpan({req: 1})
+    client.sendSpan({ req: 1 })
   })
 })
 
@@ -898,7 +898,7 @@ test('write after end', function (t) {
       t.end()
     })
     client.end()
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
   })
 })
 
@@ -917,7 +917,7 @@ test('request with error - no body', function (t) {
       server.close()
       t.end()
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.flush()
   })
 })
@@ -937,7 +937,7 @@ test('request with error - non json body', function (t) {
       server.close()
       t.end()
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.flush()
   })
 })
@@ -958,13 +958,13 @@ test('request with error - invalid json body', function (t) {
       server.close()
       t.end()
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.flush()
   })
 })
 
 test('request with error - json body without accepted or errors properties', function (t) {
-  const body = JSON.stringify({foo: 'bar'})
+  const body = JSON.stringify({ foo: 'bar' })
   const server = APMServer(function (req, res) {
     res.statusCode = 418
     res.setHeader('Content-Type', 'application/json')
@@ -980,7 +980,7 @@ test('request with error - json body without accepted or errors properties', fun
       server.close()
       t.end()
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.flush()
   })
 })
@@ -989,19 +989,19 @@ test('request with error - json body with accepted and errors properties', funct
   const server = APMServer(function (req, res) {
     res.statusCode = 418
     res.setHeader('Content-Type', 'application/json')
-    res.end(JSON.stringify({accepted: 42, errors: [{message: 'bar'}]}))
+    res.end(JSON.stringify({ accepted: 42, errors: [{ message: 'bar' }] }))
   }).client(function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected APM Server response')
       t.equal(err.code, 418)
       t.equal(err.accepted, 42)
-      t.deepEqual(err.errors, [{message: 'bar'}])
+      t.deepEqual(err.errors, [{ message: 'bar' }])
       t.equal(err.response, undefined)
       server.close()
       t.end()
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.flush()
   })
 })
@@ -1010,19 +1010,19 @@ test('request with error - json body where Content-Type contains charset', funct
   const server = APMServer(function (req, res) {
     res.statusCode = 418
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    res.end(JSON.stringify({accepted: 42, errors: [{message: 'bar'}]}))
+    res.end(JSON.stringify({ accepted: 42, errors: [{ message: 'bar' }] }))
   }).client(function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected APM Server response')
       t.equal(err.code, 418)
       t.equal(err.accepted, 42)
-      t.deepEqual(err.errors, [{message: 'bar'}])
+      t.deepEqual(err.errors, [{ message: 'bar' }])
       t.equal(err.response, undefined)
       server.close()
       t.end()
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.flush()
   })
 })
@@ -1049,7 +1049,7 @@ test('socket hang up', function (t) {
     client.on('finish', function () {
       t.fail('should not emit finish')
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
   })
 })
 
@@ -1059,7 +1059,7 @@ test('socket hang up - continue with new request', function (t) {
   let client
   const datas = [
     assertMetadata,
-    assertEvent({span: {req: 2}})
+    assertEvent({ span: { req: 2 } })
   ]
   const server = APMServer(function (req, res) {
     assertReq(t, req)
@@ -1087,20 +1087,20 @@ test('socket hang up - continue with new request', function (t) {
     client.on('request-error', function (err) {
       t.equal(err.message, 'socket hang up')
       t.equal(err.code, 'ECONNRESET')
-      client.sendSpan({req: 2})
+      client.sendSpan({ req: 2 })
     })
     client.on('finish', function () {
       t.equal(reqs, 2, 'should emit finish after last request')
       t.end()
     })
-    client.sendSpan({req: 1})
+    client.sendSpan({ req: 1 })
   })
 })
 
 test('socket timeout - server response too slow', function (t) {
   const server = APMServer(function (req, res) {
     req.resume()
-  }).client({serverTimeout: 1000}, function (client) {
+  }).client({ serverTimeout: 1000 }, function (client) {
     const start = Date.now()
     client.on('request-error', function (err) {
       const end = Date.now()
@@ -1111,7 +1111,7 @@ test('socket timeout - server response too slow', function (t) {
       server.close()
       t.end()
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.end()
   })
 })
@@ -1122,7 +1122,7 @@ test('socket timeout - client request too slow', function (t) {
     req.on('end', function () {
       res.end()
     })
-  }).client({serverTimeout: 1000}, function (client) {
+  }).client({ serverTimeout: 1000 }, function (client) {
     const start = Date.now()
     client.on('request-error', function (err) {
       const end = Date.now()
@@ -1133,7 +1133,7 @@ test('socket timeout - client request too slow', function (t) {
       server.close()
       t.end()
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
   })
 })
 
@@ -1157,7 +1157,7 @@ test('client.destroy() - should not allow more writes', function (t) {
   t.plan(11)
   let count = 0
 
-  const client = new Client(validOpts({bufferWindowTime: -1}))
+  const client = new Client(validOpts({ bufferWindowTime: -1 }))
   client.on('error', function (err) {
     t.ok(err instanceof Error, 'should emit error ' + err.message)
   })
@@ -1168,9 +1168,9 @@ test('client.destroy() - should not allow more writes', function (t) {
     t.pass('should emit close') // emitted because of client.destroy()
   })
   client.destroy()
-  client.sendSpan({foo: 42}, done)
-  client.sendTransaction({foo: 42}, done)
-  client.sendError({foo: 42}, done)
+  client.sendSpan({ foo: 42 }, done)
+  client.sendTransaction({ foo: 42 }, done)
+  client.sendError({ foo: 42 }, done)
   client.flush(done)
   client.end(done)
 
@@ -1209,7 +1209,7 @@ test('client.destroy() - on ended client', function (t) {
     client.on('close', function () {
       t.pass('should emit close event')
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
     client.end()
   })
 })
@@ -1239,6 +1239,6 @@ test('client.destroy() - on client with request in progress', function (t) {
     client.on('close', function () {
       t.pass('should emit close event')
     })
-    client.sendSpan({foo: 42})
+    client.sendSpan({ foo: 42 })
   })
 })
