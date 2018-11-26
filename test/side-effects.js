@@ -1,0 +1,47 @@
+'use strict'
+
+const path = require('path')
+const exec = require('child_process').exec
+const test = require('tape')
+const utils = require('./lib/utils')
+
+const APMServer = utils.APMServer
+const processReq = utils.processReq
+const assertReq = utils.assertReq
+const assertMetadata = utils.assertMetadata
+const assertEvent = utils.assertEvent
+
+test('client should not hold the process open', function (t) {
+  t.plan(1 + assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+
+  const datas = [
+    assertMetadata,
+    assertEvent({ span: { hello: 'world' } })
+  ]
+
+  const server = APMServer(function (req, res) {
+    assertReq(t, req)
+    req = processReq(req)
+    req.on('data', function (obj) {
+      datas.shift()(t, obj)
+    })
+    req.on('end', function () {
+      res.statusCode = 202
+      res.end()
+      server.close()
+    })
+  })
+
+  server.listen(function () {
+    const url = 'http://localhost:' + server.address().port
+    const file = path.join(__dirname, 'lib', 'unref-client.js')
+    exec(`node ${file} ${url}`, function (err, stdout, stderr) {
+      if (err) throw err
+      const end = Date.now()
+      const start = Number(stdout)
+      const duration = end - start
+      t.ok(duration < 300, `should not take more than 300 ms to complete (was: ${duration})`)
+      t.end()
+    })
+  })
+})
