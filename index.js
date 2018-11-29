@@ -460,7 +460,7 @@ function getMetadata (opts) {
   }
 
   const k8sNodeName = process.env.KUBERNETES_NODE_NAME
-  const k8sNamespace = process.env.KUBERNETES_POD_NAMESPACE
+  const k8sNamespace = process.env.KUBERNETES_NAMESPACE
   const k8sPodName = process.env.KUBERNETES_POD_NAME
   const k8sPodUID = process.env.KUBERNETES_POD_UID
 

@@ -48,12 +48,12 @@ test('KUBERNETES_NODE_NAME only', function (t) {
   })
 })
 
-test('KUBERNETES_POD_NAMESPACE only', function (t) {
+test('KUBERNETES_NAMESPACE only', function (t) {
   t.plan(1)
   t.on('end', deleteEnv)
 
   deleteEnv()
-  process.env.KUBERNETES_POD_NAMESPACE = 'foo'
+  process.env.KUBERNETES_NAMESPACE = 'foo'
 
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -122,7 +122,7 @@ test('all', function (t) {
   t.on('end', deleteEnv)
 
   process.env.KUBERNETES_NODE_NAME = 'foo'
-  process.env.KUBERNETES_POD_NAMESPACE = 'bar'
+  process.env.KUBERNETES_NAMESPACE = 'bar'
   process.env.KUBERNETES_POD_NAME = 'baz'
   process.env.KUBERNETES_POD_UID = 'qux'
 
@@ -148,7 +148,7 @@ test('all', function (t) {
 
 function deleteEnv () {
   delete process.env.KUBERNETES_NODE_NAME
-  delete process.env.KUBERNETES_POD_NAMESPACE
+  delete process.env.KUBERNETES_NAMESPACE
   delete process.env.KUBERNETES_POD_NAME
   delete process.env.KUBERNETES_POD_UID
 }
