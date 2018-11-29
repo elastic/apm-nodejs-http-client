@@ -466,7 +466,9 @@ function getMetadata (opts) {
 
   if (k8sNodeName || k8sNamespace || k8sPodName || k8sPodUID) {
     payload.kubernetes = {
-      namespace: k8sNamespace
+      namespace: k8sNamespace,
+      name: undefined,
+      pod: undefined
     }
 
     if (k8sNodeName) {
