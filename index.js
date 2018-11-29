@@ -474,9 +474,7 @@ function getMetadata (opts) {
     }
 
     if (k8sPodName || k8sPodUID) {
-      payload.kubernetes.pod = {}
-      if (k8sPodName) payload.kubernetes.pod.name = k8sPodName
-      if (k8sPodUID) payload.kubernetes.pod.uid = k8sPodUID
+      payload.kubernetes.pod = { name: k8sPodName, uid: k8sPodUID }
     }
   }
 

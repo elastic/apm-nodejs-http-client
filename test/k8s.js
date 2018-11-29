@@ -146,6 +146,120 @@ test('all', function (t) {
   })
 })
 
+test('all except KUBERNETES_NODE_NAME', function (t) {
+  t.plan(1)
+  t.on('end', deleteEnv)
+
+  deleteEnv()
+  process.env.KUBERNETES_NAMESPACE = 'bar'
+  process.env.KUBERNETES_POD_NAME = 'baz'
+  process.env.KUBERNETES_POD_UID = 'qux'
+
+  const server = APMServer(function (req, res) {
+    req = processReq(req)
+    req.once('data', function (obj) {
+      t.deepEqual(obj.metadata.kubernetes, {
+        namespace: 'bar',
+        pod: { name: 'baz', uid: 'qux' }
+      })
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client(function (client) {
+    client.sendError({})
+    client.flush()
+  })
+})
+
+test('all except KUBERNETES_NAMESPACE', function (t) {
+  t.plan(1)
+  t.on('end', deleteEnv)
+
+  deleteEnv()
+  process.env.KUBERNETES_NODE_NAME = 'foo'
+  process.env.KUBERNETES_POD_NAME = 'baz'
+  process.env.KUBERNETES_POD_UID = 'qux'
+
+  const server = APMServer(function (req, res) {
+    req = processReq(req)
+    req.once('data', function (obj) {
+      t.deepEqual(obj.metadata.kubernetes, {
+        node: { name: 'foo' },
+        pod: { name: 'baz', uid: 'qux' }
+      })
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client(function (client) {
+    client.sendError({})
+    client.flush()
+  })
+})
+
+test('all except KUBERNETES_POD_NAME', function (t) {
+  t.plan(1)
+  t.on('end', deleteEnv)
+
+  deleteEnv()
+  process.env.KUBERNETES_NODE_NAME = 'foo'
+  process.env.KUBERNETES_NAMESPACE = 'bar'
+  process.env.KUBERNETES_POD_UID = 'qux'
+
+  const server = APMServer(function (req, res) {
+    req = processReq(req)
+    req.once('data', function (obj) {
+      t.deepEqual(obj.metadata.kubernetes, {
+        namespace: 'bar',
+        node: { name: 'foo' },
+        pod: { uid: 'qux' }
+      })
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client(function (client) {
+    client.sendError({})
+    client.flush()
+  })
+})
+
+test('all except KUBERNETES_POD_UID', function (t) {
+  t.plan(1)
+  t.on('end', deleteEnv)
+
+  deleteEnv()
+  process.env.KUBERNETES_NODE_NAME = 'foo'
+  process.env.KUBERNETES_NAMESPACE = 'bar'
+  process.env.KUBERNETES_POD_NAME = 'baz'
+
+  const server = APMServer(function (req, res) {
+    req = processReq(req)
+    req.once('data', function (obj) {
+      t.deepEqual(obj.metadata.kubernetes, {
+        namespace: 'bar',
+        node: { name: 'foo' },
+        pod: { name: 'baz' }
+      })
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client(function (client) {
+    client.sendError({})
+    client.flush()
+  })
+})
+
 function deleteEnv () {
   delete process.env.KUBERNETES_NODE_NAME
   delete process.env.KUBERNETES_NAMESPACE
