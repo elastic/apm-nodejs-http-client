@@ -5,9 +5,6 @@ const { APMServer, processReq } = require('./lib/utils')
 
 test('no environment variables', function (t) {
   t.plan(1)
-  t.on('end', deleteEnv)
-
-  deleteEnv()
 
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -25,12 +22,8 @@ test('no environment variables', function (t) {
   })
 })
 
-test('KUBERNETES_NODE_NAME only', function (t) {
+test('k8sNodeName only', function (t) {
   t.plan(1)
-  t.on('end', deleteEnv)
-
-  deleteEnv()
-  process.env.KUBERNETES_NODE_NAME = 'foo'
 
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -42,18 +35,14 @@ test('KUBERNETES_NODE_NAME only', function (t) {
       server.close()
       t.end()
     })
-  }).client(function (client) {
+  }).client({ k8sNodeName: 'foo' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('KUBERNETES_NAMESPACE only', function (t) {
+test('k8sNamespace only', function (t) {
   t.plan(1)
-  t.on('end', deleteEnv)
-
-  deleteEnv()
-  process.env.KUBERNETES_NAMESPACE = 'foo'
 
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -65,18 +54,14 @@ test('KUBERNETES_NAMESPACE only', function (t) {
       server.close()
       t.end()
     })
-  }).client(function (client) {
+  }).client({ k8sNamespace: 'foo' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('KUBERNETES_POD_NAME only', function (t) {
+test('k8sPodName only', function (t) {
   t.plan(1)
-  t.on('end', deleteEnv)
-
-  deleteEnv()
-  process.env.KUBERNETES_POD_NAME = 'foo'
 
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -88,18 +73,14 @@ test('KUBERNETES_POD_NAME only', function (t) {
       server.close()
       t.end()
     })
-  }).client(function (client) {
+  }).client({ k8sPodName: 'foo' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('KUBERNETES_POD_UID only', function (t) {
+test('k8sPodUID only', function (t) {
   t.plan(1)
-  t.on('end', deleteEnv)
-
-  deleteEnv()
-  process.env.KUBERNETES_POD_UID = 'foo'
 
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -111,7 +92,7 @@ test('KUBERNETES_POD_UID only', function (t) {
       server.close()
       t.end()
     })
-  }).client(function (client) {
+  }).client({ k8sPodUID: 'foo' }, function (client) {
     client.sendError({})
     client.flush()
   })
@@ -119,12 +100,6 @@ test('KUBERNETES_POD_UID only', function (t) {
 
 test('all', function (t) {
   t.plan(1)
-  t.on('end', deleteEnv)
-
-  process.env.KUBERNETES_NODE_NAME = 'foo'
-  process.env.KUBERNETES_NAMESPACE = 'bar'
-  process.env.KUBERNETES_POD_NAME = 'baz'
-  process.env.KUBERNETES_POD_UID = 'qux'
 
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -140,20 +115,14 @@ test('all', function (t) {
       server.close()
       t.end()
     })
-  }).client(function (client) {
+  }).client({ k8sNodeName: 'foo', k8sNamespace: 'bar', k8sPodName: 'baz', k8sPodUID: 'qux' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('all except KUBERNETES_NODE_NAME', function (t) {
+test('all except k8sNodeName', function (t) {
   t.plan(1)
-  t.on('end', deleteEnv)
-
-  deleteEnv()
-  process.env.KUBERNETES_NAMESPACE = 'bar'
-  process.env.KUBERNETES_POD_NAME = 'baz'
-  process.env.KUBERNETES_POD_UID = 'qux'
 
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -168,20 +137,14 @@ test('all except KUBERNETES_NODE_NAME', function (t) {
       server.close()
       t.end()
     })
-  }).client(function (client) {
+  }).client({ k8sNamespace: 'bar', k8sPodName: 'baz', k8sPodUID: 'qux' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('all except KUBERNETES_NAMESPACE', function (t) {
+test('all except k8sNamespace', function (t) {
   t.plan(1)
-  t.on('end', deleteEnv)
-
-  deleteEnv()
-  process.env.KUBERNETES_NODE_NAME = 'foo'
-  process.env.KUBERNETES_POD_NAME = 'baz'
-  process.env.KUBERNETES_POD_UID = 'qux'
 
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -196,20 +159,14 @@ test('all except KUBERNETES_NAMESPACE', function (t) {
       server.close()
       t.end()
     })
-  }).client(function (client) {
+  }).client({ k8sNodeName: 'foo', k8sPodName: 'baz', k8sPodUID: 'qux' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('all except KUBERNETES_POD_NAME', function (t) {
+test('all except k8sPodName', function (t) {
   t.plan(1)
-  t.on('end', deleteEnv)
-
-  deleteEnv()
-  process.env.KUBERNETES_NODE_NAME = 'foo'
-  process.env.KUBERNETES_NAMESPACE = 'bar'
-  process.env.KUBERNETES_POD_UID = 'qux'
 
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -225,20 +182,14 @@ test('all except KUBERNETES_POD_NAME', function (t) {
       server.close()
       t.end()
     })
-  }).client(function (client) {
+  }).client({ k8sNodeName: 'foo', k8sNamespace: 'bar', k8sPodUID: 'qux' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('all except KUBERNETES_POD_UID', function (t) {
+test('all except k8sPodUID', function (t) {
   t.plan(1)
-  t.on('end', deleteEnv)
-
-  deleteEnv()
-  process.env.KUBERNETES_NODE_NAME = 'foo'
-  process.env.KUBERNETES_NAMESPACE = 'bar'
-  process.env.KUBERNETES_POD_NAME = 'baz'
 
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -254,15 +205,8 @@ test('all except KUBERNETES_POD_UID', function (t) {
       server.close()
       t.end()
     })
-  }).client(function (client) {
+  }).client({ k8sNodeName: 'foo', k8sNamespace: 'bar', k8sPodName: 'baz' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
-
-function deleteEnv () {
-  delete process.env.KUBERNETES_NODE_NAME
-  delete process.env.KUBERNETES_NAMESPACE
-  delete process.env.KUBERNETES_POD_NAME
-  delete process.env.KUBERNETES_POD_UID
-}

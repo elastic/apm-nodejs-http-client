@@ -459,24 +459,19 @@ function getMetadata (opts) {
     }
   }
 
-  const k8sNodeName = process.env.KUBERNETES_NODE_NAME
-  const k8sNamespace = process.env.KUBERNETES_NAMESPACE
-  const k8sPodName = process.env.KUBERNETES_POD_NAME
-  const k8sPodUID = process.env.KUBERNETES_POD_UID
-
-  if (k8sNodeName || k8sNamespace || k8sPodName || k8sPodUID) {
+  if (opts.k8sNodeName || opts.k8sNamespace || opts.k8sPodName || opts.k8sPodUID) {
     payload.kubernetes = {
-      namespace: k8sNamespace,
+      namespace: opts.k8sNamespace,
       node: undefined,
       pod: undefined
     }
 
-    if (k8sNodeName) {
-      payload.kubernetes.node = { name: k8sNodeName }
+    if (opts.k8sNodeName) {
+      payload.kubernetes.node = { name: opts.k8sNodeName }
     }
 
-    if (k8sPodName || k8sPodUID) {
-      payload.kubernetes.pod = { name: k8sPodName, uid: k8sPodUID }
+    if (opts.k8sPodName || opts.k8sPodUID) {
+      payload.kubernetes.pod = { name: opts.k8sPodName, uid: opts.k8sPodUID }
     }
   }
 
