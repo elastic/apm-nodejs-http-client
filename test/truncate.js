@@ -51,6 +51,9 @@ options.forEach(function (opts) {
               id: genStr('m', keywordLen),
               email: genStr('n', keywordLen),
               username: genStr('o', keywordLen)
+            },
+            custom: {
+              foo: genStr('p', 1024)
             }
           }
         }
@@ -91,6 +94,9 @@ options.forEach(function (opts) {
             id: genStr('m', veryLong),
             email: genStr('n', veryLong),
             username: genStr('o', veryLong)
+          },
+          custom: {
+            foo: genStr('p', veryLong)
           }
         }
       })
@@ -109,7 +115,12 @@ options.forEach(function (opts) {
           stacktrace: [
             { pre_context: [genStr('c', lineLen), genStr('d', lineLen)], context_line: genStr('e', lineLen), post_context: [genStr('f', lineLen), genStr('g', lineLen)] },
             { pre_context: [genStr('h', lineLen), genStr('i', lineLen)], context_line: genStr('j', lineLen), post_context: [genStr('k', lineLen), genStr('l', lineLen)] }
-          ]
+          ],
+          context: {
+            custom: {
+              foo: genStr('m', 1024)
+            }
+          }
         }
       })
     ]
@@ -131,7 +142,12 @@ options.forEach(function (opts) {
         stacktrace: [
           { pre_context: [genStr('c', veryLong), genStr('d', veryLong)], context_line: genStr('e', veryLong), post_context: [genStr('f', veryLong), genStr('g', veryLong)] },
           { pre_context: [genStr('h', veryLong), genStr('i', veryLong)], context_line: genStr('j', veryLong), post_context: [genStr('k', veryLong), genStr('l', veryLong)] }
-        ]
+        ],
+        context: {
+          custom: {
+            foo: genStr('m', veryLong)
+          }
+        }
       })
       client.flush()
     })
@@ -181,6 +197,9 @@ options.forEach(function (opts) {
               id: genStr('L', keywordLen),
               email: genStr('M', keywordLen),
               username: genStr('N', keywordLen)
+            },
+            custom: {
+              foo: genStr('O', 1024)
             }
           }
         }
@@ -237,6 +256,9 @@ options.forEach(function (opts) {
             id: genStr('L', veryLong),
             email: genStr('M', veryLong),
             username: genStr('N', veryLong)
+          },
+          custom: {
+            foo: genStr('O', veryLong)
           }
         }
       })
