@@ -459,6 +459,22 @@ function getMetadata (opts) {
     }
   }
 
+  if (opts.kubernetesNodeName || opts.kubernetesNamespace || opts.kubernetesPodName || opts.kubernetesPodUID) {
+    payload.kubernetes = {
+      namespace: opts.kubernetesNamespace,
+      node: undefined,
+      pod: undefined
+    }
+
+    if (opts.kubernetesNodeName) {
+      payload.kubernetes.node = { name: opts.kubernetesNodeName }
+    }
+
+    if (opts.kubernetesPodName || opts.kubernetesPodUID) {
+      payload.kubernetes.pod = { name: opts.kubernetesPodName, uid: opts.kubernetesPodUID }
+    }
+  }
+
   return payload
 }
 

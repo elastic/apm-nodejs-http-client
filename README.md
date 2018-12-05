@@ -67,6 +67,10 @@ Data sent to the APM Server as part of the metadata package:
 - `frameworkVersion` - If the service being instrumented is running a
   specific framework, use this config option to log its version
 - `hostname` - Custom hostname (default: OS hostname)
+- `kubernetesNodeName` - Kubernetes node name
+- `kubernetesNamespace` - Kubernetes namespace
+- `kubernetesPodName` - Kubernetes pod name
+- `kubernetesPodUID` - Kubernetes pod id
 
 HTTP client configuration:
 
