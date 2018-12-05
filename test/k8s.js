@@ -22,7 +22,7 @@ test('no environment variables', function (t) {
   })
 })
 
-test('k8sNodeName only', function (t) {
+test('kubernetesNodeName only', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
@@ -35,13 +35,13 @@ test('k8sNodeName only', function (t) {
       server.close()
       t.end()
     })
-  }).client({ k8sNodeName: 'foo' }, function (client) {
+  }).client({ kubernetesNodeName: 'foo' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('k8sNamespace only', function (t) {
+test('kubernetesNamespace only', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
@@ -54,13 +54,13 @@ test('k8sNamespace only', function (t) {
       server.close()
       t.end()
     })
-  }).client({ k8sNamespace: 'foo' }, function (client) {
+  }).client({ kubernetesNamespace: 'foo' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('k8sPodName only', function (t) {
+test('kubernetesPodName only', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
@@ -73,13 +73,13 @@ test('k8sPodName only', function (t) {
       server.close()
       t.end()
     })
-  }).client({ k8sPodName: 'foo' }, function (client) {
+  }).client({ kubernetesPodName: 'foo' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('k8sPodUID only', function (t) {
+test('kubernetesPodUID only', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
@@ -92,7 +92,7 @@ test('k8sPodUID only', function (t) {
       server.close()
       t.end()
     })
-  }).client({ k8sPodUID: 'foo' }, function (client) {
+  }).client({ kubernetesPodUID: 'foo' }, function (client) {
     client.sendError({})
     client.flush()
   })
@@ -115,13 +115,13 @@ test('all', function (t) {
       server.close()
       t.end()
     })
-  }).client({ k8sNodeName: 'foo', k8sNamespace: 'bar', k8sPodName: 'baz', k8sPodUID: 'qux' }, function (client) {
+  }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodName: 'baz', kubernetesPodUID: 'qux' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('all except k8sNodeName', function (t) {
+test('all except kubernetesNodeName', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
@@ -137,13 +137,13 @@ test('all except k8sNodeName', function (t) {
       server.close()
       t.end()
     })
-  }).client({ k8sNamespace: 'bar', k8sPodName: 'baz', k8sPodUID: 'qux' }, function (client) {
+  }).client({ kubernetesNamespace: 'bar', kubernetesPodName: 'baz', kubernetesPodUID: 'qux' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('all except k8sNamespace', function (t) {
+test('all except kubernetesNamespace', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
@@ -159,13 +159,13 @@ test('all except k8sNamespace', function (t) {
       server.close()
       t.end()
     })
-  }).client({ k8sNodeName: 'foo', k8sPodName: 'baz', k8sPodUID: 'qux' }, function (client) {
+  }).client({ kubernetesNodeName: 'foo', kubernetesPodName: 'baz', kubernetesPodUID: 'qux' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('all except k8sPodName', function (t) {
+test('all except kubernetesPodName', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
@@ -182,13 +182,13 @@ test('all except k8sPodName', function (t) {
       server.close()
       t.end()
     })
-  }).client({ k8sNodeName: 'foo', k8sNamespace: 'bar', k8sPodUID: 'qux' }, function (client) {
+  }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodUID: 'qux' }, function (client) {
     client.sendError({})
     client.flush()
   })
 })
 
-test('all except k8sPodUID', function (t) {
+test('all except kubernetesPodUID', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
@@ -205,7 +205,7 @@ test('all except k8sPodUID', function (t) {
       server.close()
       t.end()
     })
-  }).client({ k8sNodeName: 'foo', k8sNamespace: 'bar', k8sPodName: 'baz' }, function (client) {
+  }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodName: 'baz' }, function (client) {
     client.sendError({})
     client.flush()
   })
