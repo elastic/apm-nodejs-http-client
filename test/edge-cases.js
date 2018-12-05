@@ -472,3 +472,34 @@ test('client.destroy() - on client with request in progress', function (t) {
     client.sendSpan({ foo: 42 })
   })
 })
+
+const dataTypes = ['span', 'transaction', 'error']
+
+dataTypes.forEach(function (dataType) {
+  const sendFn = 'send' + dataType.charAt(0).toUpperCase() + dataType.substr(1)
+
+  test(`client.${sendFn}(): handle circular references`, function (t) {
+    t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+    const datas = [
+      assertMetadata,
+      assertEvent({ [dataType]: { foo: 42, bar: '[Circular]' } })
+    ]
+    const server = APMServer(function (req, res) {
+      assertReq(t, req)
+      req = processReq(req)
+      req.on('data', function (obj) {
+        datas.shift()(t, obj)
+      })
+      req.on('end', function () {
+        res.end()
+        server.close()
+        t.end()
+      })
+    }).client(function (client) {
+      const obj = { foo: 42 }
+      obj.bar = obj
+      client[sendFn](obj)
+      client.flush()
+    })
+  })
+})
