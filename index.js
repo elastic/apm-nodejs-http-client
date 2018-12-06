@@ -387,7 +387,8 @@ function normalizeOptions (opts) {
   if (!normalized.hostname) normalized.hostname = hostname
   if (!normalized.truncateKeywordsAt) normalized.truncateKeywordsAt = 1024
   if (!normalized.truncateErrorMessagesAt) normalized.truncateErrorMessagesAt = 2048
-  if (!normalized.truncateSourceLinesAt) normalized.truncateSourceLinesAt = 1000
+  if (!normalized.truncateStringsAt) normalized.truncateStringsAt = 1024
+  if (!normalized.truncateQueriesAt) normalized.truncateQueriesAt = 10000
   if (!normalized.bufferWindowTime) normalized.bufferWindowTime = 20
   if (!normalized.bufferWindowSize) normalized.bufferWindowSize = 50
   normalized.keepAlive = normalized.keepAlive !== false

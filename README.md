@@ -128,7 +128,7 @@ Data sanitizing configuration:
   disable truncation. This applies to the following properties:
   `error.exception.message` and `error.log.message` (default: `2048`
   bytes)
-- `truncateSourceLinesAt` - The maximum size in bytes for souce code
+- `truncateStringsAt` - The maximum size in bytes for souce code
   lines in stack traces. Lines above this length will be truncated
   (default: `1000` bytes)
 

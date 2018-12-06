@@ -11,17 +11,18 @@ const assertEvent = utils.assertEvent
 
 const options = [
   {}, // default options
-  { truncateKeywordsAt: 1, truncateErrorMessagesAt: 1, truncateSourceLinesAt: 1 },
+  { truncateKeywordsAt: 1, truncateErrorMessagesAt: 1, truncateStringsAt: 100, truncateQueriesAt: 1 },
   { truncateErrorMessagesAt: -1 }
 ]
 
 options.forEach(function (opts) {
-  const veryLong = 9999
+  const veryLong = 12000
+  const lineLen = opts.truncateStringsAt || 1024
+  const queryLen = opts.truncateQueriesAt || 10000
   const keywordLen = opts.truncateKeywordsAt || 1024
   const errMsgLen = opts.truncateErrorMessagesAt === -1
-    ? veryLong
+    ? lineLen
     : (opts.truncateErrorMessagesAt || 2048)
-  const lineLen = opts.truncateSourceLinesAt || 1000
 
   test('truncate transaction', function (t) {
     t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
@@ -53,7 +54,7 @@ options.forEach(function (opts) {
               username: genStr('o', keywordLen)
             },
             custom: {
-              foo: genStr('p', 1024)
+              foo: genStr('p', lineLen)
             }
           }
         }
@@ -118,7 +119,10 @@ options.forEach(function (opts) {
           ],
           context: {
             custom: {
-              foo: genStr('m', 1024)
+              foo: genStr('m', lineLen)
+            },
+            db: {
+              statement: genStr('n', queryLen)
             }
           }
         }
@@ -146,6 +150,9 @@ options.forEach(function (opts) {
         context: {
           custom: {
             foo: genStr('m', veryLong)
+          },
+          db: {
+            statement: genStr('n', veryLong)
           }
         }
       })
@@ -199,7 +206,7 @@ options.forEach(function (opts) {
               username: genStr('N', keywordLen)
             },
             custom: {
-              foo: genStr('O', 1024)
+              foo: genStr('O', lineLen)
             }
           }
         }
