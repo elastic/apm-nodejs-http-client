@@ -21,7 +21,7 @@ options.forEach(function (opts) {
   const queryLen = opts.truncateQueriesAt || 10000
   const keywordLen = opts.truncateKeywordsAt || 1024
   const errMsgLen = opts.truncateErrorMessagesAt === -1
-    ? lineLen
+    ? veryLong
     : (opts.truncateErrorMessagesAt || 2048)
 
   test('truncate transaction', function (t) {
