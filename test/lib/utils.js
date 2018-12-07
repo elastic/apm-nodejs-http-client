@@ -120,6 +120,8 @@ function assertEvent (expect) {
         break
       case 'error':
         break
+      case 'metricset':
+        break
       default:
         t.fail('unexpected event type: ' + key)
     }

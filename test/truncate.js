@@ -284,6 +284,51 @@ options.forEach(function (opts) {
       client.flush()
     })
   })
+
+  test('truncate metricset', function (t) {
+    t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+    const datas = [
+      assertMetadata,
+      assertEvent({
+        metricset: {
+          timestamp: 1496170422281000,
+          tags: {
+            foo: genStr('a', lineLen)
+          },
+          samples: {
+            metric_name: {
+              value: 4
+            }
+          }
+        }
+      })
+    ]
+    const server = APMServer(function (req, res) {
+      assertReq(t, req)
+      req = processReq(req)
+      req.on('data', function (obj) {
+        datas.shift()(t, obj)
+      })
+      req.on('end', function () {
+        res.end()
+        server.close()
+        t.end()
+      })
+    }).client(opts, function (client) {
+      client.sendMetricSet({
+        timestamp: 1496170422281000,
+        tags: {
+          foo: genStr('a', veryLong)
+        },
+        samples: {
+          metric_name: {
+            value: 4
+          }
+        }
+      })
+      client.flush()
+    })
+  })
 })
 
 function genStr (ch, length) {

@@ -9,10 +9,17 @@ const assertReq = utils.assertReq
 const assertMetadata = utils.assertMetadata
 const assertEvent = utils.assertEvent
 
-const dataTypes = ['span', 'transaction', 'error']
+const dataTypes = ['span', 'transaction', 'error', 'metricset']
+
+const upper = {
+  span: 'Span',
+  transaction: 'Transaction',
+  error: 'Error',
+  metricset: 'MetricSet'
+}
 
 dataTypes.forEach(function (dataType) {
-  const sendFn = 'send' + dataType.charAt(0).toUpperCase() + dataType.substr(1)
+  const sendFn = 'send' + upper[dataType]
 
   test(`client.${sendFn}() + client.flush()`, function (t) {
     t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
