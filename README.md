@@ -130,7 +130,7 @@ Data sanitizing configuration:
   bytes)
 - `truncateStringsAt` - The maximum size in bytes for strings.
   String values above this length will be truncated (default: `1024` bytes)
-- `truncateQueriesAt` - The maximum size in bytes for queries.
+- `truncateQueriesAt` - The maximum size in bytes for database queries.
   Lines above this length will be truncated (default: `1000` bytes)
 
 Debug options:
