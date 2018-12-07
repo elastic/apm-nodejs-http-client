@@ -129,7 +129,7 @@ Data sanitizing configuration:
   `error.exception.message` and `error.log.message` (default: `2048`
   bytes)
 - `truncateStringsAt` - The maximum size in bytes for strings.
-  Lines above this length will be truncated (default: `1000` bytes)
+  String values above this length will be truncated (default: `1024` bytes)
 - `truncateQueriesAt` - The maximum size in bytes for queries.
   Lines above this length will be truncated (default: `1000` bytes)
 
