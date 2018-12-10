@@ -45,7 +45,8 @@ Client.encoding = Object.freeze({
   METADATA: Symbol('metadata'),
   TRANSACTION: Symbol('transaction'),
   SPAN: Symbol('span'),
-  ERROR: Symbol('error')
+  ERROR: Symbol('error'),
+  METRICSET: Symbol('metricset')
 })
 
 function Client (opts) {
@@ -200,6 +201,9 @@ Client.prototype._encode = function (obj, enc) {
     case Client.encoding.ERROR:
       truncate.error(obj.error, this._opts)
       break
+    case Client.encoding.METRICSET:
+      truncate.metricset(obj.metricset, this._opts)
+      break
   }
   return ndjson.serialize(obj)
 }
@@ -217,6 +221,11 @@ Client.prototype.sendTransaction = function (transaction, cb) {
 Client.prototype.sendError = function (error, cb) {
   this._maybeCork()
   return this.write({ error }, Client.encoding.ERROR, cb)
+}
+
+Client.prototype.sendMetricSet = function (metricset, cb) {
+  this._maybeCork()
+  return this.write({ metricset }, Client.encoding.METRICSET, cb)
 }
 
 Client.prototype.flush = function (cb) {

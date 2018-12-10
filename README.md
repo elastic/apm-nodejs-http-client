@@ -220,6 +220,16 @@ Arguments:
 - `callback` - Callback is called when the `error` have been flushed to
   the underlying system
 
+### `client.sendMetricSet(metricset[, callback])`
+
+Send a metricset to the APM Server.
+
+Arguments:
+
+- `error` - A error object that can be serialized to JSON
+- `callback` - Callback is called when the `metricset` have been flushed to
+  the underlying system
+
 ### `client.flush([callback])`
 
 Flush the internal buffer and end the current HTTP request to the APM
