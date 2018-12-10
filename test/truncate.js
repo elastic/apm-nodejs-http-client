@@ -30,6 +30,7 @@ options.forEach(function (opts) {
       assertMetadata,
       assertEvent({
         transaction: {
+          id: 'abc123',
           name: genStr('a', keywordLen),
           type: genStr('b', keywordLen),
           result: genStr('c', keywordLen),
@@ -73,6 +74,7 @@ options.forEach(function (opts) {
       })
     }).client(opts, function (client) {
       client.sendTransaction({
+        id: 'abc123',
         name: genStr('a', veryLong),
         type: genStr('b', veryLong),
         result: genStr('c', veryLong),
@@ -111,6 +113,7 @@ options.forEach(function (opts) {
       assertMetadata,
       assertEvent({
         span: {
+          id: 'abc123',
           name: genStr('a', keywordLen),
           type: genStr('b', keywordLen),
           stacktrace: [
@@ -141,6 +144,7 @@ options.forEach(function (opts) {
       })
     }).client(opts, function (client) {
       client.sendSpan({
+        id: 'abc123',
         name: genStr('a', veryLong),
         type: genStr('b', veryLong),
         stacktrace: [
@@ -166,6 +170,7 @@ options.forEach(function (opts) {
       assertMetadata,
       assertEvent({
         error: {
+          id: 'abc123',
           log: {
             level: genStr('a', keywordLen),
             logger_name: genStr('b', keywordLen),
@@ -207,6 +212,9 @@ options.forEach(function (opts) {
             },
             custom: {
               foo: genStr('O', lineLen)
+            },
+            tags: {
+              bar: genStr('P', keywordLen)
             }
           }
         }
@@ -225,6 +233,7 @@ options.forEach(function (opts) {
       })
     }).client(opts, function (client) {
       client.sendError({
+        id: 'abc123',
         log: {
           level: genStr('a', veryLong),
           logger_name: genStr('b', veryLong),
@@ -266,6 +275,9 @@ options.forEach(function (opts) {
           },
           custom: {
             foo: genStr('O', veryLong)
+          },
+          tags: {
+            bar: genStr('P', veryLong)
           }
         }
       })
