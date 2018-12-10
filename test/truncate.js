@@ -11,7 +11,7 @@ const assertEvent = utils.assertEvent
 
 const options = [
   {}, // default options
-  { truncateKeywordsAt: 100, truncateErrorMessagesAt: 1, truncateStringsAt: 100, truncateQueriesAt: 1 },
+  { truncateKeywordsAt: 100, truncateErrorMessagesAt: 200, truncateStringsAt: 300, truncateQueriesAt: 400 },
   { truncateErrorMessagesAt: -1 }
 ]
 
