@@ -11,17 +11,18 @@ const assertEvent = utils.assertEvent
 
 const options = [
   {}, // default options
-  { truncateKeywordsAt: 1, truncateErrorMessagesAt: 1, truncateSourceLinesAt: 1 },
+  { truncateKeywordsAt: 100, truncateErrorMessagesAt: 200, truncateStringsAt: 300, truncateQueriesAt: 400 },
   { truncateErrorMessagesAt: -1 }
 ]
 
 options.forEach(function (opts) {
-  const veryLong = 9999
+  const veryLong = 12000
+  const lineLen = opts.truncateStringsAt || 1024
+  const queryLen = opts.truncateQueriesAt || 10000
   const keywordLen = opts.truncateKeywordsAt || 1024
   const errMsgLen = opts.truncateErrorMessagesAt === -1
     ? veryLong
     : (opts.truncateErrorMessagesAt || 2048)
-  const lineLen = opts.truncateSourceLinesAt || 1000
 
   test('truncate transaction', function (t) {
     t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
@@ -29,6 +30,7 @@ options.forEach(function (opts) {
       assertMetadata,
       assertEvent({
         transaction: {
+          id: 'abc123',
           name: genStr('a', keywordLen),
           type: genStr('b', keywordLen),
           result: genStr('c', keywordLen),
@@ -51,6 +53,9 @@ options.forEach(function (opts) {
               id: genStr('m', keywordLen),
               email: genStr('n', keywordLen),
               username: genStr('o', keywordLen)
+            },
+            custom: {
+              foo: genStr('p', lineLen)
             }
           }
         }
@@ -69,6 +74,7 @@ options.forEach(function (opts) {
       })
     }).client(opts, function (client) {
       client.sendTransaction({
+        id: 'abc123',
         name: genStr('a', veryLong),
         type: genStr('b', veryLong),
         result: genStr('c', veryLong),
@@ -91,6 +97,9 @@ options.forEach(function (opts) {
             id: genStr('m', veryLong),
             email: genStr('n', veryLong),
             username: genStr('o', veryLong)
+          },
+          custom: {
+            foo: genStr('p', veryLong)
           }
         }
       })
@@ -104,12 +113,21 @@ options.forEach(function (opts) {
       assertMetadata,
       assertEvent({
         span: {
+          id: 'abc123',
           name: genStr('a', keywordLen),
           type: genStr('b', keywordLen),
           stacktrace: [
             { pre_context: [genStr('c', lineLen), genStr('d', lineLen)], context_line: genStr('e', lineLen), post_context: [genStr('f', lineLen), genStr('g', lineLen)] },
             { pre_context: [genStr('h', lineLen), genStr('i', lineLen)], context_line: genStr('j', lineLen), post_context: [genStr('k', lineLen), genStr('l', lineLen)] }
-          ]
+          ],
+          context: {
+            custom: {
+              foo: genStr('m', lineLen)
+            },
+            db: {
+              statement: genStr('n', queryLen)
+            }
+          }
         }
       })
     ]
@@ -126,12 +144,21 @@ options.forEach(function (opts) {
       })
     }).client(opts, function (client) {
       client.sendSpan({
+        id: 'abc123',
         name: genStr('a', veryLong),
         type: genStr('b', veryLong),
         stacktrace: [
           { pre_context: [genStr('c', veryLong), genStr('d', veryLong)], context_line: genStr('e', veryLong), post_context: [genStr('f', veryLong), genStr('g', veryLong)] },
           { pre_context: [genStr('h', veryLong), genStr('i', veryLong)], context_line: genStr('j', veryLong), post_context: [genStr('k', veryLong), genStr('l', veryLong)] }
-        ]
+        ],
+        context: {
+          custom: {
+            foo: genStr('m', veryLong)
+          },
+          db: {
+            statement: genStr('n', veryLong)
+          }
+        }
       })
       client.flush()
     })
@@ -143,6 +170,7 @@ options.forEach(function (opts) {
       assertMetadata,
       assertEvent({
         error: {
+          id: 'abc123',
           log: {
             level: genStr('a', keywordLen),
             logger_name: genStr('b', keywordLen),
@@ -181,6 +209,12 @@ options.forEach(function (opts) {
               id: genStr('L', keywordLen),
               email: genStr('M', keywordLen),
               username: genStr('N', keywordLen)
+            },
+            custom: {
+              foo: genStr('O', lineLen)
+            },
+            tags: {
+              bar: genStr('P', keywordLen)
             }
           }
         }
@@ -199,6 +233,7 @@ options.forEach(function (opts) {
       })
     }).client(opts, function (client) {
       client.sendError({
+        id: 'abc123',
         log: {
           level: genStr('a', veryLong),
           logger_name: genStr('b', veryLong),
@@ -237,6 +272,12 @@ options.forEach(function (opts) {
             id: genStr('L', veryLong),
             email: genStr('M', veryLong),
             username: genStr('N', veryLong)
+          },
+          custom: {
+            foo: genStr('O', veryLong)
+          },
+          tags: {
+            bar: genStr('P', veryLong)
           }
         }
       })
