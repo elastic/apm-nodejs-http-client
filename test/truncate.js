@@ -293,7 +293,7 @@ options.forEach(function (opts) {
         metricset: {
           timestamp: 1496170422281000,
           tags: {
-            foo: genStr('a', lineLen)
+            foo: genStr('a', keywordLen)
           },
           samples: {
             metric_name: {
