@@ -5,6 +5,7 @@ const os = require('os')
 const parseUrl = require('url').parse
 const zlib = require('zlib')
 const Writable = require('readable-stream').Writable
+const getContainerInfo = require('container-info')
 const pump = require('pump')
 const eos = require('end-of-stream')
 const streamToBuffer = require('fast-stream-to-buffer')
@@ -23,6 +24,8 @@ const requiredOpts = [
   'serviceName',
   'userAgent'
 ]
+
+const containerInfo = getContainerInfo.sync()
 
 const node8 = process.version.indexOf('v8.') === 0
 
@@ -405,6 +408,15 @@ function normalizeOptions (opts) {
   // process
   normalized.serverUrl = parseUrl(normalized.serverUrl)
 
+  if (containerInfo) {
+    if (!normalized.containerId && containerInfo.containerId) {
+      normalized.containerId = containerInfo.containerId
+    }
+    if (!normalized.kubernetesPodUID && containerInfo.podId) {
+      normalized.kubernetesPodUID = containerInfo.podId
+    }
+  }
+
   return normalized
 }
 
@@ -466,6 +478,12 @@ function getMetadata (opts) {
     payload.service.framework = {
       name: opts.frameworkName,
       version: opts.frameworkVersion
+    }
+  }
+
+  if (opts.containerId) {
+    payload.system.container = {
+      id: opts.containerId
     }
   }
 

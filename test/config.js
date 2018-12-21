@@ -2,6 +2,7 @@
 
 const path = require('path')
 const fs = require('fs')
+const getContainerInfo = require('container-info')
 const os = require('os')
 const ndjson = require('ndjson')
 const test = require('tape')
@@ -264,6 +265,49 @@ test('metadata - default values', function (t) {
       t.end()
     })
   }).client(opts, function (client) {
+    client.sendSpan({ foo: 42 })
+    client.end()
+  })
+})
+
+test('metadata - container info', function (t) {
+  // Clear Client and APMServer from require cache
+  delete require.cache[require.resolve('../')]
+  delete require.cache[require.resolve('./lib/utils')]
+
+  const sync = getContainerInfo.sync
+  getContainerInfo.sync = function sync () {
+    return {
+      containerId: 'container-id',
+      podId: 'pod-id'
+    }
+  }
+  t.on('end', () => {
+    getContainerInfo.sync = sync
+  })
+
+  const APMServer = require('./lib/utils').APMServer
+
+  const server = APMServer(function (req, res) {
+    req = processReq(req)
+    req.once('data', function (obj) {
+      t.ok(obj.metadata)
+      t.ok(obj.metadata.system)
+      t.deepEqual(obj.metadata.system.container, {
+        id: 'container-id'
+      })
+      t.deepEqual(obj.metadata.kubernetes, {
+        pod: {
+          uid: 'pod-id'
+        }
+      })
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client({}, function (client) {
     client.sendSpan({ foo: 42 })
     client.end()
   })
