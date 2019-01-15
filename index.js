@@ -70,7 +70,7 @@ function Client (opts) {
   this._active = false
   this._onflushed = null
   this._transport = null
-  switch(opts.serverUrl.protocol.slice(0, -1)) {
+  switch(opts.serverUrl.protocol.slice(0, -1)) { // 'http:' => 'http'
     case 'http': {
       this._transport = require('http')
       break;
