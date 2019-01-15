@@ -69,7 +69,20 @@ function Client (opts) {
   this.sent = 0 // number of events written to the socket
   this._active = false
   this._onflushed = null
-  this._transport = require(opts.serverUrl.protocol.slice(0, -1)) // 'http:' => 'http'
+  this._transport = null
+  switch(opts.serverUrl.protocol.slice(0, -1)) {
+    case 'http': {
+      this._transport = require('http')
+      break;
+    }
+    case 'https': {
+      this._transport = require('https')
+      break;
+    }
+    default: {
+      throw new Error('Unknown protocol ' + opts.serverUrl.protocol.slice(0, -1))
+    }
+  }
   this._agent = new this._transport.Agent(opts)
   this._chopper = new StreamChopper({
     size: opts.size,
