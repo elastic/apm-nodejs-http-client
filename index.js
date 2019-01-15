@@ -70,14 +70,14 @@ function Client (opts) {
   this._active = false
   this._onflushed = null
   this._transport = null
-  switch(opts.serverUrl.protocol.slice(0, -1)) {
+  switch (opts.serverUrl.protocol.slice(0, -1)) {
     case 'http': {
       this._transport = require('http')
-      break;
+      break
     }
     case 'https': {
       this._transport = require('https')
-      break;
+      break
     }
     default: {
       throw new Error('Unknown protocol ' + opts.serverUrl.protocol.slice(0, -1))
