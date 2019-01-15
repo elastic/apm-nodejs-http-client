@@ -298,6 +298,7 @@ test('metadata - container info', function (t) {
       })
       t.deepEqual(obj.metadata.kubernetes, {
         pod: {
+          name: os.hostname(),
           uid: 'pod-id'
         }
       })

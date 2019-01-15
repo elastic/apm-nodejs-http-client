@@ -415,6 +415,9 @@ function normalizeOptions (opts) {
     if (!normalized.kubernetesPodUID && containerInfo.podId) {
       normalized.kubernetesPodUID = containerInfo.podId
     }
+    if (!normalized.kubernetesPodName && containerInfo.podId) {
+      normalized.kubernetesPodName = hostname
+    }
   }
 
   return normalized
