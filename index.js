@@ -70,6 +70,7 @@ function Client (opts) {
   this._active = false
   this._onflushed = null
   this._transport = null
+
   switch (opts.serverUrl.protocol.slice(0, -1)) { // 'http:' => 'http'
     case 'http': {
       this._transport = require('http')
@@ -83,6 +84,7 @@ function Client (opts) {
       throw new Error('Unknown protocol ' + opts.serverUrl.protocol.slice(0, -1))
     }
   }
+
   this._agent = new this._transport.Agent(opts)
   this._chopper = new StreamChopper({
     size: opts.size,
