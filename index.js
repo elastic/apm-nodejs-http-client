@@ -11,7 +11,6 @@ const eos = require('end-of-stream')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
 const ndjson = require('./lib/ndjson')
-const stringify = require('./lib/stringify')
 const truncate = require('./lib/truncate')
 const pkg = require('./package')
 
@@ -207,26 +206,25 @@ Client.prototype._maybeUncork = function () {
 }
 
 Client.prototype._encode = function (obj, enc) {
+  const out = {}
   switch (enc) {
     case Client.encoding.SPAN:
-      truncate.span(obj.span, this._opts)
+      out.span = truncate.span(obj.span, this._opts)
       break
     case Client.encoding.TRANSACTION:
-      stringify.context(obj.transaction.context)
-      truncate.transaction(obj.transaction, this._opts)
+      out.transaction = truncate.transaction(obj.transaction, this._opts)
       break
     case Client.encoding.METADATA:
-      truncate.metadata(obj.metadata, this._opts)
+      out.metadata = truncate.metadata(obj.metadata, this._opts)
       break
     case Client.encoding.ERROR:
-      stringify.context(obj.error.context)
-      truncate.error(obj.error, this._opts)
+      out.error = truncate.error(obj.error, this._opts)
       break
     case Client.encoding.METRICSET:
-      truncate.metricset(obj.metricset, this._opts)
+      out.metricset = truncate.metricset(obj.metricset, this._opts)
       break
   }
-  return ndjson.serialize(obj)
+  return ndjson.serialize(out)
 }
 
 Client.prototype.sendSpan = function (span, cb) {
