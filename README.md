@@ -191,6 +191,19 @@ An integer indicating the number of events (spans, transactions, or errors)
 sent by the client. An event is considered sent when the HTTP request
 used to transmit it have ended.
 
+### `client.config(options)`
+
+Update the configuration given to the `Client` constructor. All
+configuration options can be updated except:
+
+- The protocol part of the `serverUrl` (`http` vs `https`)
+- `size`
+- `time`
+- `keepAlive`
+- `keepAliveMsecs`
+- `maxSockets`
+- `maxFreeSockets`
+
 ### `client.sendSpan(span[, callback])`
 
 Send a span to the APM Server.

@@ -376,3 +376,22 @@ test('payloadLogFile', function (t) {
     client.end()
   })
 })
+
+test('update conf', function (t) {
+  t.plan(1)
+  const server = APMServer(function (req, res) {
+    req = processReq(req)
+    req.once('data', function (obj) {
+      t.equal(obj.metadata.service.name, 'bar')
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client({ serviceName: 'foo' }, function (client) {
+    client.config({ serviceName: 'bar' })
+    client.sendSpan({ foo: 42 })
+    client.end()
+  })
+})

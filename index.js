@@ -55,9 +55,9 @@ Client.encoding = Object.freeze({
 function Client (opts) {
   if (!(this instanceof Client)) return new Client(opts)
 
-  this._opts = opts = normalizeOptions(opts)
+  this.config(opts)
 
-  Writable.call(this, opts)
+  Writable.call(this, this._conf)
 
   const errorproxy = (err) => {
     if (this.destroyed === false) this.emit('request-error', err)
@@ -74,7 +74,7 @@ function Client (opts) {
   this._onflushed = null
   this._transport = null
 
-  switch (opts.serverUrl.protocol.slice(0, -1)) { // 'http:' => 'http'
+  switch (this._conf.serverUrl.protocol.slice(0, -1)) { // 'http:' => 'http'
     case 'http': {
       this._transport = require('http')
       break
@@ -84,24 +84,63 @@ function Client (opts) {
       break
     }
     default: {
-      throw new Error('Unknown protocol ' + opts.serverUrl.protocol.slice(0, -1))
+      throw new Error('Unknown protocol ' + this._conf.serverUrl.protocol.slice(0, -1))
     }
   }
 
-  this._agent = new this._transport.Agent(opts)
+  this._agent = new this._transport.Agent(this._conf)
   this._chopper = new StreamChopper({
-    size: opts.size,
-    time: opts.time,
+    size: this._conf.size,
+    time: this._conf.time,
     type: StreamChopper.overflow,
     transform () {
       return zlib.createGzip()
     }
-  }).on('stream', onStream(opts, this, errorproxy))
+  }).on('stream', onStream(this, errorproxy))
 
   eos(this._chopper, fail)
 
   this._index = clients.length
   clients.push(this)
+}
+
+Client.prototype.config = function (opts) {
+  this._conf = Object.assign(this._conf || {}, opts, { objectMode: true })
+
+  const missing = requiredOpts.filter(name => !this._conf[name])
+  if (missing.length > 0) throw new Error('Missing required option(s): ' + missing.join(', '))
+
+  // default values
+  if (!this._conf.size && this._conf.size !== 0) this._conf.size = 750 * 1024
+  if (!this._conf.time && this._conf.time !== 0) this._conf.time = 10000
+  if (!this._conf.serverTimeout && this._conf.serverTimeout !== 0) this._conf.serverTimeout = 15000
+  if (!this._conf.serverUrl) this._conf.serverUrl = 'http://localhost:8200'
+  if (!this._conf.hostname) this._conf.hostname = hostname
+  if (!this._conf.truncateKeywordsAt) this._conf.truncateKeywordsAt = 1024
+  if (!this._conf.truncateErrorMessagesAt) this._conf.truncateErrorMessagesAt = 2048
+  if (!this._conf.truncateStringsAt) this._conf.truncateStringsAt = 1024
+  if (!this._conf.truncateQueriesAt) this._conf.truncateQueriesAt = 10000
+  if (!this._conf.bufferWindowTime) this._conf.bufferWindowTime = 20
+  if (!this._conf.bufferWindowSize) this._conf.bufferWindowSize = 50
+  this._conf.keepAlive = this._conf.keepAlive !== false
+
+  // process
+  this._conf.serverUrl = parseUrl(this._conf.serverUrl)
+
+  if (containerInfo) {
+    if (!this._conf.containerId && containerInfo.containerId) {
+      this._conf.containerId = containerInfo.containerId
+    }
+    if (!this._conf.kubernetesPodUID && containerInfo.podId) {
+      this._conf.kubernetesPodUID = containerInfo.podId
+    }
+    if (!this._conf.kubernetesPodName && containerInfo.podId) {
+      this._conf.kubernetesPodName = hostname
+    }
+  }
+
+  // http request options
+  this._conf.request = getRequestOptions(this._conf, this._agent)
 }
 
 // re-ref the open socket handles
@@ -177,7 +216,7 @@ Client.prototype._writeFlush = function (cb) {
 }
 
 Client.prototype._maybeCork = function () {
-  if (!this._writableState.corked && this._opts.bufferWindowTime !== -1) {
+  if (!this._writableState.corked && this._conf.bufferWindowTime !== -1) {
     this.cork()
     if (this._corkTimer && this._corkTimer.refresh) {
       // the refresh function was added in Node 10.2.0
@@ -185,9 +224,9 @@ Client.prototype._maybeCork = function () {
     } else {
       this._corkTimer = setTimeout(() => {
         this.uncork()
-      }, this._opts.bufferWindowTime)
+      }, this._conf.bufferWindowTime)
     }
-  } else if (this._writableState.length >= this._opts.bufferWindowSize) {
+  } else if (this._writableState.length >= this._conf.bufferWindowSize) {
     this._maybeUncork()
   }
 }
@@ -209,19 +248,19 @@ Client.prototype._encode = function (obj, enc) {
   const out = {}
   switch (enc) {
     case Client.encoding.SPAN:
-      out.span = truncate.span(obj.span, this._opts)
+      out.span = truncate.span(obj.span, this._conf)
       break
     case Client.encoding.TRANSACTION:
-      out.transaction = truncate.transaction(obj.transaction, this._opts)
+      out.transaction = truncate.transaction(obj.transaction, this._conf)
       break
     case Client.encoding.METADATA:
-      out.metadata = truncate.metadata(obj.metadata, this._opts)
+      out.metadata = truncate.metadata(obj.metadata, this._conf)
       break
     case Client.encoding.ERROR:
-      out.error = truncate.error(obj.error, this._opts)
+      out.error = truncate.error(obj.error, this._conf)
       break
     case Client.encoding.METRICSET:
-      out.metricset = truncate.metricset(obj.metricset, this._opts)
+      out.metricset = truncate.metricset(obj.metricset, this._conf)
       break
   }
   return ndjson.serialize(out)
@@ -271,10 +310,7 @@ Client.prototype._destroy = function (err, cb) {
   cb(err)
 }
 
-function onStream (opts, client, onerror) {
-  const serverTimeout = opts.serverTimeout
-  const requestOpts = getRequestOptions(opts, client._agent)
-
+function onStream (client, onerror) {
   return function (stream, next) {
     const onerrorproxy = (err) => {
       stream.removeListener('error', onerrorproxy)
@@ -285,7 +321,7 @@ function onStream (opts, client, onerror) {
 
     client._active = true
 
-    const req = client._transport.request(requestOpts, onResult(onerror))
+    const req = client._transport.request(client._conf.request, onResult(onerror))
 
     // Abort the current request if the server responds prior to the request
     // being finished
@@ -321,8 +357,8 @@ function onStream (opts, client, onerror) {
       socket.unref()
     })
 
-    if (Number.isFinite(serverTimeout)) {
-      req.setTimeout(serverTimeout, function () {
+    if (Number.isFinite(client._conf.serverTimeout)) {
+      req.setTimeout(client._conf.serverTimeout, function () {
         req.abort()
       })
     }
@@ -354,9 +390,9 @@ function onStream (opts, client, onerror) {
     })
 
     // Only intended for local debugging
-    if (opts.payloadLogFile) {
+    if (client._conf.payloadLogFile) {
       if (!client._payloadLogFile) {
-        client._payloadLogFile = require('fs').createWriteStream(opts.payloadLogFile, { flags: 'a' })
+        client._payloadLogFile = require('fs').createWriteStream(client._conf.payloadLogFile, { flags: 'a' })
       }
 
       // Manually write to the file instead of using pipe/pump so that the file
@@ -367,7 +403,7 @@ function onStream (opts, client, onerror) {
     }
 
     // All requests to the APM Server must start with a metadata object
-    stream.write(client._encode({ metadata: getMetadata(opts) }, Client.encoding.METADATA))
+    stream.write(client._encode({ metadata: getMetadata(client._conf) }, Client.encoding.METADATA))
   }
 }
 
@@ -399,44 +435,6 @@ function onResult (onerror) {
       onerror(err)
     }
   })
-}
-
-function normalizeOptions (opts) {
-  const missing = requiredOpts.filter(name => !opts[name])
-  if (missing.length > 0) throw new Error('Missing required option(s): ' + missing.join(', '))
-
-  const normalized = Object.assign({}, opts, { objectMode: true })
-
-  // default values
-  if (!normalized.size && normalized.size !== 0) normalized.size = 750 * 1024
-  if (!normalized.time && normalized.time !== 0) normalized.time = 10000
-  if (!normalized.serverTimeout && normalized.serverTimeout !== 0) normalized.serverTimeout = 15000
-  if (!normalized.serverUrl) normalized.serverUrl = 'http://localhost:8200'
-  if (!normalized.hostname) normalized.hostname = hostname
-  if (!normalized.truncateKeywordsAt) normalized.truncateKeywordsAt = 1024
-  if (!normalized.truncateErrorMessagesAt) normalized.truncateErrorMessagesAt = 2048
-  if (!normalized.truncateStringsAt) normalized.truncateStringsAt = 1024
-  if (!normalized.truncateQueriesAt) normalized.truncateQueriesAt = 10000
-  if (!normalized.bufferWindowTime) normalized.bufferWindowTime = 20
-  if (!normalized.bufferWindowSize) normalized.bufferWindowSize = 50
-  normalized.keepAlive = normalized.keepAlive !== false
-
-  // process
-  normalized.serverUrl = parseUrl(normalized.serverUrl)
-
-  if (containerInfo) {
-    if (!normalized.containerId && containerInfo.containerId) {
-      normalized.containerId = containerInfo.containerId
-    }
-    if (!normalized.kubernetesPodUID && containerInfo.podId) {
-      normalized.kubernetesPodUID = containerInfo.podId
-    }
-    if (!normalized.kubernetesPodName && containerInfo.podId) {
-      normalized.kubernetesPodName = hostname
-    }
-  }
-
-  return normalized
 }
 
 function getRequestOptions (opts, agent) {
