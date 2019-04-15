@@ -505,18 +505,14 @@ function getMetadata (opts) {
   }
 
   if (opts.kubernetesNodeName || opts.kubernetesNamespace || opts.kubernetesPodName || opts.kubernetesPodUID) {
-    payload.kubernetes = {
+    payload.system.kubernetes = {
       namespace: opts.kubernetesNamespace,
-      node: undefined,
-      pod: undefined
-    }
-
-    if (opts.kubernetesNodeName) {
-      payload.kubernetes.node = { name: opts.kubernetesNodeName }
-    }
-
-    if (opts.kubernetesPodName || opts.kubernetesPodUID) {
-      payload.kubernetes.pod = { name: opts.kubernetesPodName, uid: opts.kubernetesPodUID }
+      node: opts.kubernetesNodeName
+        ? { name: opts.kubernetesNodeName }
+        : undefined,
+      pod: (opts.kubernetesPodName || opts.kubernetesPodUID)
+        ? { name: opts.kubernetesPodName, uid: opts.kubernetesPodUID }
+        : undefined
     }
   }
 
