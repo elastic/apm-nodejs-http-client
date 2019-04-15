@@ -28,7 +28,7 @@ test('kubernetesNodeName only', function (t) {
   const server = APMServer(function (req, res) {
     req = processReq(req)
     req.once('data', function (obj) {
-      t.deepEqual(obj.metadata.kubernetes, { node: { name: 'foo' } })
+      t.deepEqual(obj.metadata.system.kubernetes, { node: { name: 'foo' } })
     })
     req.on('end', function () {
       res.end()
@@ -47,7 +47,7 @@ test('kubernetesNamespace only', function (t) {
   const server = APMServer(function (req, res) {
     req = processReq(req)
     req.once('data', function (obj) {
-      t.deepEqual(obj.metadata.kubernetes, { namespace: 'foo' })
+      t.deepEqual(obj.metadata.system.kubernetes, { namespace: 'foo' })
     })
     req.on('end', function () {
       res.end()
@@ -66,7 +66,7 @@ test('kubernetesPodName only', function (t) {
   const server = APMServer(function (req, res) {
     req = processReq(req)
     req.once('data', function (obj) {
-      t.deepEqual(obj.metadata.kubernetes, { pod: { name: 'foo' } })
+      t.deepEqual(obj.metadata.system.kubernetes, { pod: { name: 'foo' } })
     })
     req.on('end', function () {
       res.end()
@@ -85,7 +85,7 @@ test('kubernetesPodUID only', function (t) {
   const server = APMServer(function (req, res) {
     req = processReq(req)
     req.once('data', function (obj) {
-      t.deepEqual(obj.metadata.kubernetes, { pod: { uid: 'foo' } })
+      t.deepEqual(obj.metadata.system.kubernetes, { pod: { uid: 'foo' } })
     })
     req.on('end', function () {
       res.end()
@@ -104,7 +104,7 @@ test('all', function (t) {
   const server = APMServer(function (req, res) {
     req = processReq(req)
     req.once('data', function (obj) {
-      t.deepEqual(obj.metadata.kubernetes, {
+      t.deepEqual(obj.metadata.system.kubernetes, {
         namespace: 'bar',
         node: { name: 'foo' },
         pod: { name: 'baz', uid: 'qux' }
@@ -127,7 +127,7 @@ test('all except kubernetesNodeName', function (t) {
   const server = APMServer(function (req, res) {
     req = processReq(req)
     req.once('data', function (obj) {
-      t.deepEqual(obj.metadata.kubernetes, {
+      t.deepEqual(obj.metadata.system.kubernetes, {
         namespace: 'bar',
         pod: { name: 'baz', uid: 'qux' }
       })
@@ -149,7 +149,7 @@ test('all except kubernetesNamespace', function (t) {
   const server = APMServer(function (req, res) {
     req = processReq(req)
     req.once('data', function (obj) {
-      t.deepEqual(obj.metadata.kubernetes, {
+      t.deepEqual(obj.metadata.system.kubernetes, {
         node: { name: 'foo' },
         pod: { name: 'baz', uid: 'qux' }
       })
@@ -171,7 +171,7 @@ test('all except kubernetesPodName', function (t) {
   const server = APMServer(function (req, res) {
     req = processReq(req)
     req.once('data', function (obj) {
-      t.deepEqual(obj.metadata.kubernetes, {
+      t.deepEqual(obj.metadata.system.kubernetes, {
         namespace: 'bar',
         node: { name: 'foo' },
         pod: { uid: 'qux' }
@@ -194,7 +194,7 @@ test('all except kubernetesPodUID', function (t) {
   const server = APMServer(function (req, res) {
     req = processReq(req)
     req.once('data', function (obj) {
-      t.deepEqual(obj.metadata.kubernetes, {
+      t.deepEqual(obj.metadata.system.kubernetes, {
         namespace: 'bar',
         node: { name: 'foo' },
         pod: { name: 'baz' }

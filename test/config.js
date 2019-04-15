@@ -296,7 +296,7 @@ test('metadata - container info', function (t) {
       t.deepEqual(obj.metadata.system.container, {
         id: 'container-id'
       })
-      t.deepEqual(obj.metadata.kubernetes, {
+      t.deepEqual(obj.metadata.system.kubernetes, {
         pod: {
           name: os.hostname(),
           uid: 'pod-id'
