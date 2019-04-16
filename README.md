@@ -72,6 +72,7 @@ Data sent to the APM Server as part of the metadata package:
 - `kubernetesNamespace` - Kubernetes namespace
 - `kubernetesPodName` - Kubernetes pod name, if not given will be the hostname
 - `kubernetesPodUID` - Kubernetes pod id, if not given will be parsed from `/proc/self/cgroup`
+- `globalLabels` - An object of key/value pairs to use to label all data reported (only applied when using APM Server 7.1+)
 
 HTTP client configuration:
 

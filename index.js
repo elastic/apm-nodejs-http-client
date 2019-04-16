@@ -107,6 +107,8 @@ function Client (opts) {
 Client.prototype.config = function (opts) {
   this._conf = Object.assign(this._conf || {}, opts, { objectMode: true })
 
+  this._conf.globalLabels = normalizeGlobalLabels(this._conf.globalLabels)
+
   const missing = requiredOpts.filter(name => !this._conf[name])
   if (missing.length > 0) throw new Error('Missing required option(s): ' + missing.join(', '))
 
@@ -474,7 +476,9 @@ function getMetadata (opts) {
       agent: {
         name: opts.agentName,
         version: opts.agentVersion
-      }
+      },
+      framework: undefined,
+      version: undefined
     },
     process: {
       pid: process.pid,
@@ -485,8 +489,11 @@ function getMetadata (opts) {
     system: {
       hostname: opts.hostname,
       architecture: process.arch,
-      platform: process.platform
-    }
+      platform: process.platform,
+      container: undefined,
+      kubernetes: undefined
+    },
+    labels: opts.globalLabels
   }
 
   if (opts.serviceVersion) payload.service.version = opts.serviceVersion
@@ -553,4 +560,22 @@ function destroyStream (stream) {
     // streams), emit `close` as that should trigger almost the same effect
     else if (typeof stream.emit === 'function') stream.emit('close')
   }
+}
+
+function oneOf (value, list) {
+  return list.indexOf(value) >= 0
+}
+
+function normalizeGlobalLabels (labels) {
+  if (!labels) return
+  const result = {}
+
+  for (let key of Object.keys(labels)) {
+    const value = labels[key]
+    result[key] = oneOf(typeof value, ['string', 'number', 'boolean'])
+      ? value
+      : value.toString()
+  }
+
+  return result
 }
