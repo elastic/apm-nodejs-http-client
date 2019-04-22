@@ -51,7 +51,8 @@ test('null value config options shouldn\'t throw', function (t) {
       serverTimeout: null,
       type: null,
       serverUrl: null,
-      keepAlive: null
+      keepAlive: null,
+      labels: null
     }))
   })
   t.end()
@@ -157,7 +158,13 @@ test('metadata', function (t) {
     serviceVersion: 'custom-serviceVersion',
     frameworkName: 'custom-frameworkName',
     frameworkVersion: 'custom-frameworkVersion',
-    hostname: 'custom-hostname'
+    hostname: 'custom-hostname',
+    globalLabels: {
+      foo: 'bar',
+      doesNotNest: {
+        'nope': 'this should be [object Object]'
+      }
+    }
   }
   const server = APMServer(function (req, res) {
     req = processReq(req)
@@ -193,6 +200,10 @@ test('metadata', function (t) {
             hostname: 'custom-hostname',
             architecture: process.arch,
             platform: process.platform
+          },
+          labels: {
+            foo: 'bar',
+            doesNotNest: '[object Object]'
           }
         }
       })

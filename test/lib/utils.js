@@ -68,7 +68,10 @@ assertReq.asserts = 7
 function assertMetadata (t, obj) {
   t.deepEqual(Object.keys(obj), ['metadata'])
   const metadata = obj.metadata
-  t.deepEqual(Object.keys(metadata), ['service', 'process', 'system'])
+  const metadataKeys = new Set(Object.keys(metadata))
+  t.ok(metadataKeys.has('service'))
+  t.ok(metadataKeys.has('process'))
+  t.ok(metadataKeys.has('system'))
   const service = metadata.service
   t.equal(service.name, 'my-service-name')
   t.equal(service.runtime.name, 'node')
@@ -102,7 +105,7 @@ function assertMetadata (t, obj) {
   t.ok(typeof system.platform, 'string')
   t.ok(system.platform.length > 0)
 }
-assertMetadata.asserts = 22
+assertMetadata.asserts = 24
 
 function assertEvent (expect) {
   return function (t, obj) {
