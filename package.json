@@ -1,6 +1,6 @@
 {
   "name": "elastic-apm-http-client",
-  "version": "7.2.2",
+  "version": "7.3.0",
   "description": "A low-level HTTP client for communicating with the Elastic APM intake API",
   "main": "index.js",
   "directories": {
