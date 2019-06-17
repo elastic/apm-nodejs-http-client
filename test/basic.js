@@ -288,7 +288,7 @@ test('2nd flush before 1st flush have finished', function (t) {
       t.equal(requestEnds, 2, 'should have received 2 requests completely')
       t.end()
       server.close()
-    }, 100)
+    }, 200)
   })
 })
 

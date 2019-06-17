@@ -159,6 +159,7 @@ test('metadata', function (t) {
     frameworkName: 'custom-frameworkName',
     frameworkVersion: 'custom-frameworkVersion',
     hostname: 'custom-hostname',
+    environment: 'production',
     globalLabels: {
       foo: 'bar',
       doesNotNest: {
@@ -173,6 +174,7 @@ test('metadata', function (t) {
         metadata: {
           service: {
             name: 'custom-serviceName',
+            environment: 'production',
             version: 'custom-serviceVersion',
             runtime: {
               name: 'node',
@@ -244,6 +246,7 @@ test('metadata - default values', function (t) {
         metadata: {
           service: {
             name: 'custom-serviceName',
+            environment: 'development',
             runtime: {
               name: 'node',
               version: process.versions.node

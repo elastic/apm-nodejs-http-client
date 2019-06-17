@@ -118,6 +118,7 @@ Client.prototype.config = function (opts) {
   if (!this._conf.serverTimeout && this._conf.serverTimeout !== 0) this._conf.serverTimeout = 15000
   if (!this._conf.serverUrl) this._conf.serverUrl = 'http://localhost:8200'
   if (!this._conf.hostname) this._conf.hostname = hostname
+  if (!this._conf.environment) this._conf.environment = process.env.NODE_ENV || 'development'
   if (!this._conf.truncateKeywordsAt) this._conf.truncateKeywordsAt = 1024
   if (!this._conf.truncateErrorMessagesAt) this._conf.truncateErrorMessagesAt = 2048
   if (!this._conf.truncateStringsAt) this._conf.truncateStringsAt = 1024
@@ -466,6 +467,7 @@ function getMetadata (opts) {
   var payload = {
     service: {
       name: opts.serviceName,
+      environment: opts.environment,
       runtime: {
         name: process.release.name,
         version: process.versions.node
