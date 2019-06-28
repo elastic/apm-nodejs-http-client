@@ -1,0 +1,5 @@
+---
+- job:
+    name: apm-agent-nodejs/apm-nodejs-http-client-mbp
+    display-name: APM Node.js http client
+    description: APM Node.js http client
