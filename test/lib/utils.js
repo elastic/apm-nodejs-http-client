@@ -3,6 +3,7 @@
 const http = require('http')
 const https = require('https')
 const zlib = require('zlib')
+const parseUrl = require('url').parse
 const semver = require('semver')
 const pem = require('https-pem')
 const ndjson = require('ndjson')
@@ -10,8 +11,9 @@ const pkg = require('../../package')
 const Client = require('../../')
 
 exports.APMServer = APMServer
-exports.processReq = processReq
-exports.assertReq = assertReq
+exports.processIntakeReq = processIntakeReq
+exports.assertIntakeReq = assertIntakeReq
+exports.assertConfigReq = assertConfigReq
 exports.assertMetadata = assertMetadata
 exports.assertEvent = assertEvent
 exports.validOpts = validOpts
@@ -50,11 +52,11 @@ function APMServer (opts, onreq) {
   return server
 }
 
-function processReq (req) {
+function processIntakeReq (req) {
   return req.pipe(zlib.createGunzip()).pipe(ndjson.parse())
 }
 
-function assertReq (t, req) {
+function assertIntakeReq (t, req) {
   t.equal(req.method, 'POST', 'should make a POST request')
   t.equal(req.url, '/intake/v2/events', 'should send request to /intake/v2/events')
   t.equal(req.headers['authorization'], 'Bearer secret', 'should add secret token')
@@ -63,7 +65,21 @@ function assertReq (t, req) {
   t.equal(req.headers['accept'], 'application/json', 'should expect json in response')
   t.equal(req.headers['user-agent'], `my-user-agent ${pkg.name}/${pkg.version}`, 'should add proper User-Agent')
 }
-assertReq.asserts = 7
+assertIntakeReq.asserts = 7
+
+function assertConfigReq (t, req) {
+  const url = parseUrl(req.url, { parseQueryString: true })
+
+  t.equal(req.method, 'GET', 'should make a GET request')
+  t.equal(url.pathname, '/config/v1/agents', 'should send request to /config/v1/agents')
+  t.deepEqual(url.query, {
+    'service.name': validOpts().serviceName,
+    'service.environment': 'development'
+  }, 'should encode query in query params')
+  t.equal(req.headers['authorization'], 'Bearer secret', 'should add secret token')
+  t.equal(req.headers['user-agent'], `my-user-agent ${pkg.name}/${pkg.version}`, 'should add proper User-Agent')
+}
+assertConfigReq.asserts = 5
 
 function assertMetadata (t, obj) {
   t.deepEqual(Object.keys(obj), ['metadata'])

@@ -1,13 +1,13 @@
 'use strict'
 
 const test = require('tape')
-const { APMServer, processReq } = require('./lib/utils')
+const { APMServer, processIntakeReq } = require('./lib/utils')
 
 test('no environment variables', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.equal(obj.metadata.kubernetes, undefined)
     })
@@ -26,7 +26,7 @@ test('kubernetesNodeName only', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.deepEqual(obj.metadata.system.kubernetes, { node: { name: 'foo' } })
     })
@@ -45,7 +45,7 @@ test('kubernetesNamespace only', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.deepEqual(obj.metadata.system.kubernetes, { namespace: 'foo' })
     })
@@ -64,7 +64,7 @@ test('kubernetesPodName only', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.deepEqual(obj.metadata.system.kubernetes, { pod: { name: 'foo' } })
     })
@@ -83,7 +83,7 @@ test('kubernetesPodUID only', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.deepEqual(obj.metadata.system.kubernetes, { pod: { uid: 'foo' } })
     })
@@ -102,7 +102,7 @@ test('all', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.deepEqual(obj.metadata.system.kubernetes, {
         namespace: 'bar',
@@ -125,7 +125,7 @@ test('all except kubernetesNodeName', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.deepEqual(obj.metadata.system.kubernetes, {
         namespace: 'bar',
@@ -147,7 +147,7 @@ test('all except kubernetesNamespace', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.deepEqual(obj.metadata.system.kubernetes, {
         node: { name: 'foo' },
@@ -169,7 +169,7 @@ test('all except kubernetesPodName', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.deepEqual(obj.metadata.system.kubernetes, {
         namespace: 'bar',
@@ -192,7 +192,7 @@ test('all except kubernetesPodUID', function (t) {
   t.plan(1)
 
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.deepEqual(obj.metadata.system.kubernetes, {
         namespace: 'bar',

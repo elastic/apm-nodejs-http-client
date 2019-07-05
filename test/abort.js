@@ -4,13 +4,13 @@ const test = require('tape')
 const utils = require('./lib/utils')
 
 const APMServer = utils.APMServer
-const processReq = utils.processReq
-const assertReq = utils.assertReq
+const processIntakeReq = utils.processIntakeReq
+const assertIntakeReq = utils.assertIntakeReq
 const assertMetadata = utils.assertMetadata
 const assertEvent = utils.assertEvent
 
 test('abort request if server responds early', function (t) {
-  t.plan(assertReq.asserts * 2 + assertMetadata.asserts + assertEvent.asserts + 2)
+  t.plan(assertIntakeReq.asserts * 2 + assertMetadata.asserts + assertEvent.asserts + 2)
 
   let reqs = 0
   let client
@@ -27,7 +27,7 @@ test('abort request if server responds early', function (t) {
   const server = APMServer(function (req, res) {
     const reqNo = ++reqs
 
-    assertReq(t, req)
+    assertIntakeReq(t, req)
 
     if (reqNo === 1) {
       res.writeHead(500)
@@ -40,7 +40,7 @@ test('abort request if server responds early', function (t) {
         client.flush()
       }, 50)
     } else if (reqNo === 2) {
-      req = processReq(req)
+      req = processIntakeReq(req)
       req.on('data', function (obj) {
         datas.shift()(t, obj)
       })

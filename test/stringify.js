@@ -4,8 +4,8 @@ const test = require('tape')
 const utils = require('./lib/utils')
 
 const APMServer = utils.APMServer
-const processReq = utils.processReq
-const assertReq = utils.assertReq
+const processIntakeReq = utils.processIntakeReq
+const assertIntakeReq = utils.assertIntakeReq
 const assertMetadata = utils.assertMetadata
 const assertEvent = utils.assertEvent
 
@@ -22,7 +22,7 @@ dataTypes.forEach(function (dataType) {
     const sendFn = 'send' + upper[dataType]
 
     test(`stringify ${dataType} ${prop} headers`, function (t) {
-      t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+      t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
       const datas = [
         assertMetadata,
         assertEvent({ [dataType]: {
@@ -41,8 +41,8 @@ dataTypes.forEach(function (dataType) {
         } })
       ]
       const server = APMServer(function (req, res) {
-        assertReq(t, req)
-        req = processReq(req)
+        assertIntakeReq(t, req)
+        req = processIntakeReq(req)
         req.on('data', function (obj) {
           datas.shift()(t, obj)
         })
