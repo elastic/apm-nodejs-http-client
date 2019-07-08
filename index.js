@@ -224,10 +224,8 @@ Client.prototype._pollConfig = function () {
   })
 }
 
-Client.prototype._scheduleNextConfigPoll = function (seconds) {
+Client.prototype._scheduleNextConfigPoll = function (seconds = 300) {
   if (this._configTimer !== null) return
-
-  seconds = seconds || 300
 
   this._configTimer = setTimeout(() => {
     this._configTimer = null
