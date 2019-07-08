@@ -5,7 +5,7 @@ const test = require('tape')
 const { APMServer, validOpts, assertConfigReq } = require('./lib/utils')
 const Client = require('../')
 
-test('remote config disabled', function (t) {
+test('central config disabled', function (t) {
   const origPollConfig = Client.prototype._pollConfig
   Client.prototype._pollConfig = function () {
     t.fail('should not call _pollConfig')
@@ -19,7 +19,7 @@ test('remote config disabled', function (t) {
   t.end()
 })
 
-test('remote config enabled', function (t) {
+test('central config enabled', function (t) {
   t.plan(1)
 
   const origPollConfig = Client.prototype._pollConfig
@@ -31,7 +31,7 @@ test('remote config enabled', function (t) {
     Client.prototype._pollConfig = origPollConfig
   })
 
-  Client(validOpts({ remoteConfig: true }))
+  Client(validOpts({ centralConfig: true }))
   t.end()
 })
 
@@ -88,7 +88,7 @@ test('polling', function (t) {
       default:
         t.fail('too many request')
     }
-  }).client({ remoteConfig: true }, function (_client) {
+  }).client({ centralConfig: true }, function (_client) {
     client = _client
     client.on('config', function (conf) {
       t.equal(reqs, 5, 'should emit config after 5th request')

@@ -105,7 +105,7 @@ function Client (opts) {
   this._index = clients.length
   clients.push(this)
 
-  if (this._conf.remoteConfig) this._pollConfig()
+  if (this._conf.centralConfig) this._pollConfig()
 }
 
 Client.prototype.config = function (opts) {
@@ -130,7 +130,7 @@ Client.prototype.config = function (opts) {
   if (!this._conf.bufferWindowTime) this._conf.bufferWindowTime = 20
   if (!this._conf.bufferWindowSize) this._conf.bufferWindowSize = 50
   this._conf.keepAlive = this._conf.keepAlive !== false
-  this._conf.remoteConfig = this._conf.remoteConfig || false
+  this._conf.centralConfig = this._conf.centralConfig || false
 
   // process
   this._conf.serverUrl = parseUrl(this._conf.serverUrl)

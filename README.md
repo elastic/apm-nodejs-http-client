@@ -103,10 +103,11 @@ HTTP client configuration:
 
 APM Agent Configuration via Kibana:
 
-- `remoteConfig` - Wheather or not the client should poll the APM Server
-  regularly for new agent configuration. If set to `true`, the `config`
-  event will be emitted when there's an update to an agent config option
-  (default: `false`). _Requires APM Server v7.3+_
+- `centralConfig` - Wheather or not the client should poll the APM
+  Server regularly for new agent configuration. If set to `true`, the
+  `config` event will be emitted when there's an update to an agent config
+  option (default: `false`). _Requires APM Server v7.3 or later and that
+  the APM Server is configured with `kibana.enabled: true`._
 
 Streaming configuration:
 
@@ -224,7 +225,7 @@ configuration options can be updated except:
 - `keepAliveMsecs`
 - `maxSockets`
 - `maxFreeSockets`
-- `remoteConfig`
+- `centralConfig`
 
 ### `client.sendSpan(span[, callback])`
 
