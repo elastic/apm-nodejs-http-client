@@ -157,8 +157,8 @@ Server. The listener is passed the updated config options as a key/value
 object.
 
 Each key is the lowercase version of the environment variable, without
-the `ELASTIC_APM_` prefix, e.g. `sample_rate` instead of
-`ELASTIC_APM_SAMPLE_RATE`.
+the `ELASTIC_APM_` prefix, e.g. `transaction_sample_rate` instead of
+`ELASTIC_APM_TRANSACTION_SAMPLE_RATE`.
 
 ### Event: `close`
 
