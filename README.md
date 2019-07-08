@@ -106,7 +106,7 @@ APM Agent Configuration via Kibana:
 - `remoteConfig` - Wheather or not the client should poll the APM Server
   regularly for new agent configuration. If set to `true`, the `config`
   event will be emitted when there's an update to an agent config option
-  (default: `false`).
+  (default: `false`). _Requires APM Server v7.3+_
 
 Streaming configuration:
 
