@@ -36,7 +36,7 @@ test('central config enabled', function (t) {
 })
 
 test('polling', function (t) {
-  t.plan((assertConfigReq.asserts + 1) * 7 + 6)
+  t.plan((assertConfigReq.asserts + 1) * 8 + 11)
 
   const expectedConf = { foo: 'bar' }
   const headers = { 'Cache-Control': 'max-age=1, must-revalidate' }
@@ -49,35 +49,40 @@ test('polling', function (t) {
     switch (++reqs) {
       case 1:
         t.ok(!('if-none-match' in req.headers), 'should not have If-None-Match header')
-        res.writeHead(500, headers)
-        res.end()
+        res.writeHead(500, Object.assign({ 'Content-Type': 'application/json' }, headers))
+        res.end('{"invalid JSON"}')
         break
       case 2:
         t.ok(!('if-none-match' in req.headers), 'should not have If-None-Match header')
-        res.writeHead(503, headers)
-        res.end()
+        res.writeHead(503, Object.assign({ 'Content-Type': 'application/json' }, headers))
+        res.end(JSON.stringify('valid JSON'))
         break
       case 3:
+        t.ok(!('if-none-match' in req.headers), 'should not have If-None-Match header')
+        res.writeHead(503, Object.assign({ 'Content-Type': 'application/json' }, headers))
+        res.end(JSON.stringify({ error: 'from error property' }))
+        break
+      case 4:
         t.ok(!('if-none-match' in req.headers), 'should not have If-None-Match header')
         res.writeHead(403, headers)
         res.end()
         break
-      case 4:
+      case 5:
         t.ok(!('if-none-match' in req.headers), 'should not have If-None-Match header')
         res.writeHead(404, headers)
         res.end()
         break
-      case 5:
+      case 6:
         t.ok(!('if-none-match' in req.headers), 'should not have If-None-Match header')
         res.writeHead(200, Object.assign({ Etag: 42 }, headers))
         res.end(JSON.stringify(expectedConf))
         break
-      case 6:
+      case 7:
         t.equal(req.headers['if-none-match'], '42')
         res.writeHead(304, Object.assign({ Etag: 42 }, headers))
         res.end()
         break
-      case 7:
+      case 8:
         t.equal(req.headers['if-none-match'], '42')
         t.end()
         res.writeHead(404) // end nicely so we don't get a request-error
@@ -91,16 +96,22 @@ test('polling', function (t) {
   }).client({ centralConfig: true }, function (_client) {
     client = _client
     client.on('config', function (conf) {
-      t.equal(reqs, 5, 'should emit config after 5th request')
+      t.equal(reqs, 6, 'should emit config after 6th request')
       t.deepEqual(conf, expectedConf)
     })
     client.on('request-error', function (err) {
       if (reqs === 1) {
         t.equal(err.code, 500)
         t.equal(err.message, 'Unexpected APM Server response when polling config')
+        t.equal(err.response, '{"invalid JSON"}')
       } else if (reqs === 2) {
         t.equal(err.code, 503)
         t.equal(err.message, 'Unexpected APM Server response when polling config')
+        t.equal(err.response, 'valid JSON')
+      } else if (reqs === 3) {
+        t.equal(err.code, 503)
+        t.equal(err.message, 'Unexpected APM Server response when polling config')
+        t.equal(err.response, 'from error property')
       } else {
         t.error(err)
       }
