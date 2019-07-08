@@ -36,7 +36,7 @@ test('remote config enabled', function (t) {
 })
 
 test('polling', function (t) {
-  t.plan((assertConfigReq.asserts + 1) * 5 + 4)
+  t.plan((assertConfigReq.asserts + 1) * 7 + 6)
 
   const expectedConf = { foo: 'bar' }
   const headers = { 'Cache-Control': 'max-age=1, must-revalidate' }
@@ -54,21 +54,31 @@ test('polling', function (t) {
         break
       case 2:
         t.ok(!('if-none-match' in req.headers), 'should not have If-None-Match header')
-        res.writeHead(404, headers)
+        res.writeHead(503, headers)
         res.end()
         break
       case 3:
         t.ok(!('if-none-match' in req.headers), 'should not have If-None-Match header')
-        res.writeHead(200, Object.assign({ Etag: reqs }, headers))
-        res.end(JSON.stringify(expectedConf))
+        res.writeHead(403, headers)
+        res.end()
         break
       case 4:
-        t.equal(req.headers['if-none-match'], '3')
-        res.writeHead(304, Object.assign({ Etag: reqs }, headers))
+        t.ok(!('if-none-match' in req.headers), 'should not have If-None-Match header')
+        res.writeHead(404, headers)
         res.end()
         break
       case 5:
-        t.equal(req.headers['if-none-match'], '3')
+        t.ok(!('if-none-match' in req.headers), 'should not have If-None-Match header')
+        res.writeHead(200, Object.assign({ Etag: 42 }, headers))
+        res.end(JSON.stringify(expectedConf))
+        break
+      case 6:
+        t.equal(req.headers['if-none-match'], '42')
+        res.writeHead(304, Object.assign({ Etag: 42 }, headers))
+        res.end()
+        break
+      case 7:
+        t.equal(req.headers['if-none-match'], '42')
         t.end()
         res.writeHead(404) // end nicely so we don't get a request-error
         res.end()
@@ -81,13 +91,16 @@ test('polling', function (t) {
   }).client({ remoteConfig: true }, function (_client) {
     client = _client
     client.on('config', function (conf) {
-      t.equal(reqs, 3, 'should emit config after 3rd request')
+      t.equal(reqs, 5, 'should emit config after 5th request')
       t.deepEqual(conf, expectedConf)
     })
     client.on('request-error', function (err) {
       if (reqs === 1) {
         t.equal(err.code, 500)
-        t.ok(err.message.indexOf('possibly configuration problem') !== -1)
+        t.equal(err.message, 'Unexpected APM Server response when polling config')
+      } else if (reqs === 2) {
+        t.equal(err.code, 503)
+        t.equal(err.message, 'Unexpected APM Server response when polling config')
       } else {
         t.error(err)
       }

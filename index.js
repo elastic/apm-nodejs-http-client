@@ -164,12 +164,13 @@ Client.prototype._pollConfig = function () {
       res.destroy(err)
     })
 
-    const maxAge = getMaxAge(res)
-    this._scheduleNextConfigPoll(maxAge)
+    this._scheduleNextConfigPoll(getMaxAge(res))
 
-    if (res.statusCode === 304 || res.statusCode === 404) {
-      // 304: No new config since last time
-      // 404: No config for the given service.name
+    if (
+      res.statusCode === 304 || // No new config since last time
+      res.statusCode === 403 || // Central config not enabled in APM Server
+      res.statusCode === 404 // No config for the given service.name / service.environment
+    ) {
       res.resume()
       return
     }
@@ -177,43 +178,18 @@ Client.prototype._pollConfig = function () {
     streamToBuffer(res, (err, buf) => {
       if (err) return res.destroy(err)
 
-      const body = buf.toString('utf8')
-
       if (res.statusCode === 200) {
         // 200: New config available
         const etag = res.headers['etag']
         if (etag) this._conf.lastConfigEtag = etag
 
         try {
-          this.emit('config', JSON.parse(body))
+          this.emit('config', JSON.parse(buf))
         } catch (e) {
           res.destroy(e)
         }
       } else {
-        let err
-        if (res.statusCode === 500 && maxAge) {
-          // Probably an APM Server that's not configured with kibana.enabled: true
-          err = new Error('Unexpected APM Server response when polling config (possibly configuration problem)')
-        } else {
-          err = new Error('Unexpected APM Server response when polling config')
-        }
-
-        err.code = res.statusCode
-
-        if (body.length > 0) {
-          const contentType = res.headers['content-type']
-          if (contentType && contentType.indexOf('application/json') === 0) {
-            try {
-              err.response = JSON.parse(body)
-            } catch (e) {
-              err.response = body
-            }
-          } else {
-            err.response = body
-          }
-        }
-
-        res.destroy(err)
+        res.destroy(processConfigErrorResponse(res, buf))
       }
     })
   })
@@ -513,28 +489,7 @@ function onResult (onerror) {
   return streamToBuffer.onStream(function (err, buf, res) {
     if (err) return onerror(err)
     if (res.statusCode < 200 || res.statusCode > 299) {
-      const err = new Error('Unexpected APM Server response')
-
-      err.code = res.statusCode
-
-      if (buf.length > 0) {
-        const body = buf.toString('utf8')
-        const contentType = res.headers['content-type']
-        if (contentType && contentType.indexOf('application/json') === 0) {
-          try {
-            const data = JSON.parse(body)
-            err.accepted = data.accepted
-            err.errors = data.errors
-            if (!err.errors) err.response = body
-          } catch (e) {
-            err.response = body
-          }
-        } else {
-          err.response = body
-        }
-      }
-
-      onerror(err)
+      onerror(processIntakeErrorResponse(res, buf))
     }
   })
 }
@@ -701,4 +656,58 @@ function getMaxAge (res) {
   const header = res.headers['cache-control']
   const match = header && header.match(/max-age=(\d+)/)
   return parseInt(match && match[1], 10)
+}
+
+function processIntakeErrorResponse (res, buf) {
+  const err = new Error('Unexpected APM Server response')
+
+  err.code = res.statusCode
+
+  if (buf.length > 0) {
+    const body = buf.toString('utf8')
+    const contentType = res.headers['content-type']
+    if (contentType && contentType.startsWith('application/json')) {
+      try {
+        const data = JSON.parse(body)
+        err.accepted = data.accepted
+        err.errors = data.errors
+        if (!err.errors) err.response = body
+      } catch (e) {
+        err.response = body
+      }
+    } else {
+      err.response = body
+    }
+  }
+
+  return err
+}
+
+function processConfigErrorResponse (res, buf) {
+  const err = new Error('Unexpected APM Server response when polling config')
+
+  err.code = res.statusCode
+
+  if (buf.length > 0) {
+    const body = buf.toString('utf8')
+    const contentType = res.headers['content-type']
+    if (contentType && contentType.startsWith('application/json')) {
+      try {
+        const response = JSON.parse(body)
+        if (typeof response === 'string') {
+          err.response = response
+        } else if (typeof response === 'object' && response !== null && typeof response.error === 'string') {
+          err.response = response.error
+        } else {
+          err.response = body
+        }
+      } catch (e) {
+        err.response = body
+      }
+    } else {
+      err.response = body
+    }
+  }
+
+  return err
 }
