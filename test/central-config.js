@@ -74,16 +74,16 @@ test('polling', function (t) {
         break
       case 6:
         t.ok(!('if-none-match' in req.headers), 'should not have If-None-Match header')
-        res.writeHead(200, Object.assign({ Etag: 42 }, headers))
+        res.writeHead(200, Object.assign({ Etag: '"42"' }, headers))
         res.end(JSON.stringify(expectedConf))
         break
       case 7:
-        t.equal(req.headers['if-none-match'], '42')
-        res.writeHead(304, Object.assign({ Etag: 42 }, headers))
+        t.equal(req.headers['if-none-match'], '"42"')
+        res.writeHead(304, Object.assign({ Etag: '"42"' }, headers))
         res.end()
         break
       case 8:
-        t.equal(req.headers['if-none-match'], '42')
+        t.equal(req.headers['if-none-match'], '"42"')
         t.end()
         res.writeHead(404) // end nicely so we don't get a request-error
         res.end()
