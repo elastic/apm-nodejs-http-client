@@ -9,18 +9,20 @@ npm install -g tap-junit
 # Let's store the test output in the target folder
 TARGET_FOLDER=target
 
-for tf in $(ls ${TARGET_FOLDER}/*-output.tap)
+for tf in "${TARGET_FOLDER}"/*-output.tap
 do
-  filename=$(basename ${tf} ${TARGET_FOLDER}/output.tap)
-  if [ -s ${tf} ]; then
-    cat ${tf}|tap-junit --package="Agent Node.js" > ${TARGET_FOLDER}/junit-${filename}-report.xml || true
+  [[ -e "$tf" ]] || break  # handle the case of no *.wav files
+  filename=$(basename "${tf}" ${TARGET_FOLDER}/output.tap)
+  if [ -s "${tf}" ]; then
+    tap-junit --package="Agent Node.js" > "${TARGET_FOLDER}/junit-${filename}-report.xml" < "${tf}" || true
   fi
 done
 
-for jf in $(ls ${TARGET_FOLDER}/junit-*-report.xml)
+for jf in "${TARGET_FOLDER}"/junit-*-report.xml
 do
-  if [ -f ${jf} ] && [ ! -s ${jf} ]; then
-    rm ${jf}
+  [[ -e "$jf" ]] || break  # handle the case of no *.wav files
+  if [ -f "${jf}" ] && [ ! -s "${jf}" ]; then
+    rm "${jf}"
   fi
 done
 
