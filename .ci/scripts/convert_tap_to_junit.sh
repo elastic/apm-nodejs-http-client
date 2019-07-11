@@ -14,7 +14,7 @@ do
   [[ -e "$tf" ]] || break  # handle the case of no *.wav files
   filename=$(basename "${tf}" ${TARGET_FOLDER}/output.tap)
   if [ -s "${tf}" ]; then
-    tap-junit --package="Agent Node.js" > "${TARGET_FOLDER}/junit-${filename}-report.xml" < "${tf}" || true
+    tap-junit --package="APM http client" > "${TARGET_FOLDER}/junit-${filename}-report.xml" < "${tf}" || true
   fi
 done
 
