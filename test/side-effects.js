@@ -6,13 +6,13 @@ const test = require('tape')
 const utils = require('./lib/utils')
 
 const APMServer = utils.APMServer
-const processReq = utils.processReq
-const assertReq = utils.assertReq
+const processIntakeReq = utils.processIntakeReq
+const assertIntakeReq = utils.assertIntakeReq
 const assertMetadata = utils.assertMetadata
 const assertEvent = utils.assertEvent
 
 test('client should not hold the process open', function (t) {
-  t.plan(1 + assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+  t.plan(1 + assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
 
   const datas = [
     assertMetadata,
@@ -20,8 +20,8 @@ test('client should not hold the process open', function (t) {
   ]
 
   const server = APMServer(function (req, res) {
-    assertReq(t, req)
-    req = processReq(req)
+    assertIntakeReq(t, req)
+    req = processIntakeReq(req)
     req.on('data', function (obj) {
       datas.shift()(t, obj)
     })

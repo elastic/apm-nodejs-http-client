@@ -12,7 +12,7 @@ const pkg = require('../package')
 const Client = require('../')
 
 const APMServer = utils.APMServer
-const processReq = utils.processReq
+const processIntakeReq = utils.processIntakeReq
 const validOpts = utils.validOpts
 
 test('package', function (t) {
@@ -168,7 +168,7 @@ test('metadata', function (t) {
     }
   }
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.deepEqual(obj, {
         metadata: {
@@ -240,7 +240,7 @@ test('metadata - default values', function (t) {
     serviceName: 'custom-serviceName'
   }
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.deepEqual(obj, {
         metadata: {
@@ -303,7 +303,7 @@ test('metadata - container info', function (t) {
   const APMServer = require('./lib/utils').APMServer
 
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.ok(obj.metadata)
       t.ok(obj.metadata.system)
@@ -331,7 +331,7 @@ test('metadata - container info', function (t) {
 test('agentName', function (t) {
   t.plan(1)
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.equal(obj.metadata.service.name, 'custom')
     })
@@ -356,7 +356,7 @@ test('payloadLogFile', function (t) {
   const server = APMServer(function (req, res) {
     const request = ++requests
 
-    req = processReq(req)
+    req = processIntakeReq(req)
 
     req.on('data', function (obj) {
       receivedObjects.push(obj)
@@ -394,7 +394,7 @@ test('payloadLogFile', function (t) {
 test('update conf', function (t) {
   t.plan(1)
   const server = APMServer(function (req, res) {
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.equal(obj.metadata.service.name, 'bar')
     })

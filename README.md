@@ -101,6 +101,14 @@ HTTP client configuration:
 - `maxFreeSockets` - Maximum number of sockets to leave open in a free
   state. Only relevant if `keepAlive` is set to `true` (default: `256`)
 
+APM Agent Configuration via Kibana:
+
+- `centralConfig` - Whether or not the client should poll the APM
+  Server regularly for new agent configuration. If set to `true`, the
+  `config` event will be emitted when there's an update to an agent config
+  option (default: `false`). _Requires APM Server v7.3 or later and that
+  the APM Server is configured with `kibana.enabled: true`._
+
 Streaming configuration:
 
 - `size` - The maxiumum compressed body size (in bytes) of each HTTP
@@ -143,6 +151,16 @@ Debug options:
   sent to the APM Server should be written. The data will be in ndjson
   format and will be uncompressed
 
+### Event: `config`
+
+Emitted every time a change to the agent config is pulled from the APM
+Server. The listener is passed the updated config options as a key/value
+object.
+
+Each key is the lowercase version of the environment variable, without
+the `ELASTIC_APM_` prefix, e.g. `transaction_sample_rate` instead of
+`ELASTIC_APM_TRANSACTION_SAMPLE_RATE`.
+
 ### Event: `close`
 
 The `close` event is emitted when the client and any of its underlying
@@ -164,14 +182,15 @@ called, and all data has been flushed to the underlying system.
 Emitted if an error occurs while communicating with the APM Server. The
 listener callback is passed a single Error argument when called.
 
-This means that the current request to the APM Server is terminated and
-that the data included in that request is lost.
+The request to the APM Server that caused the error is terminated and
+the data included in that request is lost. This is normally only
+important to consider for requests to the Intake API.
 
 If a non-2xx response was received from the APM Server, the status code
 will be available on `error.code`.
 
-If the APM Serer responded with a structured error message, the `error`
-object will have the following properties:
+For requests to the Intake API where the response is a structured error
+message, the `error` object will have the following properties:
 
 - `error.accepted` - An integer indicating how many events was accepted
   as part of the failed request. If 100 events was sent to the APM
@@ -183,7 +202,7 @@ object will have the following properties:
   `document` property (String). If the `document` property is given it
   will contain the failed event as it was received by the APM Server
 
-If the APM returned an errro body that could not be parsed by the
+If the response contained an error body that could not be parsed by the
 client, the raw body will be available on `error.response`.
 
 The client is not closed when the `request-error` event is emitted.
@@ -206,6 +225,7 @@ configuration options can be updated except:
 - `keepAliveMsecs`
 - `maxSockets`
 - `maxFreeSockets`
+- `centralConfig`
 
 ### `client.sendSpan(span[, callback])`
 

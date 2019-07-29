@@ -6,8 +6,8 @@ const utils = require('./lib/utils')
 const Client = require('../')
 
 const APMServer = utils.APMServer
-const processReq = utils.processReq
-const assertReq = utils.assertReq
+const processIntakeReq = utils.processIntakeReq
+const assertIntakeReq = utils.assertIntakeReq
 const assertMetadata = utils.assertMetadata
 const assertEvent = utils.assertEvent
 const validOpts = utils.validOpts
@@ -284,7 +284,7 @@ test('socket hang up', function (t) {
 })
 
 test('socket hang up - continue with new request', function (t) {
-  t.plan(4 + assertReq.asserts * 2 + assertMetadata.asserts + assertEvent.asserts)
+  t.plan(4 + assertIntakeReq.asserts * 2 + assertMetadata.asserts + assertEvent.asserts)
   let reqs = 0
   let client
   const datas = [
@@ -292,7 +292,7 @@ test('socket hang up - continue with new request', function (t) {
     assertEvent({ span: { req: 2 } })
   ]
   const server = APMServer(function (req, res) {
-    assertReq(t, req)
+    assertIntakeReq(t, req)
 
     if (++reqs === 1) return req.socket.destroy()
 
@@ -303,7 +303,7 @@ test('socket hang up - continue with new request', function (t) {
       client.flush()
     })
 
-    req = processReq(req)
+    req = processIntakeReq(req)
     req.on('data', function (obj) {
       datas.shift()(t, obj)
     })
@@ -479,14 +479,14 @@ dataTypes.forEach(function (dataType) {
   const sendFn = 'send' + dataType.charAt(0).toUpperCase() + dataType.substr(1)
 
   test(`client.${sendFn}(): handle circular references`, function (t) {
-    t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+    t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
       assertEvent({ [dataType]: { foo: 42, bar: '[Circular]' } })
     ]
     const server = APMServer(function (req, res) {
-      assertReq(t, req)
-      req = processReq(req)
+      assertIntakeReq(t, req)
+      req = processIntakeReq(req)
       req.on('data', function (obj) {
         datas.shift()(t, obj)
       })

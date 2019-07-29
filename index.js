@@ -4,6 +4,7 @@ const util = require('util')
 const os = require('os')
 const parseUrl = require('url').parse
 const zlib = require('zlib')
+const querystring = require('querystring')
 const Writable = require('readable-stream').Writable
 const getContainerInfo = require('container-info')
 const pump = require('pump')
@@ -73,6 +74,7 @@ function Client (opts) {
   this._active = false
   this._onflushed = null
   this._transport = null
+  this._configTimer = null
 
   switch (this._conf.serverUrl.protocol.slice(0, -1)) { // 'http:' => 'http'
     case 'http': {
@@ -102,6 +104,8 @@ function Client (opts) {
 
   this._index = clients.length
   clients.push(this)
+
+  if (this._conf.centralConfig) this._pollConfig()
 }
 
 Client.prototype.config = function (opts) {
@@ -126,6 +130,7 @@ Client.prototype.config = function (opts) {
   if (!this._conf.bufferWindowTime) this._conf.bufferWindowTime = 20
   if (!this._conf.bufferWindowSize) this._conf.bufferWindowSize = 50
   this._conf.keepAlive = this._conf.keepAlive !== false
+  this._conf.centralConfig = this._conf.centralConfig || false
 
   // process
   this._conf.serverUrl = parseUrl(this._conf.serverUrl)
@@ -143,7 +148,69 @@ Client.prototype.config = function (opts) {
   }
 
   // http request options
-  this._conf.request = getRequestOptions(this._conf, this._agent)
+  this._conf.requestIntake = getIntakeRequestOptions(this._conf, this._agent)
+  this._conf.requestConfig = getConfigRequestOptions(this._conf, this._agent)
+}
+
+Client.prototype._pollConfig = function () {
+  const opts = this._conf.requestConfig
+  if (this._conf.lastConfigEtag) {
+    opts.headers['If-None-Match'] = this._conf.lastConfigEtag
+  }
+
+  const req = this._transport.get(opts, res => {
+    res.on('error', err => {
+      // Not sure this event can ever be emitted, but just in case
+      res.destroy(err)
+    })
+
+    this._scheduleNextConfigPoll(getMaxAge(res))
+
+    if (
+      res.statusCode === 304 || // No new config since last time
+      res.statusCode === 403 || // Central config not enabled in APM Server
+      res.statusCode === 404 // No config for the given service.name / service.environment
+    ) {
+      res.resume()
+      return
+    }
+
+    streamToBuffer(res, (err, buf) => {
+      if (err) return res.destroy(err)
+
+      if (res.statusCode === 200) {
+        // 200: New config available
+        const etag = res.headers['etag']
+        if (etag) this._conf.lastConfigEtag = etag
+
+        try {
+          this.emit('config', JSON.parse(buf))
+        } catch (e) {
+          res.destroy(e)
+        }
+      } else {
+        res.destroy(processConfigErrorResponse(res, buf))
+      }
+    })
+  })
+
+  req.on('error', err => {
+    this._scheduleNextConfigPoll()
+    this.emit('request-error', err)
+  })
+}
+
+Client.prototype._scheduleNextConfigPoll = function (seconds) {
+  if (this._configTimer !== null) return
+
+  seconds = seconds || 300
+
+  this._configTimer = setTimeout(() => {
+    this._configTimer = null
+    this._pollConfig()
+  }, seconds * 1000)
+
+  this._configTimer.unref()
 }
 
 // re-ref the open socket handles
@@ -300,6 +367,10 @@ Client.prototype.flush = function (cb) {
 }
 
 Client.prototype._final = function (cb) {
+  if (this._configTimer) {
+    clearTimeout(this._configTimer)
+    this._configTimer = null
+  }
   clients[this._index] = null // remove global reference to ease garbage collection
   this._ref()
   this._chopper.end()
@@ -307,6 +378,10 @@ Client.prototype._final = function (cb) {
 }
 
 Client.prototype._destroy = function (err, cb) {
+  if (this._configTimer) {
+    clearTimeout(this._configTimer)
+    this._configTimer = null
+  }
   clients[this._index] = null // remove global reference to ease garbage collection
   this._chopper.destroy()
   this._agent.destroy()
@@ -324,7 +399,7 @@ function onStream (client, onerror) {
 
     client._active = true
 
-    const req = client._transport.request(client._conf.request, onResult(onerror))
+    const req = client._transport.request(client._conf.requestIntake, onResult(onerror))
 
     // Abort the current request if the server responds prior to the request
     // being finished
@@ -414,50 +489,45 @@ function onResult (onerror) {
   return streamToBuffer.onStream(function (err, buf, res) {
     if (err) return onerror(err)
     if (res.statusCode < 200 || res.statusCode > 299) {
-      const err = new Error('Unexpected APM Server response')
-
-      err.code = res.statusCode
-
-      if (buf.length > 0) {
-        const body = buf.toString('utf8')
-        const contentType = res.headers['content-type']
-        if (contentType && contentType.indexOf('application/json') === 0) {
-          try {
-            const data = JSON.parse(body)
-            err.accepted = data.accepted
-            err.errors = data.errors
-            if (!err.errors) err.response = body
-          } catch (e) {
-            err.response = body
-          }
-        } else {
-          err.response = body
-        }
-      }
-
-      onerror(err)
+      onerror(processIntakeErrorResponse(res, buf))
     }
   })
 }
 
-function getRequestOptions (opts, agent) {
-  const defaultPath = '/intake/v2/events'
+function getIntakeRequestOptions (opts, agent) {
+  const headers = getHeaders(opts)
+  headers['Content-Type'] = 'application/x-ndjson'
+  headers['Content-Encoding'] = 'gzip'
+
+  return getBasicRequestOptions('POST', '/intake/v2/events', headers, opts, agent)
+}
+
+function getConfigRequestOptions (opts, agent) {
+  const path = '/config/v1/agents?' + querystring.stringify({
+    'service.name': opts.serviceName,
+    'service.environment': opts.environment
+  })
+
+  const headers = getHeaders(opts)
+
+  return getBasicRequestOptions('GET', path, headers, opts, agent)
+}
+
+function getBasicRequestOptions (method, defaultPath, headers, opts, agent) {
   return {
     agent: agent,
     rejectUnauthorized: opts.rejectUnauthorized !== false,
     hostname: opts.serverUrl.hostname,
     port: opts.serverUrl.port,
-    method: 'POST',
+    method,
     path: opts.serverUrl.path === '/' ? defaultPath : opts.serverUrl.path + defaultPath,
-    headers: getHeaders(opts)
+    headers
   }
 }
 
 function getHeaders (opts) {
   const headers = {}
   if (opts.secretToken) headers['Authorization'] = 'Bearer ' + opts.secretToken
-  headers['Content-Type'] = 'application/x-ndjson'
-  headers['Content-Encoding'] = 'gzip'
   headers['Accept'] = 'application/json'
   headers['User-Agent'] = opts.userAgent + ' ' + pkg.name + '/' + pkg.version
   return Object.assign(headers, opts.headers)
@@ -580,4 +650,64 @@ function normalizeGlobalLabels (labels) {
   }
 
   return result
+}
+
+function getMaxAge (res) {
+  const header = res.headers['cache-control']
+  const match = header && header.match(/max-age=(\d+)/)
+  return parseInt(match && match[1], 10)
+}
+
+function processIntakeErrorResponse (res, buf) {
+  const err = new Error('Unexpected APM Server response')
+
+  err.code = res.statusCode
+
+  if (buf.length > 0) {
+    const body = buf.toString('utf8')
+    const contentType = res.headers['content-type']
+    if (contentType && contentType.startsWith('application/json')) {
+      try {
+        const data = JSON.parse(body)
+        err.accepted = data.accepted
+        err.errors = data.errors
+        if (!err.errors) err.response = body
+      } catch (e) {
+        err.response = body
+      }
+    } else {
+      err.response = body
+    }
+  }
+
+  return err
+}
+
+function processConfigErrorResponse (res, buf) {
+  const err = new Error('Unexpected APM Server response when polling config')
+
+  err.code = res.statusCode
+
+  if (buf.length > 0) {
+    const body = buf.toString('utf8')
+    const contentType = res.headers['content-type']
+    if (contentType && contentType.startsWith('application/json')) {
+      try {
+        const response = JSON.parse(body)
+        if (typeof response === 'string') {
+          err.response = response
+        } else if (typeof response === 'object' && response !== null && typeof response.error === 'string') {
+          err.response = response.error
+        } else {
+          err.response = body
+        }
+      } catch (e) {
+        err.response = body
+      }
+    } else {
+      err.response = body
+    }
+  }
+
+  return err
 }

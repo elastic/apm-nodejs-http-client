@@ -4,8 +4,8 @@ const test = require('tape')
 const utils = require('./lib/utils')
 
 const APMServer = utils.APMServer
-const processReq = utils.processReq
-const assertReq = utils.assertReq
+const processIntakeReq = utils.processIntakeReq
+const assertIntakeReq = utils.assertIntakeReq
 const assertMetadata = utils.assertMetadata
 const assertEvent = utils.assertEvent
 
@@ -25,7 +25,7 @@ options.forEach(function (opts) {
     : (opts.truncateErrorMessagesAt || 2048)
 
   test('truncate transaction', function (t) {
-    t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+    t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
       assertEvent({
@@ -62,8 +62,8 @@ options.forEach(function (opts) {
       })
     ]
     const server = APMServer(function (req, res) {
-      assertReq(t, req)
-      req = processReq(req)
+      assertIntakeReq(t, req)
+      req = processIntakeReq(req)
       req.on('data', function (obj) {
         datas.shift()(t, obj)
       })
@@ -108,7 +108,7 @@ options.forEach(function (opts) {
   })
 
   test('truncate span', function (t) {
-    t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+    t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
       assertEvent({
@@ -132,8 +132,8 @@ options.forEach(function (opts) {
       })
     ]
     const server = APMServer(function (req, res) {
-      assertReq(t, req)
-      req = processReq(req)
+      assertIntakeReq(t, req)
+      req = processIntakeReq(req)
       req.on('data', function (obj) {
         datas.shift()(t, obj)
       })
@@ -165,7 +165,7 @@ options.forEach(function (opts) {
   })
 
   test('truncate error', function (t) {
-    t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+    t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
       assertEvent({
@@ -221,8 +221,8 @@ options.forEach(function (opts) {
       })
     ]
     const server = APMServer(function (req, res) {
-      assertReq(t, req)
-      req = processReq(req)
+      assertIntakeReq(t, req)
+      req = processIntakeReq(req)
       req.on('data', function (obj) {
         datas.shift()(t, obj)
       })
@@ -286,7 +286,7 @@ options.forEach(function (opts) {
   })
 
   test('truncate metricset', function (t) {
-    t.plan(assertReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+    t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
     const datas = [
       assertMetadata,
       assertEvent({
@@ -304,8 +304,8 @@ options.forEach(function (opts) {
       })
     ]
     const server = APMServer(function (req, res) {
-      assertReq(t, req)
-      req = processReq(req)
+      assertIntakeReq(t, req)
+      req = processIntakeReq(req)
       req.on('data', function (obj) {
         datas.shift()(t, obj)
       })
