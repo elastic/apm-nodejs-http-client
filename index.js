@@ -169,7 +169,7 @@ Client.prototype._pollConfig = function () {
     if (
       res.statusCode === 304 || // No new config since last time
       res.statusCode === 403 || // Central config not enabled in APM Server
-      res.statusCode === 404 // No config for the given service.name / service.environment
+      res.statusCode === 404 // Old APM Server that doesn't support central config
     ) {
       res.resume()
       return
@@ -179,7 +179,7 @@ Client.prototype._pollConfig = function () {
       if (err) return res.destroy(err)
 
       if (res.statusCode === 200) {
-        // 200: New config available
+        // 200: New config available (or no config for the given service.name / service.environment)
         const etag = res.headers['etag']
         if (etag) this._conf.lastConfigEtag = etag
 

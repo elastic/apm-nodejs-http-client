@@ -161,6 +161,11 @@ Each key is the lowercase version of the environment variable, without
 the `ELASTIC_APM_` prefix, e.g. `transaction_sample_rate` instead of
 `ELASTIC_APM_TRANSACTION_SAMPLE_RATE`.
 
+If no central configuration is set up for the given `serviceName` /
+`environment` when the client is started, this event will be emitted
+once with an empty object. This will also happen after central
+configuration for the given `serviceName` / `environment` is deleted.
+
 ### Event: `close`
 
 The `close` event is emitted when the client and any of its underlying
