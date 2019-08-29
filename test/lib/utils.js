@@ -63,7 +63,7 @@ function assertIntakeReq (t, req) {
   t.equal(req.headers['content-type'], 'application/x-ndjson', 'should send reqeust as ndjson')
   t.equal(req.headers['content-encoding'], 'gzip', 'should compress request')
   t.equal(req.headers['accept'], 'application/json', 'should expect json in response')
-  t.equal(req.headers['user-agent'], `my-user-agent ${pkg.name}/${pkg.version}`, 'should add proper User-Agent')
+  t.equal(req.headers['user-agent'], `my-user-agent ${pkg.name}/${pkg.version}/${process.release.name}/${process.versions.node}`, 'should add proper User-Agent')
 }
 assertIntakeReq.asserts = 7
 
@@ -77,7 +77,7 @@ function assertConfigReq (t, req) {
     'service.environment': 'development'
   }, 'should encode query in query params')
   t.equal(req.headers['authorization'], 'Bearer secret', 'should add secret token')
-  t.equal(req.headers['user-agent'], `my-user-agent ${pkg.name}/${pkg.version}`, 'should add proper User-Agent')
+  t.equal(req.headers['user-agent'], `my-user-agent ${pkg.name}/${pkg.version}/${process.release.name}/${process.versions.node}`, 'should add proper User-Agent')
 }
 assertConfigReq.asserts = 5
 
