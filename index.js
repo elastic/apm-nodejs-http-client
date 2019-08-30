@@ -382,6 +382,10 @@ Client.prototype._destroy = function (err, cb) {
     clearTimeout(this._configTimer)
     this._configTimer = null
   }
+  if (this._corkTimer) {
+    clearTimeout(this._corkTimer)
+    this._corkTimer = null
+  }
   clients[this._index] = null // remove global reference to ease garbage collection
   this._chopper.destroy()
   this._agent.destroy()
