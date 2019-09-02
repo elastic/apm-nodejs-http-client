@@ -310,7 +310,10 @@ Client.prototype._maybeUncork = function () {
       if (this.destroyed === false) this.uncork()
     })
 
-    if (this._corkTimer) clearTimeout(this._corkTimer)
+    if (this._corkTimer) {
+      clearTimeout(this._corkTimer)
+      this._corkTimer = null
+    }
   }
 }
 
