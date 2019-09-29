@@ -98,7 +98,11 @@ function assertMetadata (t, obj) {
   t.equal(service.agent.version, 'my-agent-version')
   const _process = metadata.process
   t.ok(_process.pid > 0, `pid should be > 0, was ${_process.pid}`)
-  t.ok(_process.ppid > 0, `ppid should be > 0, was ${_process.ppid}`)
+  if (semver.gte(process.version, '8.10.0')) {
+    t.ok(_process.ppid > 0, `ppid should be > 0, was ${_process.ppid}`)
+  } else {
+    t.equal(_process.ppid, undefined)
+  }
 
   if (_process.title.length === 1) {
     // because of truncation test
