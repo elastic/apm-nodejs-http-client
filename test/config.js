@@ -170,7 +170,7 @@ test('metadata', function (t) {
   const server = APMServer(function (req, res) {
     req = processIntakeReq(req)
     req.once('data', function (obj) {
-      t.deepEqual(obj, {
+      const expects = {
         metadata: {
           service: {
             name: 'custom-serviceName',
@@ -194,7 +194,6 @@ test('metadata', function (t) {
           },
           process: {
             pid: process.pid,
-            ppid: process.ppid,
             title: process.title,
             argv: process.argv
           },
@@ -208,7 +207,14 @@ test('metadata', function (t) {
             doesNotNest: '[object Object]'
           }
         }
-      })
+      }
+
+      if (semver.gte(process.version, '8.10.0')) {
+        expects.metadata.process.ppid = process.ppid
+      }
+
+      t.deepEqual(obj, expects)
+
       t.ok(semver.valid(obj.metadata.service.runtime.version))
       t.ok(obj.metadata.process.pid > 0)
       t.ok(obj.metadata.process.ppid > 0)
