@@ -267,10 +267,12 @@ Client.prototype._writev = function (objs, cb) {
   processBatch()
 }
 
+function encodeObject (obj) {
+  return this._encode(obj.chunk, obj.encoding)
+}
+
 Client.prototype._writevCleaned = function (objs, cb) {
-  const chunk = objs.reduce((result, obj) => {
-    return result + this._encode(obj.chunk, obj.encoding)
-  }, '')
+  const chunk = objs.map(encodeObject.bind(this)).join('')
 
   this._received += objs.length
   this._chopper.write(chunk, cb)
