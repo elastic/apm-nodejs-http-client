@@ -162,7 +162,7 @@ dataTypes.forEach(function (dataType) {
     ]
 
     const server = APMServer(function (req, res) {
-      let reqNum = ++serverReqNum
+      const reqNum = ++serverReqNum
       assertIntakeReq(t, req)
       req = processIntakeReq(req)
       req.on('data', function (obj) {

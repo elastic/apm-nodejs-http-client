@@ -59,10 +59,10 @@ function processIntakeReq (req) {
 function assertIntakeReq (t, req) {
   t.equal(req.method, 'POST', 'should make a POST request')
   t.equal(req.url, '/intake/v2/events', 'should send request to /intake/v2/events')
-  t.equal(req.headers['authorization'], 'Bearer secret', 'should add secret token')
+  t.equal(req.headers.authorization, 'Bearer secret', 'should add secret token')
   t.equal(req.headers['content-type'], 'application/x-ndjson', 'should send reqeust as ndjson')
   t.equal(req.headers['content-encoding'], 'gzip', 'should compress request')
-  t.equal(req.headers['accept'], 'application/json', 'should expect json in response')
+  t.equal(req.headers.accept, 'application/json', 'should expect json in response')
   t.equal(req.headers['user-agent'], `my-user-agent ${pkg.name}/${pkg.version} ${process.release.name}/${process.versions.node}`, 'should add proper User-Agent')
 }
 assertIntakeReq.asserts = 7
@@ -73,7 +73,7 @@ function assertConfigReq (t, req) {
   t.equal(req.method, 'GET', 'should make a GET request')
   t.equal(url.pathname, '/config/v1/agents', 'should send request to /config/v1/agents')
   t.equal(url.search, '?service.name=my-service-name&service.environment=development', 'should encode query in query params')
-  t.equal(req.headers['authorization'], 'Bearer secret', 'should add secret token')
+  t.equal(req.headers.authorization, 'Bearer secret', 'should add secret token')
   t.equal(req.headers['user-agent'], `my-user-agent ${pkg.name}/${pkg.version} ${process.release.name}/${process.versions.node}`, 'should add proper User-Agent')
 }
 assertConfigReq.asserts = 5

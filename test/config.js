@@ -163,7 +163,7 @@ test('metadata', function (t) {
     globalLabels: {
       foo: 'bar',
       doesNotNest: {
-        'nope': 'this should be [object Object]'
+        nope: 'this should be [object Object]'
       }
     }
   }
