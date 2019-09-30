@@ -216,8 +216,12 @@ test('metadata', function (t) {
       t.deepEqual(obj, expects)
 
       t.ok(semver.valid(obj.metadata.service.runtime.version))
-      t.ok(obj.metadata.process.pid > 0)
-      t.ok(obj.metadata.process.ppid > 0)
+      t.ok(obj.metadata.process.pid > 0, `pid should be > 0, was ${obj.metadata.process.pid}`)
+      if (semver.gte(process.version, '8.10.0')) {
+        t.ok(obj.metadata.process.ppid > 0, `ppid should be > 0, was ${obj.metadata.process.ppid}`)
+      } else {
+        t.equal(obj.metadata.process.ppid, undefined)
+      }
       t.ok(/node$/.test(obj.metadata.process.title))
       t.ok(Array.isArray(obj.metadata.process.argv))
       t.ok(obj.metadata.process.argv.every(arg => typeof arg === 'string'))
@@ -248,7 +252,7 @@ test('metadata - default values', function (t) {
   const server = APMServer(function (req, res) {
     req = processIntakeReq(req)
     req.once('data', function (obj) {
-      t.deepEqual(obj, {
+      const expects = {
         metadata: {
           service: {
             name: 'custom-serviceName',
@@ -267,7 +271,6 @@ test('metadata - default values', function (t) {
           },
           process: {
             pid: process.pid,
-            ppid: process.ppid,
             title: process.title,
             argv: process.argv
           },
@@ -277,8 +280,15 @@ test('metadata - default values', function (t) {
             platform: process.platform
           }
         }
-      })
+      }
+
+      if (semver.gte(process.version, '8.10.0')) {
+        expects.metadata.process.ppid = process.ppid
+      }
+
+      t.deepEqual(obj, expects)
     })
+
     req.on('end', function () {
       res.end()
       server.close()
