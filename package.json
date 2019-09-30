@@ -19,7 +19,7 @@
     "breadth-filter": "^2.0.0",
     "container-info": "^1.0.1",
     "end-of-stream": "^1.4.4",
-    "fast-safe-stringify": "^2.0.6",
+    "fast-safe-stringify": "^2.0.7",
     "fast-stream-to-buffer": "^1.0.0",
     "pump": "^3.0.0",
     "readable-stream": "^3.4.0",
@@ -27,13 +27,13 @@
     "unicode-byte-truncate": "^1.0.0"
   },
   "devDependencies": {
-    "codecov": "^3.5.0",
+    "codecov": "^3.6.1",
     "https-pem": "^2.0.0",
     "ndjson": "^1.5.0",
     "nyc": "^14.1.1",
-    "semver": "^6.1.1",
+    "semver": "^6.3.0",
     "standard": "^12.0.1",
-    "tape": "^4.10.2"
+    "tape": "^4.11.0"
   },
   "repository": {
     "type": "git",
