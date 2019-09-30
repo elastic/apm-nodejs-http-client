@@ -2,7 +2,7 @@
 
 const util = require('util')
 const os = require('os')
-const parseUrl = require('url').parse
+const { URL } = require('url')
 const zlib = require('zlib')
 const querystring = require('querystring')
 const Writable = require('readable-stream').Writable
@@ -133,7 +133,7 @@ Client.prototype.config = function (opts) {
   this._conf.centralConfig = this._conf.centralConfig || false
 
   // process
-  this._conf.serverUrl = parseUrl(this._conf.serverUrl)
+  this._conf.serverUrl = new URL(this._conf.serverUrl)
 
   if (containerInfo) {
     if (!this._conf.containerId && containerInfo.containerId) {
@@ -527,7 +527,7 @@ function getBasicRequestOptions (method, defaultPath, headers, opts, agent) {
     hostname: opts.serverUrl.hostname,
     port: opts.serverUrl.port,
     method,
-    path: opts.serverUrl.path === '/' ? defaultPath : opts.serverUrl.path + defaultPath,
+    path: opts.serverUrl.pathname === '/' ? defaultPath : opts.serverUrl.pathname + defaultPath,
     headers
   }
 }

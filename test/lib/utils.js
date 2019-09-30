@@ -2,8 +2,8 @@
 
 const http = require('http')
 const https = require('https')
+const { URL } = require('url')
 const zlib = require('zlib')
-const parseUrl = require('url').parse
 const semver = require('semver')
 const pem = require('https-pem')
 const ndjson = require('ndjson')
@@ -68,14 +68,11 @@ function assertIntakeReq (t, req) {
 assertIntakeReq.asserts = 7
 
 function assertConfigReq (t, req) {
-  const url = parseUrl(req.url, { parseQueryString: true })
+  const url = new URL(req.url, 'relative:///')
 
   t.equal(req.method, 'GET', 'should make a GET request')
   t.equal(url.pathname, '/config/v1/agents', 'should send request to /config/v1/agents')
-  t.deepEqual(url.query, {
-    'service.name': validOpts().serviceName,
-    'service.environment': 'development'
-  }, 'should encode query in query params')
+  t.equal(url.search, '?service.name=my-service-name&service.environment=development', 'should encode query in query params')
   t.equal(req.headers['authorization'], 'Bearer secret', 'should add secret token')
   t.equal(req.headers['user-agent'], `my-user-agent ${pkg.name}/${pkg.version} ${process.release.name}/${process.versions.node}`, 'should add proper User-Agent')
 }
