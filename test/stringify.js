@@ -25,20 +25,22 @@ dataTypes.forEach(function (dataType) {
       t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
       const datas = [
         assertMetadata,
-        assertEvent({ [dataType]: {
-          context: {
-            [prop]: {
-              headers: {
-                string: 'foo',
-                number: '42',
-                bool: 'true',
-                nan: 'NaN',
-                object: '[object Object]',
-                array: ['foo', '42', 'true', 'NaN', '[object Object]']
+        assertEvent({
+          [dataType]: {
+            context: {
+              [prop]: {
+                headers: {
+                  string: 'foo',
+                  number: '42',
+                  bool: 'true',
+                  nan: 'NaN',
+                  object: '[object Object]',
+                  array: ['foo', '42', 'true', 'NaN', '[object Object]']
+                }
               }
             }
           }
-        } })
+        })
       ]
       const server = APMServer(function (req, res) {
         assertIntakeReq(t, req)

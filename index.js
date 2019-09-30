@@ -180,7 +180,7 @@ Client.prototype._pollConfig = function () {
 
       if (res.statusCode === 200) {
         // 200: New config available (or no config for the given service.name / service.environment)
-        const etag = res.headers['etag']
+        const etag = res.headers.etag
         if (etag) this._conf.lastConfigEtag = etag
 
         try {
@@ -534,8 +534,8 @@ function getBasicRequestOptions (method, defaultPath, headers, opts, agent) {
 
 function getHeaders (opts) {
   const headers = {}
-  if (opts.secretToken) headers['Authorization'] = 'Bearer ' + opts.secretToken
-  headers['Accept'] = 'application/json'
+  if (opts.secretToken) headers.Authorization = 'Bearer ' + opts.secretToken
+  headers.Accept = 'application/json'
   headers['User-Agent'] = `${opts.userAgent} ${pkg.name}/${pkg.version} ${process.release.name}/${process.versions.node}`
   return Object.assign(headers, opts.headers)
 }
@@ -649,7 +649,7 @@ function normalizeGlobalLabels (labels) {
   if (!labels) return
   const result = {}
 
-  for (let key of Object.keys(labels)) {
+  for (const key of Object.keys(labels)) {
     const value = labels[key]
     result[key] = oneOf(typeof value, ['string', 'number', 'boolean'])
       ? value
