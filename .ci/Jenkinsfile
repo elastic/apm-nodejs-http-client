@@ -12,7 +12,7 @@ pipeline {
     CODECOV_SECRET = "secret/apm-team/ci/${env.REPO}-codecov"
   }
   options {
-    timeout(time: 10, unit: 'MINUTES')
+    timeout(time: 30, unit: 'MINUTES')
     buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '20', daysToKeepStr: '30'))
     timestamps()
     ansiColor('xterm')
