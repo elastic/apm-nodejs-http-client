@@ -8,7 +8,9 @@
   },
   "scripts": {
     "coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
-    "test": "standard && nyc tape test/*.js"
+    "test": "standard && nyc tape test/*.js",
+    "snyk-protect": "snyk protect",
+    "prepublish": "npm run snyk-protect"
   },
   "engines": {
     "node": "^8.6.0 || 10 || >=12"
@@ -24,7 +26,8 @@
     "pump": "^3.0.0",
     "readable-stream": "^3.4.0",
     "stream-chopper": "^3.0.1",
-    "unicode-byte-truncate": "^1.0.0"
+    "unicode-byte-truncate": "^1.0.0",
+    "snyk": "^1.230.5"
   },
   "devDependencies": {
     "codecov": "^3.6.1",
@@ -52,5 +55,6 @@
   "coordinates": [
     55.778261,
     12.593028
-  ]
+  ],
+  "snyk": true
 }
