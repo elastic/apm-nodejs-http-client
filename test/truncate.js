@@ -20,6 +20,7 @@ options.forEach(function (opts) {
   const lineLen = opts.truncateStringsAt || 1024
   const queryLen = opts.truncateQueriesAt || 10000
   const keywordLen = opts.truncateKeywordsAt || 1024
+  const customKeyLen = opts.truncateCustomKeysAt || 1024
   const errMsgLen = opts.truncateErrorMessagesAt === -1
     ? veryLong
     : (opts.truncateErrorMessagesAt || 2048)
@@ -157,6 +158,55 @@ options.forEach(function (opts) {
           },
           db: {
             statement: genStr('n', veryLong)
+          }
+        }
+      })
+      client.flush()
+    })
+  })
+
+  test('truncate span custom keys', function (t) {
+    t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+    const datas = [
+      assertMetadata,
+      assertEvent({
+        span: {
+          id: 'abc123',
+          name: 'cool-name',
+          type: 'cool-type',
+          context: {
+            custom: {
+              [genStr('a', customKeyLen)]: 'truncate my key'
+            },
+            db: {
+              statement: 'SELECT * FROM USERS'
+            }
+          }
+        }
+      })
+    ]
+    const server = APMServer(function (req, res) {
+      assertIntakeReq(t, req)
+      req = processIntakeReq(req)
+      req.on('data', function (obj) {
+        datas.shift()(t, obj)
+      })
+      req.on('end', function () {
+        res.end()
+        server.close()
+        t.end()
+      })
+    }).client(opts, function (client) {
+      client.sendSpan({
+        id: 'abc123',
+        name: 'cool-name',
+        type: 'cool-type',
+        context: {
+          custom: {
+            [genStr('a', veryLong)]: 'truncate my key'
+          },
+          db: {
+            statement: 'SELECT * FROM USERS'
           }
         }
       })
