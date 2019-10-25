@@ -73,17 +73,22 @@ def generateStep(version){
   return {
     node('docker && linux && immutable'){
       try {
-        env.HOME = "${WORKSPACE}"
-        deleteDir()
-        unstash 'source'
-        dir("${BASE_DIR}"){
-          sh(label: "Run Tests", script: ".ci/scripts/test.sh ${version}")
+        withEnv(["HOME=${env.WORKSPACE}"]){
+          deleteDir()
+          unstash 'source'
+          dir("${BASE_DIR}"){
+            sh(label: "Run Tests", script: ".ci/scripts/test.sh ${version}")
+          }
         }
       } catch(e){
         error(e.toString())
       } finally {
-        docker.image('node:12').inside("-v ${WORKSPACE}/${BASE_DIR}:/app"){
-          sh(label: "Convert Test results to JUnit format", script: 'cd /app && .ci/scripts/convert_tap_to_junit.sh')
+        docker.image('node:12').inside(){
+          dir("${BASE_DIR}"){
+            withEnv(["HOME=${env.WORKSPACE}"]){
+              sh(label: "Convert Test results to JUnit format", script: '.ci/scripts/convert_tap_to_junit.sh')
+            }
+          }
         }
         junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/target/junit-*.xml")
         codecov(repo: env.REPO, basedir: "${BASE_DIR}", secret: "${CODECOV_SECRET}")
