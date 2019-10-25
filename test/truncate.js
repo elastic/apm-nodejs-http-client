@@ -176,7 +176,8 @@ options.forEach(function (opts) {
           type: 'cool-type',
           context: {
             custom: {
-              [genStr('a', customKeyLen)]: 'truncate my key'
+              [genStr('a', customKeyLen)]: 'truncate my key',
+              [genStr('b', customKeyLen)]: null
             },
             db: {
               statement: 'SELECT * FROM USERS'
@@ -203,7 +204,8 @@ options.forEach(function (opts) {
         type: 'cool-type',
         context: {
           custom: {
-            [genStr('a', veryLong)]: 'truncate my key'
+            [genStr('a', veryLong)]: 'truncate my key',
+            [genStr('b', veryLong)]: null
           },
           db: {
             statement: 'SELECT * FROM USERS'
