@@ -560,7 +560,8 @@ function getMetadata (opts) {
         version: opts.agentVersion
       },
       framework: undefined,
-      version: undefined
+      version: undefined,
+      node: undefined
     },
     process: {
       pid: process.pid,
@@ -576,6 +577,12 @@ function getMetadata (opts) {
       kubernetes: undefined
     },
     labels: opts.globalLabels
+  }
+
+  if (opts.serviceNodeName) {
+    payload.service.node = {
+      configured_name: opts.serviceNodeName
+    }
   }
 
   if (opts.serviceVersion) payload.service.version = opts.serviceVersion
