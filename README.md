@@ -62,6 +62,7 @@ Data sent to the APM Server as part of the metadata package:
 - `agentName` - (required) The APM agent name
 - `agentVersion` - (required) The APM agent version
 - `serviceName` - (required) The name of the service being instrumented
+- `serviceNodeName` - Unique name of the service being instrumented
 - `serviceVersion` - The version of the service being instrumented
 - `frameworkName` - If the service being instrumented is running a
   specific framework, use this config option to log its name

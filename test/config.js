@@ -155,6 +155,7 @@ test('metadata', function (t) {
     agentName: 'custom-agentName',
     agentVersion: 'custom-agentVersion',
     serviceName: 'custom-serviceName',
+    serviceNodeName: 'custom-serviceNodeName',
     serviceVersion: 'custom-serviceVersion',
     frameworkName: 'custom-frameworkName',
     frameworkVersion: 'custom-frameworkVersion',
@@ -175,7 +176,6 @@ test('metadata', function (t) {
           service: {
             name: 'custom-serviceName',
             environment: 'production',
-            version: 'custom-serviceVersion',
             runtime: {
               name: 'node',
               version: process.versions.node
@@ -190,6 +190,10 @@ test('metadata', function (t) {
             framework: {
               name: 'custom-frameworkName',
               version: 'custom-frameworkVersion'
+            },
+            version: 'custom-serviceVersion',
+            node: {
+              configured_name: 'custom-serviceNodeName'
             }
           },
           process: {
