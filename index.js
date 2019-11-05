@@ -75,6 +75,7 @@ function Client (opts) {
   this._onflushed = null
   this._transport = null
   this._configTimer = null
+  this._encodedMetadata = null
 
   switch (this._conf.serverUrl.protocol.slice(0, -1)) { // 'http:' => 'http'
     case 'http': {
@@ -151,6 +152,8 @@ Client.prototype.config = function (opts) {
   // http request options
   this._conf.requestIntake = getIntakeRequestOptions(this._conf, this._agent)
   this._conf.requestConfig = getConfigRequestOptions(this._conf, this._agent)
+
+  this._conf.metadata = getMetadata(this._conf)
 }
 
 Client.prototype._pollConfig = function () {
@@ -491,7 +494,10 @@ function onStream (client, onerror) {
     }
 
     // All requests to the APM Server must start with a metadata object
-    stream.write(client._encode({ metadata: getMetadata(client._conf) }, Client.encoding.METADATA))
+    if (!client._encodedMetadata) {
+      client._encodedMetadata = client._encode({ metadata: client._conf.metadata }, Client.encoding.METADATA)
+    }
+    stream.write(client._encodedMetadata)
   }
 }
 
