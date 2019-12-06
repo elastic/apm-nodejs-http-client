@@ -28,7 +28,6 @@
   },
   "devDependencies": {
     "codecov": "^3.6.1",
-    "https-pem": "^2.0.0",
     "ndjson": "^1.5.0",
     "nyc": "^14.1.1",
     "semver": "^6.3.0",

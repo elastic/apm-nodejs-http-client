@@ -87,6 +87,8 @@ HTTP client configuration:
   used when making HTTP requests to he APM Server
 - `rejectUnauthorized` - Set to `false` if the client shouldn't verify
   the APM Server TLS certificates (default: `true`)
+- `serverCaCert` - The CA certificate used to verify the APM Server's
+  TLS certificate.
 - `serverTimeout` - HTTP request timeout in milliseconds. If no data is
   sent or received on the socket for this amount of time, the request
   will be aborted. It's not recommended to set a `serverTimeout` lower

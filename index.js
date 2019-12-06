@@ -533,6 +533,7 @@ function getBasicRequestOptions (method, defaultPath, headers, opts, agent) {
   return {
     agent: agent,
     rejectUnauthorized: opts.rejectUnauthorized !== false,
+    ca: opts.serverCaCert,
     hostname: opts.serverUrl.hostname,
     port: opts.serverUrl.port,
     method,
