@@ -88,7 +88,8 @@ HTTP client configuration:
 - `rejectUnauthorized` - Set to `false` if the client shouldn't verify
   the APM Server TLS certificates (default: `true`)
 - `serverCaCert` - The CA certificate used to verify the APM Server's
-  TLS certificate.
+  TLS certificate, and has the same requirements as the `ca` option
+  of [tls.createSecureContext](https://nodejs.org/api/tls.html#tls_tls_createsecurecontext_options).
 - `serverTimeout` - HTTP request timeout in milliseconds. If no data is
   sent or received on the socket for this amount of time, the request
   will be aborted. It's not recommended to set a `serverTimeout` lower
