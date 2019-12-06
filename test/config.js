@@ -149,6 +149,20 @@ test('allow unauthorized TLS if asked', function (t) {
   })
 })
 
+test('allow self-signed TLS certificate by specifying the CA', function (t) {
+  t.plan(1)
+  const server = APMServer({ secure: true }, function (req, res) {
+    t.pass('should let request through')
+    res.end()
+    server.close()
+    t.end()
+  })
+  server.client({ serverCaCert: server.cert }, function (client) {
+    client.sendSpan({ foo: 42 })
+    client.end()
+  })
+})
+
 test('metadata', function (t) {
   t.plan(12)
   const opts = {
