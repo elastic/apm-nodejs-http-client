@@ -127,6 +127,15 @@ options.forEach(function (opts) {
             },
             db: {
               statement: genStr('n', queryLen)
+            },
+            destination: {
+              address: genStr('o', keywordLen),
+              port: 80,
+              service: {
+                name: genStr('p', keywordLen),
+                resource: genStr('q', keywordLen),
+                type: genStr('r', keywordLen)
+              }
             }
           }
         }
@@ -158,6 +167,15 @@ options.forEach(function (opts) {
           },
           db: {
             statement: genStr('n', veryLong)
+          },
+          destination: {
+            address: genStr('o', veryLong),
+            port: 80,
+            service: {
+              name: genStr('p', veryLong),
+              resource: genStr('q', veryLong),
+              type: genStr('r', veryLong)
+            }
           }
         }
       })
