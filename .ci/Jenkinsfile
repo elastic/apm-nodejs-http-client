@@ -82,7 +82,9 @@ def generateStep(version){
         } catch(e){
           error(e.toString())
         } finally {
-          tap2Junit(pattern: 'target/*-output.tap', suffix: 'junit.xml', package: 'APM http client')
+          dir('target'){
+            tap2Junit(pattern: '*-output.tap', suffix: 'junit.xml', package: 'APM http client')
+          }
           codecov(repo: env.REPO, basedir: ".", secret: "${CODECOV_SECRET}")
         }
       }
