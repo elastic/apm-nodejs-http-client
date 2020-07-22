@@ -72,26 +72,21 @@ pipeline {
 def generateStep(version){
   return {
     node('docker && linux && immutable'){
-      try {
-        withEnv(["HOME=${env.WORKSPACE}"]){
-          deleteDir()
-          unstash 'source'
-          dir("${BASE_DIR}"){
-            sh(label: "Run Tests", script: ".ci/scripts/test.sh ${version}")
+      deleteDir()
+      unstash 'source'
+      dir("${BASE_DIR}"){
+        try {
+          withEnv(["HOME=${env.WORKSPACE}"]){
+            sh(label: "Run Tests", script: ".ci/scripts/test.sh '${version}'")
           }
-        }
-      } catch(e){
-        error(e.toString())
-      } finally {
-        docker.image('node:12').inside(){
-          dir("${BASE_DIR}"){
-            withEnv(["HOME=${env.WORKSPACE}"]){
-              sh(label: "Convert Test results to JUnit format", script: '.ci/scripts/convert_tap_to_junit.sh')
-            }
+        } catch(e){
+          error(e.toString())
+        } finally {
+          dir('target'){
+            tap2Junit(pattern: '*-output.tap', suffix: 'junit.xml', package: 'APM http client')
           }
+          codecov(repo: env.REPO, basedir: ".", secret: "${CODECOV_SECRET}")
         }
-        junit(allowEmptyResults: true, keepLongStdio: true, testResults: "${BASE_DIR}/target/junit-*.xml")
-        codecov(repo: env.REPO, basedir: "${BASE_DIR}", secret: "${CODECOV_SECRET}")
       }
     }
   }
