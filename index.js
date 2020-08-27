@@ -71,6 +71,8 @@ function Client (opts) {
   this._corkTimer = null
   this._received = 0 // number of events given to the client for reporting
   this.sent = 0 // number of events written to the socket
+  this._hasSentMetadata = false
+  this._callsWaitingMetadata = []
   this._active = false
   this._onflushed = null
   this._transport = null
@@ -345,24 +347,41 @@ Client.prototype._encode = function (obj, enc) {
   return ndjson.serialize(out)
 }
 
+Client.prototype._flushCallsWaitingMetadata = function () {
+  for (const args of this._callsWaitingMetadata) {
+    this.write(...args)
+  }
+
+  this._callsWaitingMetadata = []
+}
+
+Client.prototype._sendOrAddToWaitingMetadata = function(...args) {
+  if (this._hasSentMetadata) {
+    this._maybeUncork()
+    return this.write(...args)
+  } else {
+    if (this._callsWaitingMetadata.length === 0) {
+      this._chopper.write('')
+    }
+    this._callsWaitingMetadata.push(args)
+    return true
+  }
+}
+
 Client.prototype.sendSpan = function (span, cb) {
-  this._maybeCork()
-  return this.write({ span }, Client.encoding.SPAN, cb)
+  return this._sendOrAddToWaitingMetadata({ span }, Client.encoding.SPAN, cb)
 }
 
 Client.prototype.sendTransaction = function (transaction, cb) {
-  this._maybeCork()
-  return this.write({ transaction }, Client.encoding.TRANSACTION, cb)
+  return this._sendOrAddToWaitingMetadata({ transaction }, Client.encoding.TRANSACTION, cb)
 }
 
 Client.prototype.sendError = function (error, cb) {
-  this._maybeCork()
-  return this.write({ error }, Client.encoding.ERROR, cb)
+  return this._sendOrAddToWaitingMetadata({ error }, Client.encoding.ERROR, cb)
 }
 
 Client.prototype.sendMetricSet = function (metricset, cb) {
-  this._maybeCork()
-  return this.write({ metricset }, Client.encoding.METRICSET, cb)
+  return this._sendOrAddToWaitingMetadata({ metricset }, Client.encoding.METRICSET, cb)
 }
 
 Client.prototype.flush = function (cb) {
@@ -472,6 +491,8 @@ function onStream (client, onerror) {
 
       client.sent = client._received
       client._active = false
+      // reset has sent metadata back to false so we fetch it again when we receive the next stream
+      client._hasSentMetadata = false
       if (client._onflushed) {
         client._onflushed()
         client._onflushed = null
@@ -494,10 +515,27 @@ function onStream (client, onerror) {
     }
 
     // All requests to the APM Server must start with a metadata object
-    if (!client._encodedMetadata) {
-      client._encodedMetadata = client._encode({ metadata: client._conf.metadata }, Client.encoding.METADATA)
+    const encodeMetadataAndWriteStream = () => {
+      if (!client._encodedMetadata) {
+        client._encodedMetadata = client._encode({ metadata: client._conf.metadata }, Client.encoding.METADATA)
+      }
+
+      stream.write(client._encodedMetadata)
+
+      client._hasSentMetadata = true
+      client._flushCallsWaitingMetadata()
     }
-    stream.write(client._encodedMetadata)
+
+    const { metadata } = client._conf
+
+    if (metadata._cloudMetadataFetcher && !metadata.cloud) {
+      metadata._cloudMetadataFetcher((cloud) => {
+        metadata.cloud = cloud
+        encodeMetadataAndWriteStream()
+      })
+    } else {
+      encodeMetadataAndWriteStream()
+    }
   }
 }
 
@@ -583,7 +621,12 @@ function getMetadata (opts) {
       container: undefined,
       kubernetes: undefined
     },
-    labels: opts.globalLabels
+    labels: opts.globalLabels,
+    cloud: opts.cloud
+  }
+
+  if (!opts.cloud && opts.cloudMetadataFetcher) {
+    payload._cloudMetadataFetcher = opts.cloudMetadataFetcher
   }
 
   if (opts.serviceNodeName) {
