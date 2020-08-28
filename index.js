@@ -360,10 +360,9 @@ Client.prototype._sendOrAddToWaitingMetadata = function(...args) {
     this._maybeUncork()
     return this.write(...args)
   } else {
-    if (this._callsWaitingMetadata.length === 0) {
-      this._chopper.write('')
-    }
+    const shouldWriteToStream = (this._callsWaitingMetadata.length === 0)
     this._callsWaitingMetadata.push(args)
+    shouldWriteToStream && this._chopper.write('')
     return true
   }
 }
