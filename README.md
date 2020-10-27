@@ -307,3 +307,4 @@ subsequent calls to `sendSpan()`, `sendTransaction()`, `sendError()`,
 ## License
 
 [MIT](LICENSE)
+
