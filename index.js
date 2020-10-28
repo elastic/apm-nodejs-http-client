@@ -6,7 +6,8 @@ const { URL } = require('url')
 const zlib = require('zlib')
 const querystring = require('querystring')
 const Writable = require('readable-stream').Writable
-const getContainerInfo = require('./lib/container-info')
+// const getContainerInfo = require('./lib/container-info')
+const getContainerInfo = require('container-info')
 const pump = require('pump')
 const eos = require('end-of-stream')
 const streamToBuffer = require('fast-stream-to-buffer')
@@ -26,7 +27,8 @@ const requiredOpts = [
   'userAgent'
 ]
 
-const containerInfo = getContainerInfo()
+const containerInfo = getContainerInfo.sync()
+// const containerInfo = getContainerInfo()
 
 const node8 = process.version.indexOf('v8.') === 0
 
