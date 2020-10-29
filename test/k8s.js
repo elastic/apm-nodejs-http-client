@@ -277,7 +277,6 @@ test('Tests for ../lib/container-info ', function (t) {
   for (const [, fixture] of fixtures.entries()) {
     const mock = createMockForFixtureString(fixture.source)
     const info = containerInfo(mock)
-    // console.log(info)
     t.equals(info.podId, fixture.expectedPodId, 'expected pod ID returned')
   }
 
