@@ -213,7 +213,7 @@ test('all except kubernetesPodUID', function (t) {
   })
 })
 
-test('Tests for ../lib/container-info ', function (t) {
+test('Tests for ../lib/container-info', function (t) {
   const createMockForFixtureString = (source) => {
     const mock = {
       sync: () => {
