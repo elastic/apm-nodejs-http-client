@@ -87,7 +87,6 @@ test('polling', function (t) {
         t.end()
         res.writeHead(404) // end nicely so we don't get a request-error
         res.end()
-        client.destroy()
         server.close()
         break
       default:

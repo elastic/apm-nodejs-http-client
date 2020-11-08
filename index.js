@@ -73,25 +73,9 @@ function Client (opts) {
   this.sent = 0 // number of events written to the socket
   this._active = false
   this._onflushed = null
-  this._transport = null
   this._configTimer = null
   this._encodedMetadata = null
 
-  switch (this._conf.serverUrl.protocol.slice(0, -1)) { // 'http:' => 'http'
-    case 'http': {
-      this._transport = require('http')
-      break
-    }
-    case 'https': {
-      this._transport = require('https')
-      break
-    }
-    default: {
-      throw new Error('Unknown protocol ' + this._conf.serverUrl.protocol.slice(0, -1))
-    }
-  }
-
-  this._agent = new this._transport.Agent(this._conf)
   this._chopper = new StreamChopper({
     size: this._conf.size,
     time: this._conf.time,
@@ -137,6 +121,22 @@ Client.prototype.config = function (opts) {
   // process
   this._conf.serverUrl = new URL(this._conf.serverUrl)
 
+  switch (this._conf.serverUrl.protocol.slice(0, -1)) { // 'http:' => 'http'
+    case 'http': {
+      this._transport = require('http')
+      break
+    }
+    case 'https': {
+      this._transport = require('https')
+      break
+    }
+    default: {
+      throw new Error('Unknown protocol ' + this._conf.serverUrl.protocol.slice(0, -1))
+    }
+  }
+
+  this._agent = this._conf.agent || new this._transport.Agent(this._conf)
+
   if (containerInfo) {
     if (!this._conf.containerId && containerInfo.containerId) {
       this._conf.containerId = containerInfo.containerId
@@ -162,11 +162,13 @@ Client.prototype._pollConfig = function () {
     opts.headers['If-None-Match'] = this._conf.lastConfigEtag
   }
 
+  const onError = err => {
+    this._scheduleNextConfigPoll()
+    this.emit('request-error', err)
+  }
+
   const req = this._transport.get(opts, res => {
-    res.on('error', err => {
-      // Not sure this event can ever be emitted, but just in case
-      res.destroy(err)
-    })
+    res.on('error', onError) // Not sure this event can ever be emitted, but just in case
 
     this._scheduleNextConfigPoll(getMaxAge(res))
 
@@ -180,7 +182,7 @@ Client.prototype._pollConfig = function () {
     }
 
     streamToBuffer(res, (err, buf) => {
-      if (err) return res.destroy(err)
+      if (err) return onError(err)
 
       if (res.statusCode === 200) {
         // 200: New config available (or no config for the given service.name / service.environment)
@@ -190,18 +192,15 @@ Client.prototype._pollConfig = function () {
         try {
           this.emit('config', JSON.parse(buf))
         } catch (e) {
-          res.destroy(e)
+          onError(e)
         }
       } else {
-        res.destroy(processConfigErrorResponse(res, buf))
+        onError(processConfigErrorResponse(res, buf))
       }
     })
   })
 
-  req.on('error', err => {
-    this._scheduleNextConfigPoll()
-    this.emit('request-error', err)
-  })
+  req.on('error', onError)
 }
 
 Client.prototype._scheduleNextConfigPoll = function (seconds) {

@@ -104,6 +104,9 @@ HTTP client configuration:
   `Infinity`)
 - `maxFreeSockets` - Maximum number of sockets to leave open in a free
   state. Only relevant if `keepAlive` is set to `true` (default: `256`)
+- `agent` - Custom [http.Agent](https://nodejs.org/api/http.html#http_class_http_agent).
+  Typical use case is to swap the default Agent with one compatible with a
+  HTTP proxy, such as [https-proxy-agent](https://github.com/TooTallNate/node-https-proxy-agent)
 
 APM Agent Configuration via Kibana:
 
