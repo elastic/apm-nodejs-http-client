@@ -1,6 +1,6 @@
 {
   "name": "elastic-apm-http-client",
-  "version": "9.4.0",
+  "version": "9.4.1",
   "description": "A low-level HTTP client for communicating with the Elastic APM intake API",
   "main": "index.js",
   "directories": {
@@ -47,9 +47,5 @@
     "apm",
     "http",
     "client"
-  ],
-  "coordinates": [
-    56.038754,
-    12.61983
   ]
 }
