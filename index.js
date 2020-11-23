@@ -545,6 +545,7 @@ function getBasicRequestOptions (method, defaultPath, headers, opts, agent) {
 function getHeaders (opts) {
   const headers = {}
   if (opts.secretToken) headers.Authorization = 'Bearer ' + opts.secretToken
+  if (opts.apiKey) headers.Authorization = 'ApiKey ' + opts.apiKey
   headers.Accept = 'application/json'
   headers['User-Agent'] = `${opts.userAgent} ${pkg.name}/${pkg.version} ${process.release.name}/${process.versions.node}`
   return Object.assign(headers, opts.headers)

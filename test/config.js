@@ -58,7 +58,7 @@ test('null value config options shouldn\'t throw', function (t) {
   t.end()
 })
 
-test('no secretToken', function (t) {
+test('no secretToken or apiKey', function (t) {
   t.plan(1)
   const server = APMServer(function (req, res) {
     t.notOk('authorization' in req.headers)
@@ -69,6 +69,24 @@ test('no secretToken', function (t) {
   server.listen(function () {
     const client = new Client(validOpts({
       serverUrl: 'http://localhost:' + server.address().port
+    }))
+    client.sendSpan({ foo: 42 })
+    client.end()
+  })
+})
+
+test('has apiKey', function (t) {
+  t.plan(1)
+  const server = APMServer(function (req, res) {
+    t.equal(req.headers.authorization, 'ApiKey FooBar123', 'should use apiKey in authorization header')
+    res.end()
+    server.close()
+    t.end()
+  })
+  server.listen(function () {
+    const client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + server.address().port,
+      apiKey: 'FooBar123'
     }))
     client.sendSpan({ foo: 42 })
     client.end()
