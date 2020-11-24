@@ -6,6 +6,9 @@
   "directories": {
     "test": "test"
   },
+  "files": [
+    "lib"
+  ],
   "scripts": {
     "coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
     "test": "standard && nyc tape test/*.js"
