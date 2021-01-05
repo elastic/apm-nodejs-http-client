@@ -467,7 +467,7 @@ test('metadata - cloud info', function (t) {
   // will pass that config key on into the generated
   // metadata
   const optsTestFixture = {
-    cloud:{foo:'bar'}
+    cloudMetadata: { foo: 'bar' }
   }
   // Clear Client and APMServer from require cache
   delete require.cache[require.resolve('../')]
@@ -479,7 +479,7 @@ test('metadata - cloud info', function (t) {
     req = processIntakeReq(req)
     req.once('data', function (obj) {
       t.ok(obj.metadata.cloud, 'cloud metadata set')
-      t.deepEqual(obj.metadata.cloud, optsTestFixture.cloud, 'cloud metadata passed through')
+      t.deepEqual(obj.metadata.cloud, optsTestFixture.cloudMetadata, 'cloud metadata passed through')
     })
     req.on('end', function () {
       res.end()

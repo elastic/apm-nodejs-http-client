@@ -620,8 +620,8 @@ function getMetadata (opts) {
     }
   }
 
-  if(opts.cloud) {
-    payload.cloud = opts.cloud
+  if (opts.cloudMetadata) {
+    payload.cloud = Object.assign({},opts.cloudMetadata)
   }
 
   return payload

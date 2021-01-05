@@ -406,7 +406,6 @@ function genStr (ch, length) {
   return new Array(length + 1).join(ch)
 }
 
-
 test('truncate cloud metadata', function (t) {
   // tests that each cloud metadata field is truncated
   // at `truncateKeywordsAt` values
@@ -417,28 +416,28 @@ test('truncate cloud metadata', function (t) {
 
   const longString = (new Array(500).fill('x').join(''))
   const toTruncate = {
-    "cloud": {
-      "account": {
-        "id": longString,
-        "name": longString
+    cloud: {
+      account: {
+        id: longString,
+        name: longString
       },
-      "availability_zone": longString,
-      "instance": {
-        "id": longString,
-        "name": longString
+      availability_zone: longString,
+      instance: {
+        id: longString,
+        name: longString
       },
-      "machine": {
-        "type": longString
+      machine: {
+        type: longString
       },
-      "project": {
-        "id": longString,
-        "name": longString
+      project: {
+        id: longString,
+        name: longString
       },
-      "provider": longString,
-      "region": longString
+      provider: longString,
+      region: longString
     }
   }
-  const {cloud} = truncate.metadata(toTruncate,opts)
+  const { cloud } = truncate.metadata(toTruncate, opts)
 
   t.ok(cloud.account.id.length === 100, 'account.id.length was truncated')
   t.ok(cloud.account.name.length === 100, 'account.name.length was truncated')
