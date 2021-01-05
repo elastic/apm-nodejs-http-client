@@ -77,17 +77,17 @@ function Client (opts) {
   this._configTimer = null
   this._encodedMetadata = null
 
-  switch (this._conf.serverUrl.protocol.slice(0, -1)) { // 'http:' => 'http'
-    case 'http': {
+  switch (this._conf.serverUrl.protocol) {
+    case 'http:': {
       this._transport = require('http')
       break
     }
-    case 'https': {
+    case 'https:': {
       this._transport = require('https')
       break
     }
     default: {
-      throw new Error('Unknown protocol ' + this._conf.serverUrl.protocol.slice(0, -1))
+      throw new Error('Unknown protocol ' + this._conf.serverUrl.protocol)
     }
   }
 
