@@ -8,6 +8,7 @@ const processIntakeReq = utils.processIntakeReq
 const assertIntakeReq = utils.assertIntakeReq
 const assertMetadata = utils.assertMetadata
 const assertEvent = utils.assertEvent
+const truncate = require('../lib/truncate')
 
 const options = [
   {}, // default options
@@ -404,3 +405,51 @@ options.forEach(function (opts) {
 function genStr (ch, length) {
   return new Array(length + 1).join(ch)
 }
+
+
+test('truncate cloud metadata', function (t) {
+  // tests that each cloud metadata field is truncated
+  // at `truncateKeywordsAt` values
+  const opts = {
+    truncateKeywordsAt: 100,
+    truncateStringsAt: 50
+  }
+
+  const longString = (new Array(500).fill('x').join(''))
+  const toTruncate = {
+    "cloud": {
+      "account": {
+        "id": longString,
+        "name": longString
+      },
+      "availability_zone": longString,
+      "instance": {
+        "id": longString,
+        "name": longString
+      },
+      "machine": {
+        "type": longString
+      },
+      "project": {
+        "id": longString,
+        "name": longString
+      },
+      "provider": longString,
+      "region": longString
+    }
+  }
+  const {cloud} = truncate.metadata(toTruncate,opts)
+
+  t.ok(cloud.account.id.length === 100, 'account.id.length was truncated')
+  t.ok(cloud.account.name.length === 100, 'account.name.length was truncated')
+  t.ok(cloud.availability_zone.length === 100, 'availability_zone was truncated')
+  t.ok(cloud.instance.id.length === 100, 'instance.id was truncated')
+  t.ok(cloud.instance.name.length === 100, 'instance.name was truncated')
+  t.ok(cloud.machine.type.length === 100, 'machine.type was truncated')
+  t.ok(cloud.project.id.length === 100, 'project.id was truncated')
+  t.ok(cloud.project.name.length === 100, 'project.name was truncated')
+  t.ok(cloud.provider.length === 100, 'provider was truncated')
+  t.ok(cloud.region.length === 100, 'region was truncated')
+
+  t.end()
+})

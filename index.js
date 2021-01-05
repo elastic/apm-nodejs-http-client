@@ -620,6 +620,10 @@ function getMetadata (opts) {
     }
   }
 
+  if(opts.cloud) {
+    payload.cloud = opts.cloud
+  }
+
   return payload
 }
 

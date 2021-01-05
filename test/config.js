@@ -461,3 +461,33 @@ test('update conf', function (t) {
     client.end()
   })
 })
+
+test('metadata - cloud info', function (t) {
+  // tests that a Client whose opts include a `config` key
+  // will pass that config key on into the generated
+  // metadata
+  const optsTestFixture = {
+    cloud:{foo:'bar'}
+  }
+  // Clear Client and APMServer from require cache
+  delete require.cache[require.resolve('../')]
+  delete require.cache[require.resolve('./lib/utils')]
+
+  const APMServer = require('./lib/utils').APMServer
+
+  const server = APMServer(function (req, res) {
+    req = processIntakeReq(req)
+    req.once('data', function (obj) {
+      t.ok(obj.metadata.cloud, 'cloud metadata set')
+      t.deepEqual(obj.metadata.cloud, optsTestFixture.cloud, 'cloud metadata passed through')
+    })
+    req.on('end', function () {
+      res.end()
+      server.close()
+      t.end()
+    })
+  }).client(optsTestFixture, function (client) {
+    client.sendSpan({ foo: 42 })
+    client.end()
+  })
+})
