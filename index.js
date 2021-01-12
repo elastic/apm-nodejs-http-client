@@ -101,7 +101,13 @@ function Client (opts) {
     // getEncodedMetadata will have set/memoized the encoded
     // metadata to the _encodedMetadata property.  We don't
     // need to do anything here other than uncork our data
-    this._maybeUncork()
+    // and emit the metadata event (this event lets the
+    // world know our client is really ready to send)
+    this.uncork()
+    this.emit('metadata', this._encodedMetadata)
+    // process.nextTick(() => {
+    // TODO: should uncork be in a nexttick?
+    // })
   })
 
   this._chopper = new StreamChopper({
@@ -166,6 +172,18 @@ Client.prototype.config = function (opts) {
   this._conf.requestConfig = getConfigRequestOptions(this._conf, this._agent)
 
   this._conf.metadata = getMetadata(this._conf)
+
+  // fixes bug where cached/memoized _encodedMetadata wouldn't be
+  // updated when client was reconfigured
+  // TODO: better place/way to do this?
+  if (this._encodedMetadata) {
+    const oldMetadata = JSON.parse(this._encodedMetadata)
+    const toEncode = { metadata: this._conf.metadata }
+    if (oldMetadata.cloud) {
+      toEncode.cloud = oldMetadata.cloud
+    }
+    this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
+  }
 }
 
 Client.prototype._pollConfig = function () {
@@ -322,7 +340,7 @@ Client.prototype._maybeCork = function () {
 Client.prototype._maybeUncork = function () {
   // client must remain corked until cloud metadata has been
   // fetched-or-skipped.
-  if(!this._encodedMetadata) {
+  if (!this._encodedMetadata) {
     return
   }
 
@@ -536,7 +554,7 @@ function onStream (client, onerror) {
  * allow the client to fetch this metadata, the agent also
  * passes in a metadata fetching function.
  */
-Client.prototype.getEncodedMetadata = function(cb) {
+Client.prototype.getEncodedMetadata = function (cb) {
   // if metadata is already set, invoke the
   // callback and then get out.
   if (this._encodedMetadata) {
@@ -546,22 +564,26 @@ Client.prototype.getEncodedMetadata = function(cb) {
 
   const toEncode = { metadata: this._conf.metadata }
 
-  if(!this._conf.cloudMetadataFetcher) {
+  if (!this._conf.cloudMetadataFetcher) {
     // no metadata fetcher from the agent -- encode our data and move on
     this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
-    cb(null, this._encodedMetadata)
+
+    // an "async-hop" to allow the Client constructor to finish, which ensures
+    // the emitted metadata event is always consumable
+    setImmediate(function () {
+      cb(null, this._encodedMetadata)
+    })
   } else {
     // agent provided a metadata fetcher function.  Call it, use its return
     // return-via-callback value to set the cloud metadata and then move on
     this._conf.cloudMetadataFetcher((error, cloudMetadata) => {
-      if(!error && cloudMetadata) {
+      if (!error && cloudMetadata) {
         toEncode.cloud = cloudMetadata
       }
       this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
       cb(error, this._encodedMetadata)
     })
   }
-
 }
 
 function onResult (onerror) {

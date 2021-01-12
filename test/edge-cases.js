@@ -388,26 +388,28 @@ test('client.destroy() - should not allow more writes', function (t) {
   let count = 0
 
   const client = new Client(validOpts({ bufferWindowTime: -1 }))
-  client.on('error', function (err) {
-    t.ok(err instanceof Error, 'should emit error ' + err.message)
-  })
-  client.on('finish', function () {
-    t.pass('should emit finish') // emitted because of client.end()
-  })
-  client.on('close', function () {
-    t.pass('should emit close') // emitted because of client.destroy()
-  })
-  client.destroy()
-  client.sendSpan({ foo: 42 }, done)
-  client.sendTransaction({ foo: 42 }, done)
-  client.sendError({ foo: 42 }, done)
-  client.flush(done)
-  client.end(done)
+  client.on('metadata', function () {
+    client.on('error', function (err) {
+      t.ok(err instanceof Error, 'should emit error ' + err.message)
+    })
+    client.on('finish', function () {
+      t.pass('should emit finish') // emitted because of client.end()
+    })
+    client.on('close', function () {
+      t.pass('should emit close') // emitted because of client.destroy()
+    })
+    client.destroy()
+    client.sendSpan({ foo: 42 }, done)
+    client.sendTransaction({ foo: 42 }, done)
+    client.sendError({ foo: 42 }, done)
+    client.flush(done)
+    client.end(done)
 
-  function done () {
-    t.pass('should still call callback even though it\'s destroyed')
-    if (++count === 5) t.end()
-  }
+    function done () {
+      t.pass('should still call callback even though it\'s destroyed')
+      if (++count === 5) t.end()
+    }
+  })
 })
 
 test('client.destroy() - on ended client', function (t) {
