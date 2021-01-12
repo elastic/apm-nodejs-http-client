@@ -97,17 +97,17 @@ function Client (opts) {
   // metadata is fetched and assigned.  Also, see
   // the _maybeUncork method for checks on metadata
   this.cork()
-  this.getEncodedMetadata(() => {
-    // getEncodedMetadata will have set/memoized the encoded
-    // metadata to the _encodedMetadata property.  We don't
-    // need to do anything here other than uncork our data
-    // and emit the metadata event (this event lets the
-    // world know our client is really ready to send)
+  this.fetchAndEncodeMetadata(() => {
+    // fetchAndEncodeMetadata will have set/memoized the encoded
+    // metadata to the _encodedMetadata property.
+
+    // this uncork reverse the .cork call in the constructor (above)
     this.uncork()
+
+    // the `metadata` event allows listeners to know when the
+    // agent has finished encoding its metadata for the
+    // first time
     this.emit('metadata', this._encodedMetadata)
-    // process.nextTick(() => {
-    // TODO: should uncork be in a nexttick?
-    // })
   })
 
   this._chopper = new StreamChopper({
@@ -177,13 +177,20 @@ Client.prototype.config = function (opts) {
   // updated when client was reconfigured
   // TODO: better place/way to do this?
   if (this._encodedMetadata) {
-    const oldMetadata = JSON.parse(this._encodedMetadata)
-    const toEncode = { metadata: this._conf.metadata }
-    if (oldMetadata.cloud) {
-      toEncode.cloud = oldMetadata.cloud
-    }
-    this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
+    this.updateEncodedMetadata()
   }
+}
+
+/**
+ * Updates the encoded metadata without refetching cloud metadata
+ */
+Client.prototype.updateEncodedMetadata = function () {
+  const oldMetadata = JSON.parse(this._encodedMetadata)
+  const toEncode = { metadata: this._conf.metadata }
+  if (oldMetadata.cloud) {
+    toEncode.cloud = oldMetadata.cloud
+  }
+  this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
 }
 
 Client.prototype._pollConfig = function () {
@@ -543,7 +550,7 @@ function onStream (client, onerror) {
 }
 
 /**
- * Returns encoded metadata
+ * Returns encoded metadata, memoizes into _encodedMetadata property
  *
  * Final encoded metadata value is "memoized" in the
  * this._encodedMetadata property.
@@ -554,7 +561,7 @@ function onStream (client, onerror) {
  * allow the client to fetch this metadata, the agent also
  * passes in a metadata fetching function.
  */
-Client.prototype.getEncodedMetadata = function (cb) {
+Client.prototype.fetchAndEncodeMetadata = function (cb) {
   // if metadata is already set, invoke the
   // callback and then get out.
   if (this._encodedMetadata) {
