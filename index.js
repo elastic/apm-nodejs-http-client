@@ -403,102 +403,133 @@ Client.prototype._destroy = function (err, cb) {
 
 function onStream (client, onerror) {
   return function (stream, next) {
-    const onerrorproxy = (err) => {
-      stream.removeListener('error', onerrorproxy)
-      req.removeListener('error', onerrorproxy)
-      destroyStream(stream)
-      onerror(err)
-    }
+    client.getEncodedMetadata(function(){
+      // TODO: something ends the stream by the time this callback
+      //       is invoked, which creates all sort of problems (
+      //       test/config.js currently hangs after saying the stream
+      //       has already ended)
+      const onerrorproxy = (err) => {
+        stream.removeListener('error', onerrorproxy)
+        req.removeListener('error', onerrorproxy)
+        destroyStream(stream)
+        onerror(err)
+      }
 
-    client._active = true
+      client._active = true
 
-    const req = client._transport.request(client._conf.requestIntake, onResult(onerror))
+      const req = client._transport.request(client._conf.requestIntake, onResult(onerror))
 
-    // Abort the current request if the server responds prior to the request
-    // being finished
-    req.on('response', function (res) {
-      if (!req.finished) {
-        // In Node.js 8, the zlib stream will emit a 'zlib binding closed'
-        // error when destroyed. Furthermore, the HTTP response will not emit
-        // any data events after the request have been destroyed, so it becomes
-        // impossible to see the error returned by the server if we abort the
-        // request. So for Node.js 8, we'll work around this by closing the
-        // stream gracefully.
-        //
-        // This results in the gzip buffer being flushed and a little more data
-        // being sent to the APM Server, but it's better than not getting the
-        // error body.
-        if (node8) {
-          stream.end()
-        } else {
-          destroyStream(stream)
+      // Abort the current request if the server responds prior to the request
+      // being finished
+      req.on('response', function (res) {
+        if (!req.finished) {
+          // In Node.js 8, the zlib stream will emit a 'zlib binding closed'
+          // error when destroyed. Furthermore, the HTTP response will not emit
+          // any data events after the request have been destroyed, so it becomes
+          // impossible to see the error returned by the server if we abort the
+          // request. So for Node.js 8, we'll work around this by closing the
+          // stream gracefully.
+          //
+          // This results in the gzip buffer being flushed and a little more data
+          // being sent to the APM Server, but it's better than not getting the
+          // error body.
+          if (node8) {
+            stream.end()
+          } else {
+            destroyStream(stream)
+          }
         }
-      }
-    })
-
-    // Mointor streams for errors so that we can make sure to destory the
-    // output stream as soon as that occurs
-    stream.on('error', onerrorproxy)
-    req.on('error', onerrorproxy)
-
-    req.on('socket', function (socket) {
-      // Sockets will automatically be unreffed by the HTTP agent when they are
-      // not in use by an HTTP request, but as we're keeping the HTTP request
-      // open, we need to unref the socket manually
-      socket.unref()
-    })
-
-    if (Number.isFinite(client._conf.serverTimeout)) {
-      req.setTimeout(client._conf.serverTimeout, function () {
-        req.abort()
       })
-    }
 
-    pump(stream, req, function () {
-      // This function is technically called with an error, but because we
-      // manually attach error listeners on all the streams in the pipeline
-      // above, we can safely ignore it.
-      //
-      // We do this for two reasons:
-      //
-      // 1) This callback might be called a few ticks too late, in which case a
-      //    race condition could occur where the user would write to the output
-      //    stream before the rest of the system discovered that it was
-      //    unwritable
-      //
-      // 2) The error might occur post the end of the stream. In that case we
-      //    would not get it here as the internal error listener would have
-      //    been removed and the stream would throw the error instead
+      // Mointor streams for errors so that we can make sure to destory the
+      // output stream as soon as that occurs
+      stream.on('error', onerrorproxy)
+      req.on('error', onerrorproxy)
 
-      client.sent = client._received
-      client._active = false
-      if (client._onflushed) {
-        client._onflushed()
-        client._onflushed = null
-      }
-
-      next()
-    })
-
-    // Only intended for local debugging
-    if (client._conf.payloadLogFile) {
-      if (!client._payloadLogFile) {
-        client._payloadLogFile = require('fs').createWriteStream(client._conf.payloadLogFile, { flags: 'a' })
-      }
-
-      // Manually write to the file instead of using pipe/pump so that the file
-      // handle isn't closed when the stream ends
-      stream.pipe(zlib.createGunzip()).on('data', function (chunk) {
-        client._payloadLogFile.write(chunk)
+      req.on('socket', function (socket) {
+        // Sockets will automatically be unreffed by the HTTP agent when they are
+        // not in use by an HTTP request, but as we're keeping the HTTP request
+        // open, we need to unref the socket manually
+        socket.unref()
       })
-    }
 
-    // All requests to the APM Server must start with a metadata object
-    if (!client._encodedMetadata) {
-      client._encodedMetadata = client._encode({ metadata: client._conf.metadata }, Client.encoding.METADATA)
-    }
-    stream.write(client._encodedMetadata)
+      if (Number.isFinite(client._conf.serverTimeout)) {
+        req.setTimeout(client._conf.serverTimeout, function () {
+          req.abort()
+        })
+      }
+
+      pump(stream, req, function () {
+        // This function is technically called with an error, but because we
+        // manually attach error listeners on all the streams in the pipeline
+        // above, we can safely ignore it.
+        //
+        // We do this for two reasons:
+        //
+        // 1) This callback might be called a few ticks too late, in which case a
+        //    race condition could occur where the user would write to the output
+        //    stream before the rest of the system discovered that it was
+        //    unwritable
+        //
+        // 2) The error might occur post the end of the stream. In that case we
+        //    would not get it here as the internal error listener would have
+        //    been removed and the stream would throw the error instead
+
+        client.sent = client._received
+        client._active = false
+        if (client._onflushed) {
+          client._onflushed()
+          client._onflushed = null
+        }
+
+        next()
+      })
+
+      // Only intended for local debugging
+      if (client._conf.payloadLogFile) {
+        if (!client._payloadLogFile) {
+          client._payloadLogFile = require('fs').createWriteStream(client._conf.payloadLogFile, { flags: 'a' })
+        }
+
+        // Manually write to the file instead of using pipe/pump so that the file
+        // handle isn't closed when the stream ends
+        stream.pipe(zlib.createGunzip()).on('data', function (chunk) {
+          client._payloadLogFile.write(chunk)
+        })
+      }
+
+      // All requests to the APM Server must start with a metadata object
+      if (!client._encodedMetadata) {
+        client._encodedMetadata = client._encode({ metadata: client._conf.metadata }, Client.encoding.METADATA)
+      }
+      stream.write(client._encodedMetadata)
+    })
   }
+}
+
+Client.prototype.getEncodedMetadata = function(cb) {
+  // if metadata is already set, invoke the
+  // callback and then get out.
+  if (this._encodedMetadata) {
+    cb(null, this._encodedMetadata)
+    return
+  }
+
+  const toEncode = { metadata: this._conf.metadata }
+
+  if(!this._conf.cloudMetadataFetcher) {
+    this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
+    cb(null, this._encodedMetadata)
+  } else {
+    this._conf.cloudMetadataFetcher((error, cloudMetadata) => {
+      if(!error && cloudMetadata) {
+        toEncode.cloud = cloudMetadata
+      }
+      this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
+      cb(null, this._encodedMetadata)
+    })
+  }
+
 }
 
 function onResult (onerror) {
