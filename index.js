@@ -450,7 +450,7 @@ function onStream (client, onerror) {
 
     if (Number.isFinite(client._conf.serverTimeout)) {
       req.setTimeout(client._conf.serverTimeout, function () {
-        req.abort()
+        req.destroy(new Error(`APM Server didn't responded within ${client._conf.serverTimeout}ms`))
       })
     }
 
