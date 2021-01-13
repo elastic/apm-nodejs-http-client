@@ -175,7 +175,6 @@ Client.prototype.config = function (opts) {
 
   // fixes bug where cached/memoized _encodedMetadata wouldn't be
   // updated when client was reconfigured
-  // TODO: better place/way to do this?
   if (this._encodedMetadata) {
     this.updateEncodedMetadata()
   }
@@ -187,8 +186,8 @@ Client.prototype.config = function (opts) {
 Client.prototype.updateEncodedMetadata = function () {
   const oldMetadata = JSON.parse(this._encodedMetadata)
   const toEncode = { metadata: this._conf.metadata }
-  if (oldMetadata.cloud) {
-    toEncode.cloud = oldMetadata.cloud
+  if (oldMetadata.metadata.cloud) {
+    oldMetadata.metadata.cloud = oldMetadata.cloud
   }
   this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
 }
@@ -585,7 +584,7 @@ Client.prototype.fetchAndEncodeMetadata = function (cb) {
     // return-via-callback value to set the cloud metadata and then move on
     this._conf.cloudMetadataFetcher((error, cloudMetadata) => {
       if (!error && cloudMetadata) {
-        toEncode.cloud = cloudMetadata
+        toEncode.metadata.cloud = cloudMetadata
       }
       this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
       cb(error, this._encodedMetadata)
