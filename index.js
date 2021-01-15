@@ -97,8 +97,8 @@ function Client (opts) {
   // metadata is fetched and assigned.  Also, see
   // the _maybeUncork method for checks on metadata
   this.cork()
-  this.fetchAndEncodeMetadata(() => {
-    // fetchAndEncodeMetadata will have set/memoized the encoded
+  this._fetchAndEncodeMetadata(() => {
+    // _fetchAndEncodeMetadata will have set/memoized the encoded
     // metadata to the _encodedMetadata property.
 
     // this uncork reverse the .cork call in the constructor (above)
@@ -549,7 +549,11 @@ function onStream (client, onerror) {
 }
 
 /**
- * Returns encoded metadata, memoizes into _encodedMetadata property
+ * Fetches cloud metadata and
+ *
+ * Fetched data will be encoded with other metadata, memoize into
+ * _encodedMetadata property, and "returned" to the calling function
+ * via the passed in callback.
  *
  * Final encoded metadata value is "memoized" in the
  * this._encodedMetadata property.
@@ -560,14 +564,7 @@ function onStream (client, onerror) {
  * allow the client to fetch this metadata, the agent also
  * passes in a metadata fetching function.
  */
-Client.prototype.fetchAndEncodeMetadata = function (cb) {
-  // if metadata is already set, invoke the
-  // callback and then get out.
-  if (this._encodedMetadata) {
-    cb(null, this._encodedMetadata)
-    return
-  }
-
+Client.prototype._fetchAndEncodeMetadata = function (cb) {
   const toEncode = { metadata: this._conf.metadata }
 
   if (!this._conf.cloudMetadataFetcher) {
