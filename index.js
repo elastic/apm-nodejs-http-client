@@ -573,9 +573,7 @@ Client.prototype._fetchAndEncodeMetadata = function (cb) {
 
     // an "async-hop" to allow the Client constructor to finish, which ensures
     // the emitted metadata event is always consumable
-    setImmediate(function () {
-      cb(null, this._encodedMetadata)
-    })
+    process.nextTick(cb, null, this._encodedMetadata)
   } else {
     // agent provided a metadata fetcher function.  Call it, use its return
     // return-via-callback value to set the cloud metadata and then move on
@@ -584,7 +582,7 @@ Client.prototype._fetchAndEncodeMetadata = function (cb) {
         toEncode.metadata.cloud = cloudMetadata
       }
       this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
-      cb(error, this._encodedMetadata)
+      process.nextTick(cb, error, this._encodedMetadata)
     })
   }
 }
