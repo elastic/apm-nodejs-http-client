@@ -336,8 +336,7 @@ test('socket timeout - server response too slow', function (t) {
       const end = Date.now()
       const delta = end - start
       t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
-      t.equal(err.message, 'socket hang up')
-      t.equal(err.code, 'ECONNRESET')
+      t.equal(err.message, 'APM Server response timeout (1000ms)')
       server.close()
       t.end()
     })
@@ -358,8 +357,7 @@ test('socket timeout - client request too slow', function (t) {
       const end = Date.now()
       const delta = end - start
       t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
-      t.equal(err.message, 'socket hang up')
-      t.equal(err.code, 'ECONNRESET')
+      t.equal(err.message, 'APM Server response timeout (1000ms)')
       server.close()
       t.end()
     })
