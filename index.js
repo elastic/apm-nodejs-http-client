@@ -187,7 +187,7 @@ Client.prototype.updateEncodedMetadata = function () {
   const oldMetadata = JSON.parse(this._encodedMetadata)
   const toEncode = { metadata: this._conf.metadata }
   if (oldMetadata.metadata.cloud) {
-    oldMetadata.metadata.cloud = oldMetadata.cloud
+    toEncode.metadata.cloud = oldMetadata.metadata.cloud
   }
   this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
 }
@@ -384,6 +384,7 @@ Client.prototype._encode = function (obj, enc) {
       out.metricset = truncate.metricset(obj.metricset, this._conf)
       break
   }
+
   return ndjson.serialize(out)
 }
 
