@@ -548,7 +548,9 @@ function onStream (client, onerror) {
     if (!client._encodedMetadata) {
       client._encodedMetadata = client._encode({ metadata: client._conf.metadata }, Client.encoding.METADATA)
     }
+
     stream.write(client._encodedMetadata)
+
   }
 }
 
@@ -574,7 +576,7 @@ Client.prototype._fetchAndEncodeMetadata = function (cb) {
   } else {
     // agent provided a metadata fetcher function.  Call it, use its return
     // return-via-callback value to set the cloud metadata and then move on
-    this._conf.cloudMetadataFetcher((error, cloudMetadata) => {
+    this._conf.cloudMetadataFetcher.getCloudMetadata((error, cloudMetadata) => {
       if (!error && cloudMetadata) {
         toEncode.metadata.cloud = cloudMetadata
       }
