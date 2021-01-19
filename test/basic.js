@@ -475,7 +475,8 @@ test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured ', functio
     serviceName: 'c',
     userAgent: 'd'
   }
-  conf.cloudMetadataFetcher = function (cb) {
+  conf.cloudMetadataFetcher = {}
+  conf.cloudMetadataFetcher.getCloudMetadata = function (cb) {
     process.nextTick(cb, null, { foo: 'bar' })
   }
   const client = new Client(conf)
@@ -498,7 +499,8 @@ test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured but an err
     serviceName: 'c',
     userAgent: 'd'
   }
-  conf.cloudMetadataFetcher = function (cb) {
+  conf.cloudMetadataFetcher = {}
+  conf.cloudMetadataFetcher.getCloudMetadata = function (cb) {
     const error = new Error('whoops')
     process.nextTick(cb, error, { foo: 'bar' })
   }
