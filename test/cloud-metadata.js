@@ -28,11 +28,11 @@ tape.test('cloud metadata: updateEncodedMetadata', function (t) {
 
   const metadataPostUpdate = JSON.parse(client._encodedMetadata).metadata
   // console.log(metadataPostUpdate)
-  t.equals(metadataPostUpdate.service.name, baseConf.serviceName, 'initial service name set')
-  t.equals(metadataPostUpdate.service.agent.name, baseConf.agentName, 'initial agent name set')
-  t.equals(metadataPostUpdate.service.agent.version, baseConf.agentVersion, 'initial agent version set')
+  t.equals(metadataPostUpdate.service.name, baseConf.serviceName, 'service name still set')
+  t.equals(metadataPostUpdate.service.agent.name, baseConf.agentName, 'agent name still set')
+  t.equals(metadataPostUpdate.service.agent.version, baseConf.agentVersion, 'agent version still set')
   t.ok(metadataPostUpdate.cloud, 'cloud metadata still set after call to updateEncodedMetadata')
-  t.equals(metadataPostUpdate.cloud.foo, 'bar', 'cloud metadata "passed through" on call to updateEncodedMetadata')
+  t.equals(metadataPostUpdate.cloud.foo, 'bar', 'cloud metadata "passed through" when something calls updateEncodedMetadata')
   t.end()
 })
 
@@ -41,9 +41,9 @@ tape.test('cloud metadata: _fetchAndEncodeMetadata with no fetcher configured', 
   const client = new Client(conf)
   client._fetchAndEncodeMetadata(function () {
     const metadata = JSON.parse(client._encodedMetadata).metadata
-    t.equals(metadata.service.name, baseConf.serviceName, 'initial service name set')
-    t.equals(metadata.service.agent.name, baseConf.agentName, 'initial agent name set')
-    t.equals(metadata.service.agent.version, baseConf.agentVersion, 'initial agent version set')
+    t.equals(metadata.service.name, baseConf.serviceName, 'service name set')
+    t.equals(metadata.service.agent.name, baseConf.agentName, 'agent name set')
+    t.equals(metadata.service.agent.version, baseConf.agentVersion, 'agent version set')
     t.ok(!metadata.cloud, 'no cloud metadata set with a fetcher configured')
     t.end()
   })
@@ -58,9 +58,9 @@ tape.test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured ', fu
   const client = new Client(conf)
   client._fetchAndEncodeMetadata(function () {
     const metadata = JSON.parse(client._encodedMetadata).metadata
-    t.equals(metadata.service.name, baseConf.serviceName, 'initial service name set')
-    t.equals(metadata.service.agent.name, baseConf.agentName, 'initial agent name set')
-    t.equals(metadata.service.agent.version, baseConf.agentVersion, 'initial agent version set')
+    t.equals(metadata.service.name, baseConf.serviceName, 'service name set')
+    t.equals(metadata.service.agent.name, baseConf.agentName, 'agent name set')
+    t.equals(metadata.service.agent.version, baseConf.agentVersion, 'agent version set')
     t.ok(metadata.cloud, 'cloud metadata set with a fetcher configured')
     t.equals(metadata.cloud.foo, 'bar', 'cloud metadata value represented')
     t.end()
@@ -77,10 +77,10 @@ tape.test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured but a
   const client = new Client(conf)
   client._fetchAndEncodeMetadata(function () {
     const metadata = JSON.parse(client._encodedMetadata).metadata
-    t.equals(metadata.service.name, baseConf.serviceName, 'initial service name set')
-    t.equals(metadata.service.agent.name, baseConf.agentName, 'initial agent name set')
-    t.equals(metadata.service.agent.version, baseConf.agentVersion, 'initial agent version set')
-    t.ok(!metadata.cloud, 'cloud metadata not set when fetcher errors')
+    t.equals(metadata.service.name, baseConf.serviceName, 'service name set')
+    t.equals(metadata.service.agent.name, baseConf.agentName, 'agent name set')
+    t.equals(metadata.service.agent.version, baseConf.agentVersion, 'agent version set')
+    t.ok(!metadata.cloud, 'cloud metadata not set when there is a fetcher error')
     t.end()
   })
 })

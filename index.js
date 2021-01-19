@@ -94,8 +94,9 @@ function Client (opts) {
   this._agent = new this._transport.Agent(this._conf)
 
   // start stream in corked mode, uncork when cloud
-  // metadata is fetched and assigned.  Also, see
-  // the _maybeUncork method for checks on metadata
+  // metadata is fetched and assigned.  Also, the
+  // _maybeUncork will not uncork until _encodedMetadata
+  // is set
   this.cork()
   this._fetchAndEncodeMetadata(() => {
     // _fetchAndEncodeMetadata will have set/memoized the encoded
@@ -384,7 +385,6 @@ Client.prototype._encode = function (obj, enc) {
       out.metricset = truncate.metricset(obj.metricset, this._conf)
       break
   }
-
   return ndjson.serialize(out)
 }
 
@@ -537,11 +537,14 @@ function onStream (client, onerror) {
     }
 
     // All requests to the APM Server must start with a metadata object
-    // This metadata _should_ be set in the Client constructor function
-    // after making a cloud metadata call.  Since we cork data until
-    // the client._encodedMetadata is set the following conditional
-    // should not be neccesary -- but let's leave it here out of a
-    // healthy sense of caution/paranoia
+    // The _encodedMetadata property _should_ be set in the Client
+    // constructor function after making a cloud metadata call.
+    //
+    // Since we cork data until the client._encodedMetadata is set the
+    // following conditional should not be necessary. However, we'll
+    // leave it in place out of a healthy sense of caution in case
+    // something unsets _encodedMetadata or _encodedMetadata is somehow
+    // never set.
     if (!client._encodedMetadata) {
       client._encodedMetadata = client._encode({ metadata: client._conf.metadata }, Client.encoding.METADATA)
     }
@@ -550,20 +553,14 @@ function onStream (client, onerror) {
 }
 
 /**
- * Fetches cloud metadata and
+ * Fetches cloud metadata and encodes with other metadata
  *
- * Fetched data will be encoded with other metadata, memoize into
- * _encodedMetadata property, and "returned" to the calling function
- * via the passed in callback.
+ * This method will encode the fetched cloud-metadata with other metadata
+ * and memoize the data into the _encodedMetadata property.  Data will
+ * be "returned" to the calling function via the passed in callback.
  *
- * Final encoded metadata value is "memoized" in the
- * this._encodedMetadata property.
- *
- * Metadata comes from two broad sources.  The first is
- * configuration data passed in by the agent.  The second
- * is cloud metadata fetched from services.  In order to
- * allow the client to fetch this metadata, the agent also
- * passes in a metadata fetching function.
+ * The cloudMetadataFetcher configuration values is an error first callback
+ * that fetches the cloud metadata.
  */
 Client.prototype._fetchAndEncodeMetadata = function (cb) {
   const toEncode = { metadata: this._conf.metadata }
@@ -572,8 +569,7 @@ Client.prototype._fetchAndEncodeMetadata = function (cb) {
     // no metadata fetcher from the agent -- encode our data and move on
     this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
 
-    // an "async-hop" to allow the Client constructor to finish, which ensures
-    // the emitted metadata event is always consumable
+    // an "async-hop" to match the async-behavior when `cloudMetadataFetcher` is set
     process.nextTick(cb, null, this._encodedMetadata)
   } else {
     // agent provided a metadata fetcher function.  Call it, use its return
