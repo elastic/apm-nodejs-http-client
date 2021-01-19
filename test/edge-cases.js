@@ -388,7 +388,7 @@ test('client.destroy() - should not allow more writes', function (t) {
   let count = 0
 
   const client = new Client(validOpts({ bufferWindowTime: -1 }))
-  client.on('metadata', function () {
+  client.on('cloud-metadata', function () {
     client.on('error', function (err) {
       t.ok(err instanceof Error, 'should emit error ' + err.message)
     })

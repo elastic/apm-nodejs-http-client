@@ -1,12 +1,12 @@
 const tape = require('tape')
 const Client = require('..')
 const baseConf = {
-  agentName:'a',
-  agentVersion:'b',
-  serviceName:'c',
-  userAgent:'d'
+  agentName: 'a',
+  agentVersion: 'b',
+  serviceName: 'c',
+  userAgent: 'd'
 }
-tape.test('cloud metadata: updateEncodedMetadata', function(t) {
+tape.test('cloud metadata: updateEncodedMetadata', function (t) {
   const conf = Object.assign({}, baseConf)
   const client = new Client(conf)
 
@@ -21,8 +21,8 @@ tape.test('cloud metadata: updateEncodedMetadata', function(t) {
   // is included after an update
 
   // inject our fixture
-  metadataPreUpdate.cloud = {foo:'bar'}
-  client._encodedMetadata = JSON.stringify({metadata:metadataPreUpdate})
+  metadataPreUpdate.cloud = { foo: 'bar' }
+  client._encodedMetadata = JSON.stringify({ metadata: metadataPreUpdate })
 
   client.updateEncodedMetadata()
 
@@ -36,10 +36,10 @@ tape.test('cloud metadata: updateEncodedMetadata', function(t) {
   t.end()
 })
 
-tape.test('cloud metadata: _fetchAndEncodeMetadata with no fetcher configured', function(t) {
+tape.test('cloud metadata: _fetchAndEncodeMetadata with no fetcher configured', function (t) {
   const conf = Object.assign({}, baseConf)
   const client = new Client(conf)
-  client._fetchAndEncodeMetadata(function(){
+  client._fetchAndEncodeMetadata(function () {
     const metadata = JSON.parse(client._encodedMetadata).metadata
     t.equals(metadata.service.name, baseConf.serviceName, 'initial service name set')
     t.equals(metadata.service.agent.name, baseConf.agentName, 'initial agent name set')
@@ -49,14 +49,14 @@ tape.test('cloud metadata: _fetchAndEncodeMetadata with no fetcher configured', 
   })
 })
 
-tape.test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured ', function(t) {
+tape.test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured ', function (t) {
   // test with a fetcher configured
   const conf = Object.assign({}, baseConf)
-  conf.cloudMetadataFetcher = function(cb) {
-    process.nextTick(cb, null, {foo:'bar'})
+  conf.cloudMetadataFetcher = function (cb) {
+    process.nextTick(cb, null, { foo: 'bar' })
   }
   const client = new Client(conf)
-  client._fetchAndEncodeMetadata(function(){
+  client._fetchAndEncodeMetadata(function () {
     const metadata = JSON.parse(client._encodedMetadata).metadata
     t.equals(metadata.service.name, baseConf.serviceName, 'initial service name set')
     t.equals(metadata.service.agent.name, baseConf.agentName, 'initial agent name set')
@@ -67,15 +67,15 @@ tape.test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured ', fu
   })
 })
 
-tape.test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured but an error', function(t) {
+tape.test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured but an error', function (t) {
   // fetcher configured but its callback returns an error
   const conf = Object.assign({}, baseConf)
-  conf.cloudMetadataFetcher = function(cb) {
+  conf.cloudMetadataFetcher = function (cb) {
     const error = new Error('whoops')
-    process.nextTick(cb, error, {foo:'bar'})
+    process.nextTick(cb, error, { foo: 'bar' })
   }
   const client = new Client(conf)
-  client._fetchAndEncodeMetadata(function(){
+  client._fetchAndEncodeMetadata(function () {
     const metadata = JSON.parse(client._encodedMetadata).metadata
     t.equals(metadata.service.name, baseConf.serviceName, 'initial service name set')
     t.equals(metadata.service.agent.name, baseConf.agentName, 'initial agent name set')

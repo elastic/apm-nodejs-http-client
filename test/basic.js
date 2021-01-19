@@ -211,7 +211,7 @@ test('client.flush(callback) - with active request', function (t) {
       t.end()
     })
   }).client({ bufferWindowTime: -1 }, function (client) {
-    client.on('metadata', function () {
+    client.on('cloud-metadata', function () {
       t.equal(client._active, false, 'no outgoing HTTP request to begin with')
       client.sendSpan({ foo: 42 })
       t.equal(client._active, true, 'an outgoing HTTP request should be active')
@@ -247,7 +247,7 @@ test('client.flush(callback) - with queued request', function (t) {
       }
     })
   }).client({ bufferWindowTime: -1 }, function (client) {
-    client.on('metadata', function () {
+    client.on('cloud-metadata', function () {
       client.sendSpan({ req: 1 })
       client.flush()
       client.sendSpan({ req: 2 })

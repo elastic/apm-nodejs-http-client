@@ -71,7 +71,7 @@ dataTypes.forEach(function (dataType) {
 
   test(`bufferWindowTime - custom value (${dataType})`, function (t) {
     const server = APMServer().client({ bufferWindowTime: 150 }, function (client) {
-      client.on('metadata', function () {
+      client.on('cloud-metadata', function () {
         client[sendFn]({ req: 1 })
         t.ok(client._writableState.corked, 'should be corked')
 
@@ -95,7 +95,7 @@ dataTypes.forEach(function (dataType) {
     const server = APMServer(function (req, res) {
       t.fail('should not send anything to the APM Server')
     }).client({ bufferWindowSize: 1 }, function (client) {
-      client.on('metadata', function () {
+      client.on('cloud-metadata', function () {
         client.on('error', function (err) {
           t.error(err)
         })

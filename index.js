@@ -104,10 +104,10 @@ function Client (opts) {
     // this uncork reverse the .cork call in the constructor (above)
     this.uncork()
 
-    // the `metadata` event allows listeners to know when the
-    // agent has finished encoding its metadata for the
+    // the `cloud-metadata` event allows listeners to know when the
+    // agent has finished fetching and encoding its metadata for the
     // first time
-    this.emit('metadata', this._encodedMetadata)
+    this.emit('cloud-metadata', this._encodedMetadata)
   })
 
   this._chopper = new StreamChopper({
