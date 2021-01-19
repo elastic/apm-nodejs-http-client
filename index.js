@@ -550,7 +550,6 @@ function onStream (client, onerror) {
     }
 
     stream.write(client._encodedMetadata)
-
   }
 }
 
