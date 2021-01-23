@@ -575,12 +575,12 @@ Client.prototype._fetchAndEncodeMetadata = function (cb) {
   } else {
     // agent provided a metadata fetcher function.  Call it, use its return
     // return-via-callback value to set the cloud metadata and then move on
-    this._conf.cloudMetadataFetcher.getCloudMetadata((error, cloudMetadata) => {
-      if (!error && cloudMetadata) {
+    this._conf.cloudMetadataFetcher.getCloudMetadata((err, cloudMetadata) => {
+      if (!err && cloudMetadata) {
         toEncode.metadata.cloud = cloudMetadata
       }
       this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
-      process.nextTick(cb, error, this._encodedMetadata)
+      process.nextTick(cb, err, this._encodedMetadata)
     })
   }
 }
