@@ -536,7 +536,6 @@ function onStream (client, onerror) {
       })
     }
 
-    // All requests to the APM Server must start with a metadata object
     // The _encodedMetadata property _should_ be set in the Client
     // constructor function after making a cloud metadata call.
     //
@@ -549,6 +548,7 @@ function onStream (client, onerror) {
       client._encodedMetadata = client._encode({ metadata: client._conf.metadata }, Client.encoding.METADATA)
     }
 
+    // All requests to the APM Server must start with a metadata object
     stream.write(client._encodedMetadata)
   }
 }
