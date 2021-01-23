@@ -443,9 +443,6 @@ test('payloadLogFile', function (t) {
   })
 })
 
-// current agent bug where stored _encodedMetadata is never
-// refreshed.  This test passed before because sendSpan triggered
-// the initial population of _encodedMetadata
 test('update conf', function (t) {
   t.plan(1)
   const server = APMServer(function (req, res) {
