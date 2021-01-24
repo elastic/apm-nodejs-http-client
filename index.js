@@ -570,7 +570,6 @@ Client.prototype._fetchAndEncodeMetadata = function (cb) {
     // no metadata fetcher from the agent -- encode our data and move on
     this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
 
-    // an "async-hop" to match the async-behavior when `cloudMetadataFetcher` is set
     process.nextTick(cb, null, this._encodedMetadata)
   } else {
     // agent provided a metadata fetcher function.  Call it, use its return
@@ -580,7 +579,7 @@ Client.prototype._fetchAndEncodeMetadata = function (cb) {
         toEncode.metadata.cloud = cloudMetadata
       }
       this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
-      process.nextTick(cb, err, this._encodedMetadata)
+      cb(err, this._encodedMetadata)
     })
   }
 }
