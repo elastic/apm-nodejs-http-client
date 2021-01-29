@@ -2,7 +2,7 @@
 
 const test = require('tape')
 const utils = require('./lib/utils')
-
+const Client = require('..')
 const APMServer = utils.APMServer
 const processIntakeReq = utils.processIntakeReq
 const assertIntakeReq = utils.assertIntakeReq
@@ -211,11 +211,13 @@ test('client.flush(callback) - with active request', function (t) {
       t.end()
     })
   }).client({ bufferWindowTime: -1 }, function (client) {
-    t.equal(client._active, false, 'no outgoing HTTP request to begin with')
-    client.sendSpan({ foo: 42 })
-    t.equal(client._active, true, 'an outgoing HTTP request should be active')
-    client.flush(function () {
-      t.equal(client._active, false, 'the outgoing HTTP request should be done')
+    client.on('cloud-metadata', function () {
+      t.equal(client._active, false, 'no outgoing HTTP request to begin with')
+      client.sendSpan({ foo: 42 })
+      t.equal(client._active, true, 'an outgoing HTTP request should be active')
+      client.flush(function () {
+        t.equal(client._active, false, 'the outgoing HTTP request should be done')
+      })
     })
   })
 })
@@ -245,12 +247,14 @@ test('client.flush(callback) - with queued request', function (t) {
       }
     })
   }).client({ bufferWindowTime: -1 }, function (client) {
-    client.sendSpan({ req: 1 })
-    client.flush()
-    client.sendSpan({ req: 2 })
-    t.equal(client._active, true, 'an outgoing HTTP request should be active')
-    client.flush(function () {
-      t.equal(client._active, false, 'the outgoing HTTP request should be done')
+    client.on('cloud-metadata', function () {
+      client.sendSpan({ req: 1 })
+      client.flush()
+      client.sendSpan({ req: 2 })
+      t.equal(client._active, true, 'an outgoing HTTP request should be active')
+      client.flush(function () {
+        t.equal(client._active, false, 'the outgoing HTTP request should be done')
+      })
     })
   })
 })
@@ -408,4 +412,105 @@ test('should not open new request until it\'s needed after timeout', function (t
     expectRequest = true
     client.sendError({ foo: 42 })
   }
+})
+
+test('cloud metadata: updateEncodedMetadata', function (t) {
+  const conf = {
+    agentName: 'a',
+    agentVersion: 'b',
+    serviceName: 'c',
+    userAgent: 'd'
+  }
+  const client = new Client(conf)
+
+  // test initial values
+  const metadataPreUpdate = JSON.parse(client._encodedMetadata).metadata
+  t.equals(metadataPreUpdate.service.name, conf.serviceName, 'initial service name set')
+  t.equals(metadataPreUpdate.service.agent.name, conf.agentName, 'initial agent name set')
+  t.equals(metadataPreUpdate.service.agent.version, conf.agentVersion, 'initial agent version set')
+  t.ok(!metadataPreUpdate.cloud, 'no cloud metadata set initially')
+
+  // tests that cloud metadata included in the _encodedPayload
+  // is included after an update
+
+  // inject our fixture
+  metadataPreUpdate.cloud = { foo: 'bar' }
+  client._encodedMetadata = JSON.stringify({ metadata: metadataPreUpdate })
+
+  client.updateEncodedMetadata()
+
+  const metadataPostUpdate = JSON.parse(client._encodedMetadata).metadata
+  // console.log(metadataPostUpdate)
+  t.equals(metadataPostUpdate.service.name, conf.serviceName, 'service name still set')
+  t.equals(metadataPostUpdate.service.agent.name, conf.agentName, 'agent name still set')
+  t.equals(metadataPostUpdate.service.agent.version, conf.agentVersion, 'agent version still set')
+  t.ok(metadataPostUpdate.cloud, 'cloud metadata still set after call to updateEncodedMetadata')
+  t.equals(metadataPostUpdate.cloud.foo, 'bar', 'cloud metadata "passed through" when something calls updateEncodedMetadata')
+  t.end()
+})
+
+test('cloud metadata: _fetchAndEncodeMetadata with no fetcher configured', function (t) {
+  const conf = {
+    agentName: 'a',
+    agentVersion: 'b',
+    serviceName: 'c',
+    userAgent: 'd'
+  }
+  const client = new Client(conf)
+  client._fetchAndEncodeMetadata(function () {
+    const metadata = JSON.parse(client._encodedMetadata).metadata
+    t.equals(metadata.service.name, conf.serviceName, 'service name set')
+    t.equals(metadata.service.agent.name, conf.agentName, 'agent name set')
+    t.equals(metadata.service.agent.version, conf.agentVersion, 'agent version set')
+    t.ok(!metadata.cloud, 'no cloud metadata set with a fetcher configured')
+    t.end()
+  })
+})
+
+test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured ', function (t) {
+  // test with a fetcher configured
+  const conf = {
+    agentName: 'a',
+    agentVersion: 'b',
+    serviceName: 'c',
+    userAgent: 'd'
+  }
+  conf.cloudMetadataFetcher = {}
+  conf.cloudMetadataFetcher.getCloudMetadata = function (cb) {
+    process.nextTick(cb, null, { foo: 'bar' })
+  }
+  const client = new Client(conf)
+  client._fetchAndEncodeMetadata(function () {
+    const metadata = JSON.parse(client._encodedMetadata).metadata
+    t.equals(metadata.service.name, conf.serviceName, 'service name set')
+    t.equals(metadata.service.agent.name, conf.agentName, 'agent name set')
+    t.equals(metadata.service.agent.version, conf.agentVersion, 'agent version set')
+    t.ok(metadata.cloud, 'cloud metadata set with a fetcher configured')
+    t.equals(metadata.cloud.foo, 'bar', 'cloud metadata value represented')
+    t.end()
+  })
+})
+
+test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured but an error', function (t) {
+  // fetcher configured but its callback returns an error
+  const conf = {
+    agentName: 'a',
+    agentVersion: 'b',
+    serviceName: 'c',
+    userAgent: 'd'
+  }
+  conf.cloudMetadataFetcher = {}
+  conf.cloudMetadataFetcher.getCloudMetadata = function (cb) {
+    const error = new Error('whoops')
+    process.nextTick(cb, error, { foo: 'bar' })
+  }
+  const client = new Client(conf)
+  client._fetchAndEncodeMetadata(function () {
+    const metadata = JSON.parse(client._encodedMetadata).metadata
+    t.equals(metadata.service.name, conf.serviceName, 'service name set')
+    t.equals(metadata.service.agent.name, conf.agentName, 'agent name set')
+    t.equals(metadata.service.agent.version, conf.agentVersion, 'agent version set')
+    t.ok(!metadata.cloud, 'cloud metadata not set when there is a fetcher error')
+    t.end()
+  })
 })
