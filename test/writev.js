@@ -71,21 +71,23 @@ dataTypes.forEach(function (dataType) {
 
   test(`bufferWindowTime - custom value (${dataType})`, function (t) {
     const server = APMServer().client({ bufferWindowTime: 150 }, function (client) {
-      client[sendFn]({ req: 1 })
-      t.ok(client._writableState.corked, 'should be corked')
-
-      // Wait twice as long as the default bufferWindowTime
-      setTimeout(function () {
+      client.on('cloud-metadata', function () {
+        client[sendFn]({ req: 1 })
         t.ok(client._writableState.corked, 'should be corked')
-      }, 40)
 
-      // Wait twice as long as the custom bufferWindowTime
-      setTimeout(function () {
-        t.notOk(client._writableState.corked, 'should be uncorked')
-        client.destroy()
-        server.close()
-        t.end()
-      }, 300)
+        // Wait twice as long as the default bufferWindowTime
+        setTimeout(function () {
+          t.ok(client._writableState.corked, 'should be corked')
+        }, 40)
+
+        // Wait twice as long as the custom bufferWindowTime
+        setTimeout(function () {
+          t.notOk(client._writableState.corked, 'should be uncorked')
+          client.destroy()
+          server.close()
+          t.end()
+        }, 300)
+      })
     })
   })
 
@@ -93,20 +95,22 @@ dataTypes.forEach(function (dataType) {
     const server = APMServer(function (req, res) {
       t.fail('should not send anything to the APM Server')
     }).client({ bufferWindowSize: 1 }, function (client) {
-      client.on('error', function (err) {
-        t.error(err)
+      client.on('cloud-metadata', function () {
+        client.on('error', function (err) {
+          t.error(err)
+        })
+
+        client[sendFn]({ req: 1 })
+        client[sendFn]({ req: 2 })
+
+        // Destroy the client before the _writev function have a chance to be called
+        client.destroy()
+
+        setTimeout(function () {
+          server.close()
+          t.end()
+        }, 10)
       })
-
-      client[sendFn]({ req: 1 })
-      client[sendFn]({ req: 2 })
-
-      // Destroy the client before the _writev function have a chance to be called
-      client.destroy()
-
-      setTimeout(function () {
-        server.close()
-        t.end()
-      }, 10)
     })
   })
 })

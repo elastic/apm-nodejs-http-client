@@ -92,6 +92,25 @@ function Client (opts) {
   }
 
   this._agent = new this._transport.Agent(this._conf)
+
+  // start stream in corked mode, uncork when cloud
+  // metadata is fetched and assigned.  Also, the
+  // _maybeUncork will not uncork until _encodedMetadata
+  // is set
+  this.cork()
+  this._fetchAndEncodeMetadata(() => {
+    // _fetchAndEncodeMetadata will have set/memoized the encoded
+    // metadata to the _encodedMetadata property.
+
+    // this uncork reverse the .cork call in the constructor (above)
+    this.uncork()
+
+    // the `cloud-metadata` event allows listeners to know when the
+    // agent has finished fetching and encoding its metadata for the
+    // first time
+    this.emit('cloud-metadata', this._encodedMetadata)
+  })
+
   this._chopper = new StreamChopper({
     size: this._conf.size,
     time: this._conf.time,
@@ -154,6 +173,24 @@ Client.prototype.config = function (opts) {
   this._conf.requestConfig = getConfigRequestOptions(this._conf, this._agent)
 
   this._conf.metadata = getMetadata(this._conf)
+
+  // fixes bug where cached/memoized _encodedMetadata wouldn't be
+  // updated when client was reconfigured
+  if (this._encodedMetadata) {
+    this.updateEncodedMetadata()
+  }
+}
+
+/**
+ * Updates the encoded metadata without refetching cloud metadata
+ */
+Client.prototype.updateEncodedMetadata = function () {
+  const oldMetadata = JSON.parse(this._encodedMetadata)
+  const toEncode = { metadata: this._conf.metadata }
+  if (oldMetadata.metadata.cloud) {
+    toEncode.metadata.cloud = oldMetadata.metadata.cloud
+  }
+  this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
 }
 
 Client.prototype._pollConfig = function () {
@@ -308,6 +345,12 @@ Client.prototype._maybeCork = function () {
 }
 
 Client.prototype._maybeUncork = function () {
+  // client must remain corked until cloud metadata has been
+  // fetched-or-skipped.
+  if (!this._encodedMetadata) {
+    return
+  }
+
   if (this._writableState.corked) {
     // Wait till next tick, so that the current write that triggered the call
     // to `_maybeUncork` have time to be added to the queue. If we didn't do
@@ -493,11 +536,51 @@ function onStream (client, onerror) {
       })
     }
 
-    // All requests to the APM Server must start with a metadata object
+    // The _encodedMetadata property _should_ be set in the Client
+    // constructor function after making a cloud metadata call.
+    //
+    // Since we cork data until the client._encodedMetadata is set the
+    // following conditional should not be necessary. However, we'll
+    // leave it in place out of a healthy sense of caution in case
+    // something unsets _encodedMetadata or _encodedMetadata is somehow
+    // never set.
     if (!client._encodedMetadata) {
       client._encodedMetadata = client._encode({ metadata: client._conf.metadata }, Client.encoding.METADATA)
     }
+
+    // All requests to the APM Server must start with a metadata object
     stream.write(client._encodedMetadata)
+  }
+}
+
+/**
+ * Fetches cloud metadata and encodes with other metadata
+ *
+ * This method will encode the fetched cloud-metadata with other metadata
+ * and memoize the data into the _encodedMetadata property.  Data will
+ * be "returned" to the calling function via the passed in callback.
+ *
+ * The cloudMetadataFetcher configuration values is an error first callback
+ * that fetches the cloud metadata.
+ */
+Client.prototype._fetchAndEncodeMetadata = function (cb) {
+  const toEncode = { metadata: this._conf.metadata }
+
+  if (!this._conf.cloudMetadataFetcher) {
+    // no metadata fetcher from the agent -- encode our data and move on
+    this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
+
+    process.nextTick(cb, null, this._encodedMetadata)
+  } else {
+    // agent provided a metadata fetcher function.  Call it, use its return
+    // return-via-callback value to set the cloud metadata and then move on
+    this._conf.cloudMetadataFetcher.getCloudMetadata((err, cloudMetadata) => {
+      if (!err && cloudMetadata) {
+        toEncode.metadata.cloud = cloudMetadata
+      }
+      this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
+      cb(err, this._encodedMetadata)
+    })
   }
 }
 
