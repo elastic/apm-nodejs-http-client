@@ -55,7 +55,7 @@ Consider this simple program
     s.write('hello stream')
 ```
 
-The MyStream class allows us to create a stream object which we can
+The `MyStream` class allows us to create a stream object that we can
 write data to. The MyStream object can take action whenever data is
 written to this stream.
 
@@ -101,7 +101,7 @@ Let's look at each stream object independently.
 
 Whenever the Elastic Agent wants to send a piece of data to APM Server,
 it will first call a method on the apm-nodejs-http-client object. You
-can see an example [of that
+can see an example [of this
 here](https://github.com/elastic/apm-agent-nodejs/blob/3c2505b5f299381f09409500b4f0108dbb01ba38/lib/instrumentation/index.js#L241),
 with the agent calling the sendSpan method of the apm-nodejs-http-client
 object.
@@ -146,7 +146,7 @@ The stream-chopper
     stream-chopper will close and destroy the destination-stream object,
     and then create a new destination-stream
 
-5.  If the stream-chopper writes data to a stream passed a configured
+5.  If the stream-chopper writes data to a stream past a
     time limit, the stream-chopper will close and destroy the
     destination-stream object, and then create a new destination-stream
 
@@ -179,7 +179,7 @@ have one destination-stream active at time.
 The apm-nodejs-http-client object instantiates the stream-chopper [in
 its
 constructor](https://github.com/elastic/apm-nodejs-http-client/blob/7f352b2181533435eee11d9da4d41a15ac607851/index.js#L95).
-The stream-chopper is a single instance object.
+The stream-chopper is intended to be a long lived single instance object.
 
 ```javascript
     this._chopper = new StreamChopper({
@@ -252,13 +252,13 @@ server. This request object is our our final stream
 
 Both the http and https modules in Node.js provide a low level
 streamable interfaces for making HTTP requests. The request object
-returned by this call to request is a stream object.
+returned by this call to `_transport.request` is a stream object.
 
 Next, the listener function [will
 pipe](https://nodejs.org/api/stream.html#stream_readable_pipe_destination_options)
 the data from the zlib stream to the req stream. This means the
 compressed data that the zlib stream is writing will be written to the
-req stream. In other words -- the compressed data coming out of the zlib
+req stream. In other words --- the compressed data coming out of the zlib
 stream will be sent to the APM Server.
 
 Pump vs. Pipe
@@ -267,7 +267,7 @@ Pump vs. Pipe
 Stream piping is [a built-in feature of the Node.js stream
 library](https://nodejs.org/api/stream.html#stream_readable_pipe_destination_options).
 Stream piping is one of the advanced streaming features we mentioned
-earlier \-- it allows you to automatically send the output of one stream
+earlier --- it allows you to automatically send the output of one stream
 into another stream.
 
 The apm-nodejs-http-client does not *directly* use the stream's pipe
@@ -275,9 +275,11 @@ method. Instead [we
 use](https://github.com/elastic/apm-nodejs-http-client/blob/7f352b2181533435eee11d9da4d41a15ac607851/index.js#L457)
 a [library named pump](https://www.npmjs.com/package/pump)
 
-pump(stream, req, **function** () {\
-*// callback invoked when the streams end*\
+```
+pump(stream, req, function () {
+    // callback invoked when the streams ends
 })
+```
 
 The pump function will pipe one stream to another. Pump's special
 feature is if the destination-stream closes for any reason, **pump will
@@ -292,7 +294,7 @@ When the stream-chopper creates a new zlib stream it issues a stream
 event.
 
 The apm-nodejs-http-client's stream listener will hear this event and
-fire its callback -- which will create a new request starting the whole
+fire its callback --- which will create a new request starting the whole
 process over again.
 
 All this leaves one thing unanswered: What ends the HTTP request stream?
@@ -308,9 +310,9 @@ generic server timeout variable.
 
 Earlier we mentioned one feature of the stream-chopper was
 
-> *If the stream-chopper writes data to a stream passed a configured
+> If the stream-chopper writes data to a stream passed a configured
 > time limit, the stream-chopper will close and destroy the
-> destination-stream object, and then create a new destination-stream*
+> destination-stream object, and then create a new destination-stream
 
 The stream-chopper has [[a time
 limit]{.ul}](https://github.com/elastic/apm-nodejs-http-client/blob/7f352b2181533435eee11d9da4d41a15ac607851/index.js#L97)
@@ -320,8 +322,8 @@ sets this time limit. This means that, by default, every stream-chopper
 destination-stream will be kept open for 10 seconds.
 
 This *also* means that every request stream will be kept open for 10
-seconds. That's because of the pump library \-- **whenever** the
-destination-stream closes, the request stream will close as well.
+seconds. That's because of the pump library. The pump library ensures **whenever** the
+destination-stream closes that the request stream will close as well.
 
 ### Server Timeout
 

@@ -1,8 +1,8 @@
 # Elastic APM Node.js HTTP Client Internals
 
-The following documents describe some of the APIs and architecture that implement agent fields internally.  These features are not considered a public API -- they are implementation details that may change and shift over time irrespective of the client's current semantic version.    
+The following documents describe some of the private APIs and architecture used in this client.  The code discussed here is not considered a public API.  These routines are  implementation details that may change and shift over time irrespective of the client's current semantic version.    
 
-The primary intent of these documents is to give developers and engineers who want to work an agent features a map of the territory.  
+The primary intent of these documents is to give developers and engineers who want to work on features a map of the territory.  
 
 - [Client Streams](./client-streams.md)
 - [Client Streams and Corking](./stream-corking.md)
