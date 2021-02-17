@@ -381,35 +381,6 @@ test('client.destroy() - on fresh client', function (t) {
   })
 })
 
-test('client.destroy() - should not allow more writes', function (t) {
-  t.plan(11)
-  let count = 0
-
-  const client = new Client(validOpts({ bufferWindowTime: -1 }))
-  client.on('cloud-metadata', function () {
-    client.on('error', function (err) {
-      t.ok(err instanceof Error, 'should emit error ' + err.message)
-    })
-    client.on('finish', function () {
-      t.pass('should emit finish') // emitted because of client.end()
-    })
-    client.on('close', function () {
-      t.pass('should emit close') // emitted because of client.destroy()
-    })
-    client.destroy()
-    client.sendSpan({ foo: 42 }, done)
-    client.sendTransaction({ foo: 42 }, done)
-    client.sendError({ foo: 42 }, done)
-    client.flush(done)
-    client.end(done)
-
-    function done () {
-      t.pass('should still call callback even though it\'s destroyed')
-      if (++count === 5) t.end()
-    }
-  })
-})
-
 test('client.destroy() - on ended client', function (t) {
   t.plan(2)
   let client
@@ -470,6 +441,54 @@ test('client.destroy() - on client with request in progress', function (t) {
       t.pass('should emit close event')
     })
     client.sendSpan({ foo: 42 })
+  })
+})
+
+// If the client is destroyed while waiting for cloud metadata to be fetched,
+// there should not be an error:
+//    Error: Cannot call write after a stream was destroyed
+// when cloud metadata *has* returned.
+test('getCloudMetadata after client.destroy() should not result in error', function (t) {
+  const server = http.createServer(function (req, res) {
+    res.end('bye')
+  })
+
+  server.listen(function () {
+    // 1. Create a client with a slow cloudMetadataFetcher.
+    const client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + server.address().port,
+      cloudMetadataFetcher: {
+        getCloudMetadata: function (cb) {
+          setTimeout(function () {
+            t.comment('calling back with cloud metadata')
+            cb(null, { fake: 'cloud metadata' })
+          }, 1000)
+        }
+      }
+    }))
+    client.on('close', function () {
+      t.pass('should emit close event')
+    })
+    client.on('finish', function () {
+      t.fail('should not emit finish')
+    })
+    client.on('error', function (err) {
+      t.ifError(err, 'should not get a client "error" event')
+    })
+    client.on('cloud-metadata', function () {
+      t.end()
+    })
+
+    // 2. Start sending something to the (mock) APM server.
+    client.sendSpan({ foo: 42 })
+
+    // 3. Then destroy the client soon after, but before the `getCloudMetadata`
+    //    above finishes.
+    setImmediate(function () {
+      t.comment('destroy client')
+      client.destroy()
+      server.close()
+    })
   })
 })
 
