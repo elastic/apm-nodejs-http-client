@@ -102,8 +102,9 @@ function Client (opts) {
     // _fetchAndEncodeMetadata will have set/memoized the encoded
     // metadata to the _encodedMetadata property.
 
-    // this uncork reverse the .cork call in the constructor (above)
-    this.uncork()
+    // This reverses the cork() call in the constructor above. "Maybe" uncork,
+    // in case the client has been destroyed before this callback is called.
+    this._maybeUncork()
 
     // the `cloud-metadata` event allows listeners to know when the
     // agent has finished fetching and encoding its metadata for the

@@ -211,12 +211,19 @@ test('client.flush(callback) - with active request', function (t) {
       t.end()
     })
   }).client({ bufferWindowTime: -1 }, function (client) {
+    // Cloud metadata fetching means that a write (via `client.sendSpan()` or
+    // similar) does *not* mean an immediately active outgoing request until
+    // *some time after* cloud metadata is fetched. That "some time after" is
+    // after (a) the "cloud-metadata" event, plus (b) the `nextTick()` in
+    // `_maybeUncork()` before calling `uncork()`.
     client.on('cloud-metadata', function () {
-      t.equal(client._active, false, 'no outgoing HTTP request to begin with')
-      client.sendSpan({ foo: 42 })
-      t.equal(client._active, true, 'an outgoing HTTP request should be active')
-      client.flush(function () {
-        t.equal(client._active, false, 'the outgoing HTTP request should be done')
+      process.nextTick(function () {
+        t.equal(client._active, false, 'no outgoing HTTP request to begin with')
+        client.sendSpan({ foo: 42 })
+        t.equal(client._active, true, 'an outgoing HTTP request should be active')
+        client.flush(function () {
+          t.equal(client._active, false, 'the outgoing HTTP request should be done')
+        })
       })
     })
   })
@@ -247,13 +254,20 @@ test('client.flush(callback) - with queued request', function (t) {
       }
     })
   }).client({ bufferWindowTime: -1 }, function (client) {
+    // Cloud metadata fetching means that a write (via `client.sendSpan()` or
+    // similar) does *not* mean an immediately active outgoing request until
+    // *some time after* cloud metadata is fetched. That "some time after" is
+    // after (a) the "cloud-metadata" event, plus (b) the `nextTick()` in
+    // `_maybeUncork()` before calling `uncork()`.
     client.on('cloud-metadata', function () {
-      client.sendSpan({ req: 1 })
-      client.flush()
-      client.sendSpan({ req: 2 })
-      t.equal(client._active, true, 'an outgoing HTTP request should be active')
-      client.flush(function () {
-        t.equal(client._active, false, 'the outgoing HTTP request should be done')
+      process.nextTick(function () {
+        client.sendSpan({ req: 1 })
+        client.flush()
+        client.sendSpan({ req: 2 })
+        t.equal(client._active, true, 'an outgoing HTTP request should be active')
+        client.flush(function () {
+          t.equal(client._active, false, 'the outgoing HTTP request should be done')
+        })
       })
     })
   })

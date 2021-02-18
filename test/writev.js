@@ -71,22 +71,29 @@ dataTypes.forEach(function (dataType) {
 
   test(`bufferWindowTime - custom value (${dataType})`, function (t) {
     const server = APMServer().client({ bufferWindowTime: 150 }, function (client) {
+      // Cloud metadata fetching means that a write (via `client.sendSpan()` or
+      // similar) does *not* mean an immediately active outgoing request until
+      // *some time after* cloud metadata is fetched. That "some time after" is
+      // after (a) the "cloud-metadata" event, plus (b) the `nextTick()` in
+      // `_maybeUncork()` before calling `uncork()`.
       client.on('cloud-metadata', function () {
-        client[sendFn]({ req: 1 })
-        t.ok(client._writableState.corked, 'should be corked')
-
-        // Wait twice as long as the default bufferWindowTime
-        setTimeout(function () {
+        process.nextTick(function () {
+          client[sendFn]({ req: 1 })
           t.ok(client._writableState.corked, 'should be corked')
-        }, 40)
 
-        // Wait twice as long as the custom bufferWindowTime
-        setTimeout(function () {
-          t.notOk(client._writableState.corked, 'should be uncorked')
-          client.destroy()
-          server.close()
-          t.end()
-        }, 300)
+          // Wait twice as long as the default bufferWindowTime
+          setTimeout(function () {
+            t.ok(client._writableState.corked, 'should be corked')
+          }, 40)
+
+          // Wait twice as long as the custom bufferWindowTime
+          setTimeout(function () {
+            t.notOk(client._writableState.corked, 'should be uncorked')
+            client.destroy()
+            server.close()
+            t.end()
+          }, 300)
+        })
       })
     })
   })
