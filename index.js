@@ -390,21 +390,33 @@ Client.prototype._encode = function (obj, enc) {
 }
 
 Client.prototype.sendSpan = function (span, cb) {
+  if (this.destroyed) {
+    return
+  }
   this._maybeCork()
   return this.write({ span }, Client.encoding.SPAN, cb)
 }
 
 Client.prototype.sendTransaction = function (transaction, cb) {
+  if (this.destroyed) {
+    return
+  }
   this._maybeCork()
   return this.write({ transaction }, Client.encoding.TRANSACTION, cb)
 }
 
 Client.prototype.sendError = function (error, cb) {
+  if (this.destroyed) {
+    return
+  }
   this._maybeCork()
   return this.write({ error }, Client.encoding.ERROR, cb)
 }
 
 Client.prototype.sendMetricSet = function (metricset, cb) {
+  if (this.destroyed) {
+    return
+  }
   this._maybeCork()
   return this.write({ metricset }, Client.encoding.METRICSET, cb)
 }
