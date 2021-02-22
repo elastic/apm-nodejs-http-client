@@ -492,6 +492,48 @@ test('getCloudMetadata after client.destroy() should not result in error', funct
   })
 })
 
+// FWIW, the current apm-agent-nodejs will happily call
+// `client.sendTransaction()` after it has called `client.destroy()`.
+test('client.send*() after client.destroy() should not result in error', function (t) {
+  const mockApmServer = http.createServer(function (req, res) {
+    res.end('bye')
+  })
+
+  mockApmServer.listen(function () {
+    const UNCORK_TIMER_MS = 100
+    const client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + mockApmServer.address().port,
+      bufferWindowTime: UNCORK_TIMER_MS
+    }))
+
+    // 1. Wait until cloud-metadata and the nextTick after which it will uncork
+    //    the client's stream.
+    client.on('cloud-metadata', function () {
+      process.nextTick(function () {
+        // 2. Destroy the client, and then call one of its `.send*()` methods.
+        client.destroy()
+        client.sendSpan({ a: 'fake span' })
+
+        // 4. Give it until after `conf.bufferWindowTime` time (the setTimeout
+        //    length used for `_corkTimer`) -- which is the error code path we
+        //    are testing.
+        setTimeout(function () {
+          t.ok('waited 2 * UNCORK_TIMER_MS')
+          mockApmServer.close(function () {
+            t.end()
+          })
+        }, 2 * UNCORK_TIMER_MS)
+      })
+    })
+
+    // 3. We should *not* receive:
+    //      Error: Cannot call write after a stream was destroyed
+    client.on('error', function (err) {
+      t.ifErr(err, 'should *not* receive a "Cannot call write after a stream was destroyed" error')
+    })
+  })
+})
+
 const dataTypes = ['span', 'transaction', 'error']
 
 dataTypes.forEach(function (dataType) {

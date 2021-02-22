@@ -389,22 +389,42 @@ Client.prototype._encode = function (obj, enc) {
   return ndjson.serialize(out)
 }
 
+// With the cork/uncork handling on this stream, `this.write`ing on this
+// stream when already destroyed will lead to:
+//    Error: Cannot call write after a stream was destroyed
+// when the `_corkTimer` expires.
+Client.prototype._isUnsafeToWrite = function () {
+  return this.destroyed
+}
+
 Client.prototype.sendSpan = function (span, cb) {
+  if (this._isUnsafeToWrite()) {
+    return
+  }
   this._maybeCork()
   return this.write({ span }, Client.encoding.SPAN, cb)
 }
 
 Client.prototype.sendTransaction = function (transaction, cb) {
+  if (this._isUnsafeToWrite()) {
+    return
+  }
   this._maybeCork()
   return this.write({ transaction }, Client.encoding.TRANSACTION, cb)
 }
 
 Client.prototype.sendError = function (error, cb) {
+  if (this._isUnsafeToWrite()) {
+    return
+  }
   this._maybeCork()
   return this.write({ error }, Client.encoding.ERROR, cb)
 }
 
 Client.prototype.sendMetricSet = function (metricset, cb) {
+  if (this._isUnsafeToWrite()) {
+    return
+  }
   this._maybeCork()
   return this.write({ metricset }, Client.encoding.METRICSET, cb)
 }
