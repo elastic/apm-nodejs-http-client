@@ -218,20 +218,26 @@ Client.prototype._pollConfig = function () {
     }
 
     streamToBuffer(res, (err, buf) => {
-      if (err) return res.destroy(err)
+      if (err) {
+        this.emit('request-error', processConfigErrorResponse(res, buf, err))
+        return
+      }
 
       if (res.statusCode === 200) {
         // 200: New config available (or no config for the given service.name / service.environment)
         const etag = res.headers.etag
         if (etag) this._conf.lastConfigEtag = etag
 
+        let config
         try {
-          this.emit('config', JSON.parse(buf))
-        } catch (e) {
-          res.destroy(e)
+          config = JSON.parse(buf)
+        } catch (parseErr) {
+          this.emit('request-error', processConfigErrorResponse(res, buf, parseErr))
+          return
         }
+        this.emit('config', config)
       } else {
-        res.destroy(processConfigErrorResponse(res, buf))
+        this.emit('request-error', processConfigErrorResponse(res, buf))
       }
     })
   })
@@ -816,12 +822,26 @@ function processIntakeErrorResponse (res, buf) {
   return err
 }
 
-function processConfigErrorResponse (res, buf) {
-  const err = new Error('Unexpected APM Server response when polling config')
+// Construct or decorate an Error instance from a failing response from the
+// APM server central config endpoint.
+//
+// @param {IncomingMessage} res
+// @param {Buffer|undefined} buf - Optional. A Buffer holding the response body.
+// @param {Error|undefined} err - Optional. A cause Error instance.
+function processConfigErrorResponse (res, buf, err) {
+  // This library doesn't have a pattern for wrapping errors yet, so if
+  // we already have an Error instance, we will just decorate it. That preserves
+  // the stack of the root cause error.
+  const errMsg = 'Unexpected APM Server response when polling config'
+  if (!err) {
+    err = new Error(errMsg)
+  } else {
+    err.message = errMsg + ':' + err.message
+  }
 
   err.code = res.statusCode
 
-  if (buf.length > 0) {
+  if (buf && buf.length > 0) {
     const body = buf.toString('utf8')
     const contentType = res.headers['content-type']
     if (contentType && contentType.startsWith('application/json')) {

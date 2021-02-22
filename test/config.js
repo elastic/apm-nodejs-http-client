@@ -1,12 +1,15 @@
 'use strict'
 
-const path = require('path')
 const fs = require('fs')
 const getContainerInfo = require('container-info')
-const os = require('os')
+const http = require('http')
 const ndjson = require('ndjson')
-const test = require('tape')
+const os = require('os')
+const path = require('path')
 const semver = require('semver')
+const test = require('tape')
+const URL = require('url').URL
+
 const utils = require('./lib/utils')
 const pkg = require('../package')
 const Client = require('../')
@@ -489,5 +492,68 @@ test('metadata - cloud info', function (t) {
   }).client(optsTestFixture, function (client) {
     client.sendSpan({ foo: 42 })
     client.end()
+  })
+})
+
+// There was a case (https://github.com/elastic/apm-agent-nodejs/issues/1749)
+// where a non-200 response from apm-server would crash the agent.
+test('503 response from apm-server for central config should not crash', function (t) {
+  let client
+
+  // If this test goes wrong, it can hang. Clean up after a 30s timeout.
+  const abortTimeout = setTimeout(function () {
+    t.fail('test hung, aborting after a timeout')
+    cleanUpAndEnd()
+  }, 30000)
+
+  function cleanUpAndEnd () {
+    if (abortTimeout) {
+      clearTimeout(abortTimeout)
+    }
+    client.destroy()
+    mockApmServer.close(function () {
+      t.end()
+    })
+  }
+
+  // 1. Start a mock apm-server that returns 503 for central config queries.
+  const mockApmServer = http.createServer(function (req, res) {
+    const parsedUrl = new URL(req.url, 'http://localhost:0')
+    let resBody = '{}'
+    if (parsedUrl.pathname === '/config/v1/agents') {
+      resBody = '{"ok":false,"message":"The requested resource is currently unavailable."}\n'
+      res.writeHead(503)
+    }
+    res.end(resBody)
+  })
+
+  mockApmServer.listen(function () {
+    client = new Client(validOpts({
+      serverUrl: 'http://localhost:' + mockApmServer.address().port,
+      // Turn centralConfig *off*. We'll manually trigger a poll for central
+      // config via internal methods, so that we don't need to muck with
+      // internal `setTimeout` intervals.
+      centralConfig: false
+    }))
+
+    // 2. Ensure the client conditions for the crash.
+    //    One of the crash conditions at the time was a second `client.config`
+    //    to ensure the request options were using the keep-alive agent.
+    client.config()
+    t.ok(client._conf.requestConfig.agent,
+      'agent for central config requests is defined')
+
+    client.on('config', function (config) {
+      t.fail('do not expect to get a successful central config response')
+    })
+    client.on('request-error', function (err) {
+      t.ok(err, 'got request-error on _pollConfig')
+      t.ok(err.message.indexOf('Unexpected APM Server response when polling config') !== -1,
+        'request-error from _pollConfig includes expected error message')
+      cleanUpAndEnd()
+    })
+
+    // 3. Make a poll for central config.
+    client._pollConfig()
   })
 })
