@@ -40,7 +40,7 @@ dataTypes.forEach(function (dataType) {
       })
     }).client(function (client) {
       client[sendFn]({ foo: 42 })
-      client.flush()
+      client.flush(() => { client.destroy() })
     })
   })
 
@@ -66,13 +66,14 @@ dataTypes.forEach(function (dataType) {
       client[sendFn]({ foo: 42 }, function () {
         t.ok(nexttick, 'should call callback')
       })
-      client.flush()
+      client.flush(() => { client.destroy() })
       nexttick = true
     })
   })
 
   test(`client.${sendFn}() + client.end()`, function (t) {
     t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+    let client
     const datas = [
       assertMetadata,
       assertEvent({ [dataType]: { foo: 42 } })
@@ -86,9 +87,11 @@ dataTypes.forEach(function (dataType) {
       req.on('end', function () {
         res.end()
         server.close()
+        client.destroy()
         t.end()
       })
-    }).client(function (client) {
+    }).client(function (client_) {
+      client = client_
       client[sendFn]({ foo: 42 })
       client.end()
     })
@@ -96,6 +99,7 @@ dataTypes.forEach(function (dataType) {
 
   test(`single client.${sendFn}`, function (t) {
     t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+    let client
     const datas = [
       assertMetadata,
       assertEvent({ [dataType]: { foo: 42 } })
@@ -109,15 +113,18 @@ dataTypes.forEach(function (dataType) {
       req.on('end', function () {
         res.end()
         server.close()
+        client.destroy()
         t.end()
       })
-    }).client({ time: 100 }, function (client) {
+    }).client({ time: 100 }, function (client_) {
+      client = client_
       client[sendFn]({ foo: 42 })
     })
   })
 
   test(`multiple client.${sendFn} (same request)`, function (t) {
     t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts * 3)
+    let client
     const datas = [
       assertMetadata,
       assertEvent({ [dataType]: { req: 1 } }),
@@ -133,9 +140,11 @@ dataTypes.forEach(function (dataType) {
       req.on('end', function () {
         res.end()
         server.close()
+        client.destroy()
         t.end()
       })
-    }).client({ time: 100 }, function (client) {
+    }).client({ time: 100 }, function (client_) {
+      client = client_
       client[sendFn]({ req: 1 })
       client[sendFn]({ req: 2 })
       client[sendFn]({ req: 3 })
@@ -174,6 +183,7 @@ dataTypes.forEach(function (dataType) {
           send()
         } else {
           server.close()
+          client.destroy()
           t.end()
         }
       })
@@ -223,6 +233,7 @@ test('client.flush(callback) - with active request', function (t) {
         t.equal(client._active, true, 'an outgoing HTTP request should be active')
         client.flush(function () {
           t.equal(client._active, false, 'the outgoing HTTP request should be done')
+          client.destroy()
         })
       })
     })
@@ -267,6 +278,7 @@ test('client.flush(callback) - with queued request', function (t) {
         t.equal(client._active, true, 'an outgoing HTTP request should be active')
         client.flush(function () {
           t.equal(client._active, false, 'the outgoing HTTP request should be done')
+          client.destroy()
         })
       })
     })
@@ -300,7 +312,7 @@ test('2nd flush before 1st flush have finished', function (t) {
     client.sendSpan({ req: 1 })
     client.flush()
     client.sendSpan({ req: 2 })
-    client.flush()
+    client.flush(() => { client.destroy() })
     setTimeout(function () {
       t.equal(requestStarts, 2, 'should have received 2 requests')
       t.equal(requestEnds, 2, 'should have received 2 requests completely')
@@ -312,6 +324,7 @@ test('2nd flush before 1st flush have finished', function (t) {
 
 test('client.end(callback)', function (t) {
   t.plan(1 + assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
+  let client
   const datas = [
     assertMetadata,
     assertEvent({ span: { foo: 42 } })
@@ -325,9 +338,11 @@ test('client.end(callback)', function (t) {
     req.on('end', function () {
       res.end()
       server.close()
+      client.destroy()
       t.end()
     })
-  }).client(function (client) {
+  }).client(function (client_) {
+    client = client_
     client.sendSpan({ foo: 42 })
     client.end(function () {
       t.pass('should call callback')
@@ -337,7 +352,6 @@ test('client.end(callback)', function (t) {
 
 test('client.sent', function (t) {
   t.plan(4)
-  let client
   let requests = 0
   const server = APMServer(function (req, res) {
     req.resume()
@@ -348,8 +362,7 @@ test('client.sent', function (t) {
         t.end()
       }
     })
-  }).client(function (_client) {
-    client = _client
+  }).client(function (client) {
     client.sendError({ foo: 42 })
     client.sendSpan({ foo: 42 })
     client.sendTransaction({ foo: 42 })
@@ -362,6 +375,7 @@ test('client.sent', function (t) {
       t.equal(client.sent, 3, 'after 2nd round of sending')
       client.flush(function () {
         t.equal(client.sent, 6, 'after 2nd flush')
+        client.destroy()
       })
     })
   })
@@ -381,6 +395,7 @@ test('should not open new request until it\'s needed after flush', function (t) 
 
       if (++requests === 2) {
         server.close()
+        client.destroy()
         t.end()
       } else {
         setTimeout(sendData, 250)
@@ -412,6 +427,7 @@ test('should not open new request until it\'s needed after timeout', function (t
 
       if (++requests === 2) {
         server.close()
+        client.destroy()
         t.end()
       } else {
         setTimeout(sendData, 250)

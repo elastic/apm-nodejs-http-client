@@ -48,6 +48,7 @@ test('abort request if server responds early', function (t) {
         res.end()
         clearTimeout(timer)
         server.close()
+        client.destroy() // Destroy keep-alive agent.
         t.end()
       })
     } else {

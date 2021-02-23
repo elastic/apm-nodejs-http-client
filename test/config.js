@@ -63,14 +63,16 @@ test('null value config options shouldn\'t throw', function (t) {
 
 test('no secretToken or apiKey', function (t) {
   t.plan(1)
+  let client
   const server = APMServer(function (req, res) {
-    t.notOk('authorization' in req.headers)
+    t.notOk('authorization' in req.headers, 'no Authorization header')
     res.end()
     server.close()
+    client.destroy()
     t.end()
   })
   server.listen(function () {
-    const client = new Client(validOpts({
+    client = new Client(validOpts({
       serverUrl: 'http://localhost:' + server.address().port
     }))
     client.sendSpan({ foo: 42 })
@@ -80,14 +82,16 @@ test('no secretToken or apiKey', function (t) {
 
 test('has apiKey', function (t) {
   t.plan(1)
+  let client
   const server = APMServer(function (req, res) {
     t.equal(req.headers.authorization, 'ApiKey FooBar123', 'should use apiKey in authorization header')
     res.end()
     server.close()
+    client.destroy()
     t.end()
   })
   server.listen(function () {
-    const client = new Client(validOpts({
+    client = new Client(validOpts({
       serverUrl: 'http://localhost:' + server.address().port,
       apiKey: 'FooBar123'
     }))
@@ -98,13 +102,16 @@ test('has apiKey', function (t) {
 
 test('custom headers', function (t) {
   t.plan(1)
+
+  let client
   const server = APMServer(function (req, res) {
     t.equal(req.headers['x-foo'], 'bar')
     res.end()
     server.close()
+    client.destroy()
     t.end()
   }).listen(function () {
-    const client = new Client(validOpts({
+    client = new Client(validOpts({
       serverUrl: 'http://localhost:' + server.address().port,
       headers: {
         'X-Foo': 'bar'
@@ -126,13 +133,15 @@ test('serverUrl is invalid', function (t) {
 
 test('serverUrl contains path', function (t) {
   t.plan(1)
+  let client
   const server = APMServer(function (req, res) {
     t.equal(req.url, '/subpath/intake/v2/events')
     res.end()
     server.close()
+    client.destroy()
     t.end()
   }).listen(function () {
-    const client = new Client(validOpts({
+    client = new Client(validOpts({
       serverUrl: 'http://localhost:' + server.address().port + '/subpath'
     }))
     client.sendSpan({ foo: 42 })
@@ -159,12 +168,15 @@ test('reject unauthorized TLS by default', function (t) {
 
 test('allow unauthorized TLS if asked', function (t) {
   t.plan(1)
+  let client
   const server = APMServer({ secure: true }, function (req, res) {
     t.pass('should let request through')
     res.end()
+    client.destroy()
     server.close()
     t.end()
-  }).client({ rejectUnauthorized: false }, function (client) {
+  }).client({ rejectUnauthorized: false }, function (client_) {
+    client = client_
     client.sendSpan({ foo: 42 })
     client.end()
   })
@@ -172,13 +184,16 @@ test('allow unauthorized TLS if asked', function (t) {
 
 test('allow self-signed TLS certificate by specifying the CA', function (t) {
   t.plan(1)
+  let client
   const server = APMServer({ secure: true }, function (req, res) {
     t.pass('should let request through')
     res.end()
+    client.destroy()
     server.close()
     t.end()
   })
-  server.client({ serverCaCert: server.cert }, function (client) {
+  server.client({ serverCaCert: server.cert }, function (client_) {
+    client = client_
     client.sendSpan({ foo: 42 })
     client.end()
   })
@@ -186,6 +201,7 @@ test('allow self-signed TLS certificate by specifying the CA', function (t) {
 
 test('metadata', function (t) {
   t.plan(12)
+  let client
   const opts = {
     agentName: 'custom-agentName',
     agentVersion: 'custom-agentVersion',
@@ -272,10 +288,12 @@ test('metadata', function (t) {
     })
     req.on('end', function () {
       res.end()
+      client.destroy()
       server.close()
       t.end()
     })
-  }).client(opts, function (client) {
+  }).client(opts, function (client_) {
+    client = client_
     client.sendSpan({ foo: 42 })
     client.end()
   })
@@ -283,6 +301,7 @@ test('metadata', function (t) {
 
 test('metadata - default values', function (t) {
   t.plan(1)
+  let client
   const opts = {
     agentName: 'custom-agentName',
     agentVersion: 'custom-agentVersion',
@@ -330,10 +349,12 @@ test('metadata - default values', function (t) {
 
     req.on('end', function () {
       res.end()
+      client.destroy()
       server.close()
       t.end()
     })
-  }).client(opts, function (client) {
+  }).client(opts, function (client_) {
+    client = client_
     client.sendSpan({ foo: 42 })
     client.end()
   })
@@ -357,6 +378,7 @@ test('metadata - container info', function (t) {
 
   const APMServer = require('./lib/utils').APMServer
 
+  let client
   const server = APMServer(function (req, res) {
     req = processIntakeReq(req)
     req.once('data', function (obj) {
@@ -374,10 +396,12 @@ test('metadata - container info', function (t) {
     })
     req.on('end', function () {
       res.end()
+      client.destroy()
       server.close()
       t.end()
     })
-  }).client({}, function (client) {
+  }).client({}, function (client_) {
+    client = client_
     client.sendSpan({ foo: 42 })
     client.end()
   })
@@ -385,6 +409,7 @@ test('metadata - container info', function (t) {
 
 test('agentName', function (t) {
   t.plan(1)
+  let client
   const server = APMServer(function (req, res) {
     req = processIntakeReq(req)
     req.once('data', function (obj) {
@@ -392,10 +417,12 @@ test('agentName', function (t) {
     })
     req.on('end', function () {
       res.end()
+      client.destroy()
       server.close()
       t.end()
     })
-  }).client({ serviceName: 'custom' }, function (client) {
+  }).client({ serviceName: 'custom' }, function (client_) {
+    client = client_
     client.sendSpan({ foo: 42 })
     client.end()
   })
@@ -408,6 +435,7 @@ test('payloadLogFile', function (t) {
   const filename = path.join(os.tmpdir(), Date.now() + '.ndjson')
   let requests = 0
 
+  let client
   const server = APMServer(function (req, res) {
     const request = ++requests
 
@@ -421,6 +449,7 @@ test('payloadLogFile', function (t) {
       res.end()
 
       if (request === 2) {
+        client.destroy()
         server.close()
         t.equal(receivedObjects.length, 5, 'should have received 5 objects')
 
@@ -437,7 +466,8 @@ test('payloadLogFile', function (t) {
         })
       }
     })
-  }).client({ payloadLogFile: filename }, function (client) {
+  }).client({ payloadLogFile: filename }, function (client_) {
+    client = client_
     client.sendTransaction({ req: 1 })
     client.sendSpan({ req: 2 })
     client.flush() // force the client to make a 2nd request so that we test reusing the file across requests
@@ -448,6 +478,7 @@ test('payloadLogFile', function (t) {
 
 test('update conf', function (t) {
   t.plan(1)
+  let client
   const server = APMServer(function (req, res) {
     req = processIntakeReq(req)
     req.once('data', function (obj) {
@@ -455,10 +486,12 @@ test('update conf', function (t) {
     })
     req.on('end', function () {
       res.end()
+      client.destroy()
       server.close()
       t.end()
     })
-  }).client({ serviceName: 'foo' }, function (client) {
+  }).client({ serviceName: 'foo' }, function (client_) {
+    client = client_
     client.config({ serviceName: 'bar' })
     client.sendSpan({ foo: 42 })
     client.end()
@@ -478,6 +511,7 @@ test('metadata - cloud info', function (t) {
 
   const APMServer = require('./lib/utils').APMServer
 
+  let client
   const server = APMServer(function (req, res) {
     req = processIntakeReq(req)
     req.once('data', function (obj) {
@@ -486,10 +520,12 @@ test('metadata - cloud info', function (t) {
     })
     req.on('end', function () {
       res.end()
+      client.destroy()
       server.close()
       t.end()
     })
-  }).client(optsTestFixture, function (client) {
+  }).client(optsTestFixture, function (client_) {
+    client = client_
     client.sendSpan({ foo: 42 })
     client.end()
   })

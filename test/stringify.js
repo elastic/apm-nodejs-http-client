@@ -68,7 +68,9 @@ dataTypes.forEach(function (dataType) {
             }
           }
         })
-        client.flush()
+        client.flush(function () {
+          client.destroy() // Destroy keep-alive agent when done on client-side.
+        })
       })
     })
   })

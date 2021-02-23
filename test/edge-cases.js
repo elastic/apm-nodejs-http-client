@@ -144,6 +144,7 @@ test('request with error - no body', function (t) {
       t.equal(err.accepted, undefined)
       t.equal(err.errors, undefined)
       t.equal(err.response, undefined)
+      client.destroy()
       server.close()
       t.end()
     })
@@ -164,6 +165,7 @@ test('request with error - non json body', function (t) {
       t.equal(err.accepted, undefined)
       t.equal(err.errors, undefined)
       t.equal(err.response, 'boom!')
+      client.destroy()
       server.close()
       t.end()
     })
@@ -185,6 +187,7 @@ test('request with error - invalid json body', function (t) {
       t.equal(err.accepted, undefined)
       t.equal(err.errors, undefined)
       t.equal(err.response, 'boom!')
+      client.destroy()
       server.close()
       t.end()
     })
@@ -207,6 +210,7 @@ test('request with error - json body without accepted or errors properties', fun
       t.equal(err.accepted, undefined)
       t.equal(err.errors, undefined)
       t.equal(err.response, body)
+      client.destroy()
       server.close()
       t.end()
     })
@@ -228,6 +232,7 @@ test('request with error - json body with accepted and errors properties', funct
       t.equal(err.accepted, 42)
       t.deepEqual(err.errors, [{ message: 'bar' }])
       t.equal(err.response, undefined)
+      client.destroy()
       server.close()
       t.end()
     })
@@ -249,6 +254,7 @@ test('request with error - json body where Content-Type contains charset', funct
       t.equal(err.accepted, 42)
       t.deepEqual(err.errors, [{ message: 'bar' }])
       t.equal(err.response, undefined)
+      client.destroy()
       server.close()
       t.end()
     })
@@ -310,7 +316,8 @@ test('socket hang up - continue with new request', function (t) {
     req.on('end', function () {
       t.pass('should end request')
       res.end()
-      server.close()
+      server.close() // cleanup 1: stop listening
+      client.end() // cleanup 2: end the client stream so it can 'finish'
     })
   }).client(function (_client) {
     client = _client
@@ -322,6 +329,7 @@ test('socket hang up - continue with new request', function (t) {
     client.on('finish', function () {
       t.equal(reqs, 2, 'should emit finish after last request')
       t.end()
+      client.destroy() // cleanup 3: destroy keep-alive agent to close idle sockets
     })
     client.sendSpan({ req: 1 })
   })
@@ -560,7 +568,7 @@ dataTypes.forEach(function (dataType) {
       const obj = { foo: 42 }
       obj.bar = obj
       client[sendFn](obj)
-      client.flush()
+      client.flush(() => { client.destroy() })
     })
   })
 })
