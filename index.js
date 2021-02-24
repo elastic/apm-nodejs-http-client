@@ -836,7 +836,7 @@ function processConfigErrorResponse (res, buf, err) {
   if (!err) {
     err = new Error(errMsg)
   } else {
-    err.message = errMsg + ':' + err.message
+    err.message = errMsg + ': ' + err.message
   }
 
   err.code = res.statusCode
