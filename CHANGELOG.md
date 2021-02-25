@@ -1,6 +1,6 @@
 # elastic-apm-http-client changelog
 
-## Unreleased
+## v9.5.1
 
 - Fix possible crash when polling apm-server for config. Specifically it
   could happen with the Elastic Node.js APM agent when:
