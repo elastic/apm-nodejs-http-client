@@ -1,13 +1,13 @@
 # elastic-apm-http-client changelog
 
-# unreleased
+## v9.6.0
 
 - Fix config initialization such that the keep-alive agent is used all the
   time, as intended. Before this change the keep-alive HTTP(S) agent would only
   be used if a second call to `client.config(...)` was made. For the [Elastic
   APM Agent](https://github.com/elastic/apm-agent-nodejs)'s usage of this
   module, that was when any of the express, fastify, restify, hapi, or koa
-  modules was instrumented.
+  modules was instrumented. ([#139](https://github.com/elastic/apm-nodejs-http-client/pull/139))
 
   A compatibility note for direct users of this APM http-client:
   Options passed to the
