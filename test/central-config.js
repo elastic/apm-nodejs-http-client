@@ -35,8 +35,11 @@ test('central config enabled', function (t) {
   t.end()
 })
 
+// Test central-config handling of Etag and If-None-Match headers using a mock
+// apm-server that uses the `Cache-Control: max-age=1 ...` header to speed up
+// the polling interval of the client.
 test('polling', function (t) {
-  t.plan((assertConfigReq.asserts + 1) * 8 + 11)
+  t.plan((assertConfigReq.asserts + 1) * 8 + 12)
 
   const expectedConf = { foo: 'bar' }
   const headers = { 'Cache-Control': 'max-age=1, must-revalidate' }
@@ -83,12 +86,15 @@ test('polling', function (t) {
         res.end()
         break
       case 8:
-        t.equal(req.headers['if-none-match'], '"42"')
-        t.end()
-        res.writeHead(404) // end nicely so we don't get a request-error
+        // Hard shutdown on request #8 to end the test.
+        // If the client's keep-alive agent has an open socket, this will
+        // result in a "socket hang up" observed on the client side.
+        res.writeHead(404)
         res.end()
         client.destroy()
-        server.close()
+        server.close(function () {
+          t.end()
+        })
         break
       default:
         t.fail('too many request')
@@ -112,8 +118,14 @@ test('polling', function (t) {
         t.equal(err.code, 503)
         t.equal(err.message, 'Unexpected APM Server response when polling config')
         t.equal(err.response, 'from error property')
+      } else if (reqs === 8) {
+        // The mock APMServer above hard-destroys the connection on req 8. If
+        // the client's keep-alive agent has an open socket, we expect a
+        // "socket hang up" error here.
+        t.ok(err, 'got an err, as expected, on req 8')
+        t.equal(err.message, 'socket hang up')
       } else {
-        t.error(err)
+        t.error(err, 'got an err on req ' + reqs + ', err=' + err.message)
       }
     })
   })

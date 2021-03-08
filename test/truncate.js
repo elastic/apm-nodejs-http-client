@@ -105,7 +105,7 @@ options.forEach(function (opts) {
           }
         }
       })
-      client.flush()
+      client.flush(() => { client.destroy() })
     })
   })
 
@@ -180,7 +180,7 @@ options.forEach(function (opts) {
           }
         }
       })
-      client.flush()
+      client.flush(() => { client.destroy() })
     })
   })
 
@@ -231,7 +231,7 @@ options.forEach(function (opts) {
           }
         }
       })
-      client.flush()
+      client.flush(() => { client.destroy() })
     })
   })
 
@@ -352,7 +352,7 @@ options.forEach(function (opts) {
           }
         }
       })
-      client.flush()
+      client.flush(() => { client.destroy() })
     })
   })
 
@@ -397,7 +397,7 @@ options.forEach(function (opts) {
           }
         }
       })
-      client.flush()
+      client.flush(() => { client.destroy() })
     })
   })
 })

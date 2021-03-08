@@ -227,7 +227,6 @@ used to transmit it have ended.
 Update the configuration given to the `Client` constructor. All
 configuration options can be updated except:
 
-- The protocol part of the `serverUrl` (`http` vs `https`)
 - `size`
 - `time`
 - `keepAlive`

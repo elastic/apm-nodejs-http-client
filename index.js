@@ -1,5 +1,7 @@
 'use strict'
 
+const http = require('http')
+const https = require('https')
 const util = require('util')
 const os = require('os')
 const { URL } = require('url')
@@ -11,6 +13,7 @@ const pump = require('pump')
 const eos = require('end-of-stream')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
+
 const ndjson = require('./lib/ndjson')
 const truncate = require('./lib/truncate')
 const pkg = require('./package')
@@ -56,42 +59,19 @@ Client.encoding = Object.freeze({
 function Client (opts) {
   if (!(this instanceof Client)) return new Client(opts)
 
-  this.config(opts)
-
-  Writable.call(this, this._conf)
-
-  const errorproxy = (err) => {
-    if (this.destroyed === false) this.emit('request-error', err)
-  }
-
-  const fail = () => {
-    if (this._writableState.ending === false) this.destroy()
-  }
+  Writable.call(this, { objectMode: true })
 
   this._corkTimer = null
   this._received = 0 // number of events given to the client for reporting
   this.sent = 0 // number of events written to the socket
+  this._agent = null
   this._active = false
   this._onflushed = null
   this._transport = null
   this._configTimer = null
   this._encodedMetadata = null
 
-  switch (this._conf.serverUrl.protocol.slice(0, -1)) { // 'http:' => 'http'
-    case 'http': {
-      this._transport = require('http')
-      break
-    }
-    case 'https': {
-      this._transport = require('https')
-      break
-    }
-    default: {
-      throw new Error('Unknown protocol ' + this._conf.serverUrl.protocol.slice(0, -1))
-    }
-  }
-
-  this._agent = new this._transport.Agent(this._conf)
+  this.config(opts)
 
   // start stream in corked mode, uncork when cloud
   // metadata is fetched and assigned.  Also, the
@@ -112,6 +92,9 @@ function Client (opts) {
     this.emit('cloud-metadata', this._encodedMetadata)
   })
 
+  const errorproxy = (err) => {
+    if (this.destroyed === false) this.emit('request-error', err)
+  }
   this._chopper = new StreamChopper({
     size: this._conf.size,
     time: this._conf.time,
@@ -121,16 +104,21 @@ function Client (opts) {
     }
   }).on('stream', onStream(this, errorproxy))
 
+  const fail = () => {
+    if (this._writableState.ending === false) this.destroy()
+  }
   eos(this._chopper, fail)
 
   this._index = clients.length
   clients.push(this)
 
-  if (this._conf.centralConfig) this._pollConfig()
+  if (this._conf.centralConfig) {
+    this._pollConfig()
+  }
 }
 
 Client.prototype.config = function (opts) {
-  this._conf = Object.assign(this._conf || {}, opts, { objectMode: true })
+  this._conf = Object.assign(this._conf || {}, opts)
 
   this._conf.globalLabels = normalizeGlobalLabels(this._conf.globalLabels)
 
@@ -154,7 +142,7 @@ Client.prototype.config = function (opts) {
   this._conf.keepAlive = this._conf.keepAlive !== false
   this._conf.centralConfig = this._conf.centralConfig || false
 
-  // process
+  // processed values
   this._conf.serverUrl = new URL(this._conf.serverUrl)
 
   if (containerInfo) {
@@ -167,6 +155,32 @@ Client.prototype.config = function (opts) {
     if (!this._conf.kubernetesPodName && containerInfo.podId) {
       this._conf.kubernetesPodName = hostname
     }
+  }
+
+  switch (this._conf.serverUrl.protocol) {
+    case 'http:':
+      this._transport = http
+      break
+    case 'https:':
+      this._transport = https
+      break
+    default:
+      throw new Error('Unknown protocol ' + this._conf.serverUrl.protocol)
+  }
+
+  // Only reset `this._agent` if the serverUrl has changed to avoid
+  // unnecessarily abandoning keep-alive connections.
+  if (!this._agent || (opts && 'serverUrl' in opts)) {
+    if (this._agent) {
+      this._agent.destroy()
+    }
+    var agentOpts = {
+      keepAlive: this._conf.keepAlive,
+      keepAliveMsecs: this._conf.keepAliveMsecs,
+      maxSockets: this._conf.maxSockets,
+      maxFreeSockets: this._conf.maxFreeSockets
+    }
+    this._agent = new this._transport.Agent(agentOpts)
   }
 
   // http request options

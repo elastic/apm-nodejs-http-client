@@ -20,7 +20,7 @@ test('no environment variables', function (t) {
     })
   }).client(function (client) {
     client.sendError({})
-    client.flush()
+    client.flush(() => { client.destroy() })
   })
 })
 
@@ -39,7 +39,7 @@ test('kubernetesNodeName only', function (t) {
     })
   }).client({ kubernetesNodeName: 'foo' }, function (client) {
     client.sendError({})
-    client.flush()
+    client.flush(() => { client.destroy() })
   })
 })
 
@@ -58,7 +58,7 @@ test('kubernetesNamespace only', function (t) {
     })
   }).client({ kubernetesNamespace: 'foo' }, function (client) {
     client.sendError({})
-    client.flush()
+    client.flush(() => { client.destroy() })
   })
 })
 
@@ -77,7 +77,7 @@ test('kubernetesPodName only', function (t) {
     })
   }).client({ kubernetesPodName: 'foo' }, function (client) {
     client.sendError({})
-    client.flush()
+    client.flush(() => { client.destroy() })
   })
 })
 
@@ -96,7 +96,7 @@ test('kubernetesPodUID only', function (t) {
     })
   }).client({ kubernetesPodUID: 'foo' }, function (client) {
     client.sendError({})
-    client.flush()
+    client.flush(() => { client.destroy() })
   })
 })
 
@@ -119,7 +119,7 @@ test('all', function (t) {
     })
   }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodName: 'baz', kubernetesPodUID: 'qux' }, function (client) {
     client.sendError({})
-    client.flush()
+    client.flush(() => { client.destroy() })
   })
 })
 
@@ -141,7 +141,7 @@ test('all except kubernetesNodeName', function (t) {
     })
   }).client({ kubernetesNamespace: 'bar', kubernetesPodName: 'baz', kubernetesPodUID: 'qux' }, function (client) {
     client.sendError({})
-    client.flush()
+    client.flush(() => { client.destroy() })
   })
 })
 
@@ -163,7 +163,7 @@ test('all except kubernetesNamespace', function (t) {
     })
   }).client({ kubernetesNodeName: 'foo', kubernetesPodName: 'baz', kubernetesPodUID: 'qux' }, function (client) {
     client.sendError({})
-    client.flush()
+    client.flush(() => { client.destroy() })
   })
 })
 
@@ -186,7 +186,7 @@ test('all except kubernetesPodName', function (t) {
     })
   }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodUID: 'qux' }, function (client) {
     client.sendError({})
-    client.flush()
+    client.flush(() => { client.destroy() })
   })
 })
 
@@ -209,7 +209,7 @@ test('all except kubernetesPodUID', function (t) {
     })
   }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodName: 'baz' }, function (client) {
     client.sendError({})
-    client.flush()
+    client.flush(() => { client.destroy() })
   })
 })
 
