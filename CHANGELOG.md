@@ -1,6 +1,6 @@
 # elastic-apm-http-client changelog
 
-# unreleased
+# v9.6.0
 
 - Fix config initialization such that the keep-alive agent is used all the
   time, as intended. Before this change the keep-alive HTTP(S) agent would only
