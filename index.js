@@ -15,6 +15,7 @@ const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
 
 const ndjson = require('./lib/ndjson')
+const { NoopLogger } = require('./lib/logging')
 const truncate = require('./lib/truncate')
 const pkg = require('./package')
 
@@ -62,8 +63,6 @@ function Client (opts) {
   Writable.call(this, { objectMode: true })
 
   this._corkTimer = null
-  this._received = 0 // number of events given to the client for reporting
-  this.sent = 0 // number of events written to the socket
   this._agent = null
   this._active = false
   this._onflushed = null
@@ -71,7 +70,20 @@ function Client (opts) {
   this._configTimer = null
   this._encodedMetadata = null
 
+  // Internal runtime stats for developer debugging/tuning.
+  this._numEventsEnqueued = 0 // number of events written through to chopper
+  this.sent = 0 // number of events sent to APM server (not necessarily accepted)
+  this._slowWriteBatch = { // data on slow or the slowest _writeBatch
+    numOver10Ms: 0,
+    // Data for the slowest _writeBatch:
+    encodeTimeMs: 0,
+    fullTimeMs: 0,
+    numEvents: 0,
+    numBytes: 0
+  }
+
   this.config(opts)
+  this._log = this._conf.logger || new NoopLogger()
 
   // start stream in corked mode, uncork when cloud
   // metadata is fetched and assigned.  Also, the
@@ -114,6 +126,15 @@ function Client (opts) {
 
   if (this._conf.centralConfig) {
     this._pollConfig()
+  }
+}
+
+// Return current internal stats.
+Client.prototype._getStats = function () {
+  return {
+    numEventsEnqueued: this._numEventsEnqueued,
+    numEventsSent: this.sent,
+    slowWriteBatch: this._slowWriteBatch
   }
 }
 
@@ -288,8 +309,15 @@ Client.prototype._write = function (obj, enc, cb) {
   if (obj === flush) {
     this._writeFlush(cb)
   } else {
-    this._received++
-    this._chopper.write(this._encode(obj, enc), cb)
+    const t = process.hrtime()
+    const chunk = this._encode(obj, enc)
+    this._numEventsEnqueued++
+    this._chopper.write(chunk, cb)
+    this._log.trace({
+      fullTimeMs: deltaMs(t),
+      numEvents: 1,
+      numBytes: chunk.length
+    }, '_write: encode object')
   }
 }
 
@@ -308,13 +336,13 @@ Client.prototype._writev = function (objs, cb) {
     if (offset === 0 && index === -1) {
       // normally there's no flush object queued, so here's a shortcut that just
       // skips all the complicated splitting logic
-      this._writevCleaned(objs, cb)
+      this._writeBatch(objs, cb)
     } else if (index === -1) {
       // no more flush elements in the queue, just write the rest
-      this._writevCleaned(objs.slice(offset), cb)
+      this._writeBatch(objs.slice(offset), cb)
     } else if (index > offset) {
       // there's a few items in the queue before we need to flush, let's first write those
-      this._writevCleaned(objs.slice(offset, index), processBatch)
+      this._writeBatch(objs.slice(offset, index), processBatch)
       offset = index
     } else if (index === objs.length - 1) {
       // the last item in the queue is a flush
@@ -333,11 +361,32 @@ function encodeObject (obj) {
   return this._encode(obj.chunk, obj.encoding)
 }
 
-Client.prototype._writevCleaned = function (objs, cb) {
+// Write a batch of events (excluding specially handled "flush" events) to
+// the stream chopper.
+Client.prototype._writeBatch = function (objs, cb) {
+  const t = process.hrtime()
   const chunk = objs.map(encodeObject.bind(this)).join('')
+  const encodeTimeMs = deltaMs(t)
 
-  this._received += objs.length
+  this._numEventsEnqueued += objs.length
   this._chopper.write(chunk, cb)
+  const fullTimeMs = deltaMs(t)
+
+  if (fullTimeMs > this._slowWriteBatch.fullTimeMs) {
+    this._slowWriteBatch.encodeTimeMs = encodeTimeMs
+    this._slowWriteBatch.fullTimeMs = fullTimeMs
+    this._slowWriteBatch.numEvents = objs.length
+    this._slowWriteBatch.numBytes = chunk.length
+  }
+  if (fullTimeMs > 10) {
+    this._slowWriteBatch.numOver10Ms++
+  }
+  this._log.trace({
+    encodeTimeMs: encodeTimeMs,
+    fullTimeMs: fullTimeMs,
+    numEvents: objs.length,
+    numBytes: chunk.length
+  }, '_writeBatch')
 }
 
 Client.prototype._writeFlush = function (cb) {
@@ -554,7 +603,7 @@ function onStream (client, onerror) {
       //    would not get it here as the internal error listener would have
       //    been removed and the stream would throw the error instead
 
-      client.sent = client._received
+      client.sent = client._numEventsEnqueued
       client._active = false
       if (client._onflushed) {
         client._onflushed()
@@ -877,4 +926,11 @@ function processConfigErrorResponse (res, buf, err) {
   }
 
   return err
+}
+
+// Return the time difference (in milliseconds) between the given time `t`
+// (a 2-tuple as returned by `process.hrtime()`) and now.
+function deltaMs (t) {
+  const d = process.hrtime(t)
+  return d[0] * 1e3 + d[1] / 1e6
 }
