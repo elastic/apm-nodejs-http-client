@@ -54,7 +54,8 @@ Server.
 
 Arguments:
 
-- `options` - An object containing config options (see below)
+- `options` - An object containing config options (see below). All options
+  are optional, except those marked "(required)".
 
 Data sent to the APM Server as part of the metadata package:
 
@@ -151,9 +152,12 @@ Data sanitizing configuration:
 
 Debug options:
 
+- `logger` - A [pino](https://getpino.io) logger to use for trace and
+  debug-level logging.
 - `payloadLogFile` - Specify a file path to which a copy of all data
   sent to the APM Server should be written. The data will be in ndjson
-  format and will be uncompressed
+  format and will be uncompressed. Note that using this option can
+  impact performance.
 
 ### Event: `config`
 
@@ -218,9 +222,11 @@ The client is not closed when the `request-error` event is emitted.
 
 ### `client.sent`
 
-An integer indicating the number of events (spans, transactions, or errors)
-sent by the client. An event is considered sent when the HTTP request
-used to transmit it have ended.
+An integer indicating the number of events (spans, transactions, errors, or
+metricsets) sent by the client. An event is considered sent when the HTTP
+request used to transmit it has ended. Note that errors in requests to APM
+server may mean this value is not the same as the number of events *accepted*
+by the APM server.
 
 ### `client.config(options)`
 
