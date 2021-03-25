@@ -225,7 +225,7 @@ The client is not closed when the `request-error` event is emitted.
 An integer indicating the number of events (spans, transactions, errors, or
 metricsets) sent by the client. An event is considered sent when the HTTP
 request used to transmit it has ended. Note that errors in requests to APM
-server may main this value is not the same as the number of events *accepted*
+server may mean this value is not the same as the number of events *accepted*
 by the APM server.
 
 ### `client.config(options)`
