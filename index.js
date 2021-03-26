@@ -44,10 +44,14 @@ const node8 = process.version.indexOf('v8.') === 0
 // emitted. By listening for this we can make sure to end the requests properly
 // before exiting. This way we don't keep the process running until the `time`
 // timeout happens.
-const clients = []
+const clientsToAutoEnd = []
 process.once('beforeExit', function () {
-  clients.forEach(function (client) {
-    if (!client) return // clients remove them selfs from the array when they end
+  clientsToAutoEnd.forEach(function (client) {
+    if (!client) {
+      // Clients remove themselves from the array when they end.
+      return
+    }
+    client._log.trace('auto-end client beforeExit')
     client.end()
   })
 })
@@ -132,8 +136,8 @@ function Client (opts) {
   }
   eos(this._chopper, fail)
 
-  this._index = clients.length
-  clients.push(this)
+  this._index = clientsToAutoEnd.length
+  clientsToAutoEnd.push(this)
 
   if (this._conf.centralConfig) {
     this._pollConfig()
@@ -342,10 +346,14 @@ Client.prototype._writev = function (objs, cb) {
   // 10ms on a developer machine.
   const MAX_WRITE_BATCH_SIZE = 32
 
-  this._log.trace({ writableState: this._writableState }, '_writev %d objs', objs.length)
   let offset = 0
 
   const processBatch = () => {
+    if (this.destroyed) {
+      cb()
+      return
+    }
+
     let flushIdx = -1
     const limit = Math.min(objs.length, offset + MAX_WRITE_BATCH_SIZE)
     for (let i = offset; i < limit; i++) {
@@ -431,17 +439,6 @@ Client.prototype._maybeCork = function () {
       this._corkTimer.refresh()
     } else {
       this._corkTimer = setTimeout(() => {
-        // expectToClearBuffer is based on logic from Writable.uncork() and
-        // clearBuffer()
-        // XXX drop this log
-        const expectToClearBuffer = this._writableState.corked === 1 &&
-          !this._writableState.writing &&
-          !this._writableState.bufferProcessing &&
-          !!this._writableState.bufferedRequest
-        if (expectToClearBuffer) {
-          this._log.trace({ writableState: this._writableState, expectToClearBuffer },
-            'uncork (from _corkTimer)')
-        }
         this.uncork()
       }, this._conf.bufferWindowTime)
     }
@@ -463,17 +460,6 @@ Client.prototype._maybeUncork = function () {
     // this, that last write would trigger a single call to `_write`.
     process.nextTick(() => {
       if (this.destroyed === false) {
-        // expectToClearBuffer is based on logic from Writable.uncork() and
-        // clearBuffer()
-        // XXX drop this log
-        const expectToClearBuffer = this._writableState.corked === 1 &&
-          !this._writableState.writing &&
-          !this._writableState.bufferProcessing &&
-          !!this._writableState.bufferedRequest
-        if (expectToClearBuffer) {
-          this._log.trace({ writableState: this._writableState, expectToClearBuffer },
-            'uncork (from _maybeUncork + nextTick)')
-        }
         this.uncork()
       }
     })
@@ -571,17 +557,19 @@ Client.prototype.flush = function (cb) {
 }
 
 Client.prototype._final = function (cb) {
+  this._log.trace('_final')
   if (this._configTimer) {
     clearTimeout(this._configTimer)
     this._configTimer = null
   }
-  clients[this._index] = null // remove global reference to ease garbage collection
+  clientsToAutoEnd[this._index] = null // remove global reference to ease garbage collection
   this._ref()
   this._chopper.end()
   cb()
 }
 
 Client.prototype._destroy = function (err, cb) {
+  this._log.trace({ err }, '_destroy')
   if (this._configTimer) {
     clearTimeout(this._configTimer)
     this._configTimer = null
@@ -590,7 +578,7 @@ Client.prototype._destroy = function (err, cb) {
     clearTimeout(this._corkTimer)
     this._corkTimer = null
   }
-  clients[this._index] = null // remove global reference to ease garbage collection
+  clientsToAutoEnd[this._index] = null // remove global reference to ease garbage collection
   this._chopper.destroy()
   this._agent.destroy()
   cb(err)
@@ -662,7 +650,6 @@ function getChoppedStreamHandler (client, onerror) {
     const startTime = process.hrtime()
     const timeline = []
     let bytesWritten = 0
-    const SUCCESS_STATUS_CODE = 202
     let intakeRes
     let intakeResTimer = null
     const INTAKE_RES_TIMEOUT_S = 10 // XXX make this configurable as `intakeResponseTimeout`?
@@ -802,15 +789,18 @@ function getChoppedStreamHandler (client, onerror) {
       intakeReq.destroy(new Error(`APM Server response timeout (${client._conf.serverTimeout}ms)`))
     })
 
-    // - socket: XXX grok that unref below, I'm not sure I buy it
-    // intakeReq.on('socket', (_socket) => { log.trace('intakeReq "socket"') })
-    // intakeReq.on('socket', function (socket) {
-    //   // Sockets will automatically be unreffed by the HTTP agent when they are
-    //   // not in use by an HTTP request, but as we're keeping the HTTP request
-    //   // open, we need to unref the socket manually
-    //   log.trace('intakeReq "socket"')
-    //   socket.unref()
-    // })
+    intakeReq.on('socket', function (socket) {
+      // Unref the socket for this request so that the Client does not keep
+      // the node process running if it otherwise would be done. (This is
+      // tested by the "unref-client" test in test/side-effects.js.)
+      //
+      // The HTTP keep-alive agent will unref sockets when unused, and ref them
+      // during a request. Given that the normal makeIntakeRequest behaviour
+      // is to keep a request open for up to 10s (`apiRequestTimeout`), we must
+      // manually unref the socket.
+      log.trace('intakeReq "socket": unref it')
+      socket.unref()
+    })
 
     intakeReq.on('response', (intakeRes_) => {
       intakeRes = intakeRes_
@@ -822,9 +812,9 @@ function getChoppedStreamHandler (client, onerror) {
       if (!intakeReq.finished) {
         // Premature response from APM server. Typically this is for errors
         // like "queue is full", for which the response body will be parsed
-        // below. However, set an `err` as a fallback for unexpected case that
-        // this is with a 202 response.
-        if (intakeRes.statusCode === SUCCESS_STATUS_CODE) {
+        // below. However, set an `err` as a fallback for the unexpected case
+        // that is with a 2xx response.
+        if (intakeRes.statusCode >= 200 && intakeRes.statusCode < 300) {
           err = new Error(`premature apm-server response with statusCode=${intakeRes.statusCode}`)
         }
         // There is no point (though no harm) in sending more data to the APM
@@ -852,9 +842,7 @@ function getChoppedStreamHandler (client, onerror) {
           clearTimeout(intakeResTimer)
           intakeResTimer = null
         }
-        if (intakeRes.statusCode !== SUCCESS_STATUS_CODE) {
-          // Note: this differs from v3.12.1 and earlier where any 2xx status
-          // code was considered a success.
+        if (intakeRes.statusCode < 200 || intakeRes.statusCode > 299) {
           err = processIntakeErrorResponse(intakeRes, bufFromChunks(chunks))
         }
         completePart('intakeRes', err)

@@ -316,20 +316,20 @@ test('socket hang up - continue with new request', function (t) {
     req.on('end', function () {
       t.pass('should end request')
       res.end()
-      server.close() // cleanup 1: stop listening
-      client.end() // cleanup 2: end the client stream so it can 'finish'
+      client.end() // cleanup 1: end the client stream so it can 'finish'
     })
   }).client(function (_client) {
     client = _client
     client.on('request-error', function (err) {
-      t.equal(err.message, 'socket hang up')
-      t.equal(err.code, 'ECONNRESET')
+      t.equal(err.message, 'socket hang up', 'got "socket hang up" request-error')
+      t.equal(err.code, 'ECONNRESET', 'request-error code is "ECONNRESET"')
       client.sendSpan({ req: 2 })
     })
     client.on('finish', function () {
       t.equal(reqs, 2, 'should emit finish after last request')
+      client.end()
+      server.close()
       t.end()
-      client.destroy() // cleanup 3: destroy keep-alive agent to close idle sockets
     })
     client.sendSpan({ req: 1 })
   })
@@ -341,6 +341,7 @@ test('socket timeout - server response too slow', function (t) {
   }).client({ serverTimeout: 1000 }, function (client) {
     const start = Date.now()
     client.on('request-error', function (err) {
+      t.ok(err, 'got a request-error from the client')
       const end = Date.now()
       const delta = end - start
       t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')

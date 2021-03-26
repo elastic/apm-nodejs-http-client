@@ -58,15 +58,17 @@ dataTypes.forEach(function (dataType) {
       })
       req.on('end', function () {
         res.end()
-        server.close()
-        t.end()
       })
     }).client(function (client) {
       let nexttick = false
       client[sendFn]({ foo: 42 }, function () {
         t.ok(nexttick, 'should call callback')
       })
-      client.flush(() => { client.destroy() })
+      client.flush(() => {
+        client.end()
+        server.close()
+        t.end()
+      })
       nexttick = true
     })
   })
@@ -217,8 +219,6 @@ test('client.flush(callback) - with active request', function (t) {
     })
     req.on('end', function () {
       res.end()
-      server.close()
-      t.end()
     })
   }).client({ bufferWindowTime: -1 }, function (client) {
     // Cloud metadata fetching means that a write (via `client.sendSpan()` or
@@ -233,7 +233,9 @@ test('client.flush(callback) - with active request', function (t) {
         t.equal(client._active, true, 'an outgoing HTTP request should be active')
         client.flush(function () {
           t.equal(client._active, false, 'the outgoing HTTP request should be done')
-          client.destroy()
+          client.end()
+          server.close()
+          t.end()
         })
       })
     })
@@ -242,7 +244,6 @@ test('client.flush(callback) - with active request', function (t) {
 
 test('client.flush(callback) - with queued request', function (t) {
   t.plan(4 + assertIntakeReq.asserts * 2 + assertMetadata.asserts * 2)
-  let requests = 0
   const datas = [
     assertMetadata,
     { span: { req: 1, name: 'undefined', type: 'undefined' } },
@@ -259,10 +260,6 @@ test('client.flush(callback) - with queued request', function (t) {
     })
     req.on('end', function () {
       res.end()
-      if (++requests === 2) {
-        t.end()
-        server.close()
-      }
     })
   }).client({ bufferWindowTime: -1 }, function (client) {
     // Cloud metadata fetching means that a write (via `client.sendSpan()` or
@@ -278,7 +275,9 @@ test('client.flush(callback) - with queued request', function (t) {
         t.equal(client._active, true, 'an outgoing HTTP request should be active')
         client.flush(function () {
           t.equal(client._active, false, 'the outgoing HTTP request should be done')
-          client.destroy()
+          client.end()
+          server.close()
+          t.end()
         })
       })
     })
@@ -352,30 +351,28 @@ test('client.end(callback)', function (t) {
 
 test('client.sent', function (t) {
   t.plan(4)
-  let requests = 0
   const server = APMServer(function (req, res) {
+    t.comment('APM server got a request')
     req.resume()
     req.on('end', function () {
       res.end()
-      if (++requests === 2) {
-        server.close()
-        t.end()
-      }
     })
   }).client(function (client) {
     client.sendError({ foo: 42 })
     client.sendSpan({ foo: 42 })
     client.sendTransaction({ foo: 42 })
-    t.equal(client.sent, 0, 'after 1st round of sending')
+    t.equal(client.sent, 0, 'sent=0 after 1st round of sending')
     client.flush(function () {
-      t.equal(client.sent, 3, 'after 1st flush')
+      t.equal(client.sent, 3, 'sent=3 after 1st flush')
       client.sendError({ foo: 42 })
       client.sendSpan({ foo: 42 })
       client.sendTransaction({ foo: 42 })
-      t.equal(client.sent, 3, 'after 2nd round of sending')
+      t.equal(client.sent, 3, 'sent=3 after 2nd round of sending')
       client.flush(function () {
-        t.equal(client.sent, 6, 'after 2nd flush')
-        client.destroy()
+        t.equal(client.sent, 6, 'sent=6 after 2nd flush')
+        client.end()
+        server.close()
+        t.end()
       })
     })
   })

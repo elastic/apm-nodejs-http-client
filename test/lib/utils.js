@@ -41,6 +41,7 @@ function APMServer (opts, onreq) {
     }
     server.listen(function () {
       onclient(new Client(validOpts(Object.assign({
+        // logger: require('pino')({ level: 'trace' }), // uncomment for debugging
         serverUrl: `http${secure ? 's' : ''}://localhost:${server.address().port}`,
         secretToken: 'secret'
       }, opts))))
