@@ -842,7 +842,7 @@ function getChoppedStreamHandler (client, onerror) {
           intakeResTimer = null
         }
         if (intakeRes.statusCode < 200 || intakeRes.statusCode > 299) {
-          err = processIntakeErrorResponse(intakeRes, bufFromChunks(chunks))
+          err = processIntakeErrorResponse(intakeRes, Buffer.concat(chunks))
         }
         completePart('intakeRes', err)
       })
@@ -1115,17 +1115,6 @@ function getMaxAge (res) {
   const header = res.headers['cache-control']
   const match = header && header.match(/max-age=(\d+)/)
   return parseInt(match && match[1], 10)
-}
-
-function bufFromChunks (chunks) {
-  switch (chunks.length) {
-    case 0:
-      return Buffer.allocUnsafe(0)
-    case 1:
-      return chunks[0]
-    default:
-      return Buffer.concat(chunks)
-  }
 }
 
 // Wrap the given Error object, including the given message.
