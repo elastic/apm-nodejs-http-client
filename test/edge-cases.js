@@ -12,58 +12,6 @@ const assertMetadata = utils.assertMetadata
 const assertEvent = utils.assertEvent
 const validOpts = utils.validOpts
 
-test('Event: close - if ndjson stream ends', function (t) {
-  t.plan(1)
-  let client
-  const server = APMServer(function (req, res) {
-    client._chopper.end()
-    setTimeout(function () {
-      // wait a little to allow close to be emitted
-      t.end()
-      server.close()
-    }, 10)
-  }).listen(function () {
-    client = new Client(validOpts({
-      serverUrl: 'http://localhost:' + server.address().port
-    }))
-
-    client.on('finish', function () {
-      t.fail('should not emit finish event')
-    })
-    client.on('close', function () {
-      t.pass('should emit close event')
-    })
-
-    client.sendSpan({ req: 1 })
-  })
-})
-
-test('Event: close - if ndjson stream is destroyed', function (t) {
-  t.plan(1)
-  let client
-  const server = APMServer(function (req, res) {
-    client._chopper.destroy()
-    setTimeout(function () {
-      // wait a little to allow close to be emitted
-      t.end()
-      server.close()
-    }, 10)
-  }).listen(function () {
-    client = new Client(validOpts({
-      serverUrl: 'http://localhost:' + server.address().port
-    }))
-
-    client.on('finish', function () {
-      t.fail('should not emit finish event')
-    })
-    client.on('close', function () {
-      t.pass('should emit close event')
-    })
-
-    client.sendSpan({ req: 1 })
-  })
-})
-
 test('Event: close - if chopper ends', function (t) {
   t.plan(1)
   let client
