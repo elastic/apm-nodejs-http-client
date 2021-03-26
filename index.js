@@ -12,7 +12,6 @@ const zlib = require('zlib')
 const querystring = require('querystring')
 const Writable = require('readable-stream').Writable
 const getContainerInfo = require('./lib/container-info')
-const pump = require('pump')
 const eos = require('end-of-stream')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
@@ -36,8 +35,6 @@ const requiredOpts = [
 const MAX_QUEUE_SIZE = 1024 // XXX make this configurable a la https://www.elastic.co/guide/en/apm/agent/java/current/config-reporter.html#config-max-queue-size
 // const MAX_QUEUE_SIZE = Infinity // XXX make this configurable a la https://www.elastic.co/guide/en/apm/agent/java/current/config-reporter.html#config-max-queue-size
 const containerInfo = getContainerInfo()
-
-const node8 = process.version.indexOf('v8.') === 0
 
 // All sockets on the agent are unreffed when they are created. This means that
 // when those are the only handles left, the `beforeExit` event will be
@@ -131,6 +128,8 @@ function Client (opts) {
   }
   this._chopper.on('stream', getChoppedStreamHandler(this, onIntakeError))
 
+  // We don't expect the chopper stream to end until the client is ending.
+  // Make sure to clean up if this does happen unexpectedly.
   const fail = () => {
     if (this._writableState.ending === false) this.destroy()
   }
@@ -908,135 +907,6 @@ function getChoppedStreamHandler (client, onerror) {
     gzipStream.write(client._encodedMetadata)
     gzipStream.pipe(intakeReq)
   }
-
-  /* eslint-disable-next-line no-unused-vars */
-  function onStream (stream, next) {
-    const startT = process.hrtime()
-    const startL = client._writableState.length
-    client._log.trace({ queueLen: client._writableState.length }, 'onStream: start')
-    const timeline = [['start', deltaMs(startT)]]
-
-    const onerrorproxy = (err) => {
-      stream.removeListener('error', onerrorproxy)
-      req.removeListener('error', onerrorproxy)
-      destroyStream(stream)
-      onerror(err)
-    }
-
-    client._active = true
-
-    const req = client._transport.request(client._conf.requestIntake, onResult(onerror))
-
-    // Abort the current request if the server responds prior to the request
-    // being finished
-    req.on('response', function (res) {
-      console.warn('XXX onStream response', res.statusCode, res.headers)
-      if (!req.finished) {
-        // In Node.js 8, the zlib stream will emit a 'zlib binding closed'
-        // error when destroyed. Furthermore, the HTTP response will not emit
-        // any data events after the request have been destroyed, so it becomes
-        // impossible to see the error returned by the server if we abort the
-        // request. So for Node.js 8, we'll work around this by closing the
-        // stream gracefully.
-        //
-        // This results in the gzip buffer being flushed and a little more data
-        // being sent to the APM Server, but it's better than not getting the
-        // error body.
-        if (node8) {
-          stream.end()
-        } else {
-          console.warn('XXX call destroyStream from "response" extra event handler')
-          destroyStream(stream)
-        }
-      }
-    })
-
-    // Mointor streams for errors so that we can make sure to destory the
-    // output stream as soon as that occurs
-    stream.on('error', onerrorproxy)
-    req.on('error', onerrorproxy)
-
-    req.on('socket', function (socket) {
-      // Sockets will automatically be unreffed by the HTTP agent when they are
-      // not in use by an HTTP request, but as we're keeping the HTTP request
-      // open, we need to unref the socket manually
-      socket.unref()
-    })
-
-    if (Number.isFinite(client._conf.serverTimeout)) {
-      req.setTimeout(client._conf.serverTimeout, function () {
-        req.destroy(new Error(`APM Server response timeout (${client._conf.serverTimeout}ms)`))
-      })
-    }
-
-    stream.on('data', function (chunk) {
-      timeline.push(['chunk', deltaMs(startT), chunk.length])
-    })
-    stream.on('end', function () {
-      timeline.push(['end', deltaMs(startT)])
-    })
-    pump(stream, req, function (pumpErr) {
-      console.warn('XXX back from pump: pumpErr=%s', pumpErr)
-      // This function is technically called with an error, but because we
-      // manually attach error listeners on all the streams in the pipeline
-      // above, we can safely ignore it.
-      //
-      // We do this for two reasons:
-      //
-      // 1) This callback might be called a few ticks too late, in which case a
-      //    race condition could occur where the user would write to the output
-      //    stream before the rest of the system discovered that it was
-      //    unwritable
-      //
-      // 2) The error might occur post the end of the stream. In that case we
-      //    would not get it here as the internal error listener would have
-      //    been removed and the stream would throw the error instead
-
-      client.sent = client._numEventsEnqueued
-      client._active = false
-      if (client._onflushed) {
-        client._onflushed()
-        client._onflushed = null
-      }
-
-      const diffT = process.hrtime(startT)
-      const diffL = client._writableState.length - startL
-      client._log.trace({
-        timeline,
-        elapsedMs: diffT[0] * 1e3 + diffT[1] / 1e6,
-        queueLenDelta: startL + ' -> ' + client._writableState.length + ' = ' + diffL
-      }, 'onStream: finished')
-      next()
-    })
-
-    // Only intended for local debugging
-    if (client._conf.payloadLogFile) {
-      if (!client._payloadLogFile) {
-        client._payloadLogFile = require('fs').createWriteStream(client._conf.payloadLogFile, { flags: 'a' })
-      }
-
-      // Manually write to the file instead of using pipe/pump so that the file
-      // handle isn't closed when the stream ends
-      stream.pipe(zlib.createGunzip()).on('data', function (chunk) {
-        client._payloadLogFile.write(chunk)
-      })
-    }
-
-    // The _encodedMetadata property _should_ be set in the Client
-    // constructor function after making a cloud metadata call.
-    //
-    // Since we cork data until the client._encodedMetadata is set the
-    // following conditional should not be necessary. However, we'll
-    // leave it in place out of a healthy sense of caution in case
-    // something unsets _encodedMetadata or _encodedMetadata is somehow
-    // never set.
-    if (!client._encodedMetadata) {
-      client._encodedMetadata = client._encode({ metadata: client._conf.metadata }, Client.encoding.METADATA)
-    }
-
-    // All requests to the APM Server must start with a metadata object
-    stream.write(client._encodedMetadata)
-  }
 }
 
 /**
@@ -1068,16 +938,6 @@ Client.prototype._fetchAndEncodeMetadata = function (cb) {
       cb(err, this._encodedMetadata)
     })
   }
-}
-
-function onResult (onerror) {
-  return streamToBuffer.onStream(function (err, buf, res) {
-    console.warn('XXX onStream onResult read response body: err=%s, res.statusCode=%s', err, res.statusCode)
-    if (err) return onerror(err)
-    if (res.statusCode < 200 || res.statusCode > 299) {
-      onerror(processIntakeErrorResponse(res, buf))
-    }
-  })
 }
 
 function getIntakeRequestOptions (opts, agent) {
