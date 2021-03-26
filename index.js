@@ -909,15 +909,10 @@ function getChoppedStreamHandler (client, onerror) {
     // Hook up writing data to a file (only intended for local debugging).
     // Append the intake data to `payloadLogFile`, if given. This is only
     // intended for local debugging because it can have a significant perf
-    // impact. One can watch this data being sent via something like:
-    //    tail -n0 -F payload.log | zcat
+    // impact.
     if (client._conf.payloadLogFile) {
-      // Do *not* unzip the data. This is a change from versions before 9.6.0
-      // that *did* take the perf hit to re-unzip the data.
-      // XXX Is this a compat issue? Else:
-      //    gzipStream.pipe(zlib.createGunzip()).pipe(payloadLogStream)
       const payloadLogStream = fs.createWriteStream(client._conf.payloadLogFile, { flags: 'a' })
-      gzipStream.pipe(payloadLogStream)
+      gzipStream.pipe(zlib.createGunzip()).pipe(payloadLogStream)
     }
 
     // Send the metadata object (always first) and hook up the streams.
