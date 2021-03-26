@@ -673,7 +673,7 @@ function getChoppedStreamHandler (client, onerror) {
     // Handle conclusion of this intake request. Each "part" is expected to call
     // `completePart()` at least once -- multiple calls are okay for cases like
     // the "error" and "close" events on a stream being called. When a part
-    // errors or all parts of completed, then we can conclude.
+    // errors or all parts are completed, then we can conclude.
     let concluded = false
     const completedFromPart = {
       gzipStream: false,
@@ -682,7 +682,7 @@ function getChoppedStreamHandler (client, onerror) {
     }
     let numToComplete = Object.keys(completedFromPart).length
     const completePart = (part, err) => {
-      log.trace({ err }, 'completePart %s', part)
+      log.trace({ err, concluded }, 'completePart %s', part)
       timeline.push([deltaMs(startTime), `completePart ${part}`, err && err.message])
       assert(part in completedFromPart, `'${part}' is in completedFromPart`)
 
@@ -707,7 +707,7 @@ function getChoppedStreamHandler (client, onerror) {
       concluded = true
       if (err) {
         // There was an error: clean up resources.
-        //
+
         // Note that in Node v8, destroying the gzip stream results in it
         // emitting an "error" event as follows. No harm, however.
         //    Error: gzip stream error: zlib binding closed
@@ -715,6 +715,11 @@ function getChoppedStreamHandler (client, onerror) {
         //      ...
         destroyStream(gzipStream)
         intakeReq.destroy()
+        if (intakeResTimer) {
+          log.trace('cancel intakeResTimer')
+          clearTimeout(intakeResTimer)
+          intakeResTimer = null
+        }
       }
 
       client.sent = client._numEventsEnqueued
@@ -797,12 +802,13 @@ function getChoppedStreamHandler (client, onerror) {
       intakeReq.destroy(new Error(`APM Server response timeout (${client._conf.serverTimeout}ms)`))
     })
 
-    // intakeReq.on('socket', (_socket) => { log.trace('intakeReq "socket"') })
     // - socket: XXX grok that unref below, I'm not sure I buy it
-    // req.on('socket', function (socket) {
+    // intakeReq.on('socket', (_socket) => { log.trace('intakeReq "socket"') })
+    // intakeReq.on('socket', function (socket) {
     //   // Sockets will automatically be unreffed by the HTTP agent when they are
     //   // not in use by an HTTP request, but as we're keeping the HTTP request
     //   // open, we need to unref the socket manually
+    //   log.trace('intakeReq "socket"')
     //   socket.unref()
     // })
 
@@ -891,7 +897,7 @@ function getChoppedStreamHandler (client, onerror) {
           completePart('intakeRes',
             new Error('intake response timeout: APM server did not respond ' +
               `within ${INTAKE_RES_TIMEOUT_S}s of gzip stream finish`))
-        }, INTAKE_RES_TIMEOUT_S * 1000)
+        }, INTAKE_RES_TIMEOUT_S * 1000).unref()
       }
     })
     // gzipStream.on('end', () => { log.trace('gzipStream "end"') })
