@@ -26,7 +26,7 @@
     "fast-stream-to-buffer": "^1.0.0",
     "pump": "^3.0.0",
     "readable-stream": "^3.4.0",
-    "stream-chopper": "^3.0.1",
+    "stream-chopper": "file:../stream-chopper",
     "unicode-byte-truncate": "^1.0.0"
   },
   "devDependencies": {

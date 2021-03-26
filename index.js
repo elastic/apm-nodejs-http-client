@@ -2,6 +2,7 @@
 
 const assert = require('assert')
 const crypto = require('crypto')
+const fs = require('fs')
 const http = require('http')
 const https = require('https')
 const util = require('util')
@@ -725,11 +726,11 @@ function getChoppedStreamHandler (client, onerror) {
 
       const backoffDelayMs = client._getBackoffDelay(!!err)
       if (err) {
-        log.error({ timeline, bytesWritten, backoffDelayMs, err },
+        log.trace({ timeline, bytesWritten, backoffDelayMs, err },
           'conclude intake request: error')
         onerror(err)
       } else {
-        log.error({ timeline, bytesWritten, backoffDelayMs },
+        log.trace({ timeline, bytesWritten, backoffDelayMs },
           'conclude intake request: success')
       }
       if (backoffDelayMs > 0) {
@@ -899,12 +900,24 @@ function getChoppedStreamHandler (client, onerror) {
       completePart('gzipStream')
     })
 
+    // Hook up writing data to a file (only intended for local debugging).
+    // Append the intake data to `payloadLogFile`, if given. This is only
+    // intended for local debugging because it can have a significant perf
+    // impact. One can watch this data being sent via something like:
+    //    tail -n0 -F payload.log | zcat
+    if (client._conf.payloadLogFile) {
+      // Do *not* unzip the data. This is a change from versions before 9.6.0
+      // that *did* take the perf hit to re-unzip the data.
+      // XXX Is this a compat issue? Else:
+      //    gzipStream.pipe(zlib.createGunzip()).pipe(payloadLogStream)
+      const payloadLogStream = fs.createWriteStream(client._conf.payloadLogFile, { flags: 'a' })
+      gzipStream.pipe(payloadLogStream)
+    }
+
     // Send the metadata object (always first) and hook up the streams.
     assert(client._encodedMetadata, 'client._encodedMetadata is set')
     gzipStream.write(client._encodedMetadata)
     gzipStream.pipe(intakeReq)
-
-    // XXX payloadLogFile
   }
 
   /* eslint-disable-next-line no-unused-vars */
