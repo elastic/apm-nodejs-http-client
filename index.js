@@ -502,10 +502,6 @@ Client.prototype._isUnsafeToWrite = function () {
 
 Client.prototype._shouldDropEvent = function () {
   this._numEvents++
-  if (this._numEvents % 10000 === 0) { // XXX
-    this._log.trace('maor events: numEvents=%d', this._numEvents)
-  }
-
   const shouldDrop = this._writableState.length >= MAX_QUEUE_SIZE
   if (shouldDrop) {
     this._numEventsDropped++
@@ -638,11 +634,16 @@ function getChoppedStreamHandler (client, onerror) {
   //   body). By default this is 10s -- a very long time to allow for a slow or
   //   far apm-server. If we hit this, APM server is problematic anyway, so
   //   the delay doesn't add to the problems.
-  // - XXX "Q: How is an intake request terminated for http-client shutdown?" from ticket notes
-  //    - agent.destroy() -> chopper.destroy() -> destroyStream() -> special handling for
-  //      Gzip streams... with things about "close" and stream.destroy() or stream.close()
-  //      Will need test cases for this.
-  //    - How is "flush" in here, if at all?
+  // - "process-completion" - The Client takes pains to always `.unref()` its
+  //   handles to never keep a using process open if it is ready to exit. When
+  //   the process is ready to exit, the following happens:
+  //    - The process "beforeExit" handler above will call `client.end()`,
+  //    - which calls `client._ref()` (to *hold the process open* to complete
+  //      this request), then `_chopper.end()` to end the `gzipStream` so
+  //      this request can complete soon.
+  //    - We then expect this request to complete quickly and the process will
+  //      then finish exiting.
+  //      XXX what happens if the APM server doesn't complete here. Do we get the 10s hang?
   return function makeIntakeRequest (gzipStream, next) {
     const reqId = crypto.randomBytes(16).toString('hex')
     const log = client._log.child({ reqId })
@@ -736,47 +737,8 @@ function getChoppedStreamHandler (client, onerror) {
     if (Number.isFinite(client._conf.serverTimeout)) {
       intakeReq.setTimeout(client._conf.serverTimeout)
     }
-    /*
-    TODO: want client req and client res support from ecs-logging.
-    - at the least it cannot crash
-    - want to dwim it? i.e. both types to same 'req' and 'res' fields? Probably, yes.
-
-    XXX ecs-logging crash bug from:
-          log.trace({req: intakeReq}, 'intake request start')
-
-    This is the diff between a *client* request from `req = http.request(...)`
-    and the request received by a server `http.createServer(..., function (req, res) { ... })`
-
-    /Users/trentm/tm/apm-agent-nodejs/node_modules/@elastic/ecs-helpers/lib/http-formatters.js:49
-      ecs.url.full = (socket && socket.encrypted ? 'https://' : 'http://') + headers.host + url
-                                                                                    ^
-
-    TypeError: Cannot read property 'host' of undefined
-        at formatHttpRequest (/Users/trentm/tm/apm-agent-nodejs/node_modules/@elastic/ecs-helpers/lib/http-formatters.js:49:82)
-        at Object.ecsPinoOptions.formatters.log (/Users/trentm/tm/apm-agent-nodejs/node_modules/@elastic/ecs-pino-format/index.js:161:11)
-        at Pino.asJson (/Users/trentm/tm/apm-agent-nodejs/node_modules/pino/lib/tools.js:109:22)
-        at Pino.write (/Users/trentm/tm/apm-agent-nodejs/node_modules/pino/lib/proto.js:166:28)
-        at Pino.LOG [as trace] (/Users/trentm/tm/apm-agent-nodejs/node_modules/pino/lib/tools.js:55:21)
-        at StreamChopper.makeIntakeRequest (/Users/trentm/tm/apm-nodejs-http-client/index.js:677:9)
-        at StreamChopper.emit (events.js:315:20)
-        ...
-
-    XXX ecs-logging crash bug #2 from:
-      log.trace({res: intakeRes}, 'intakeReq "response"')
-
-        /Users/trentm/tm/apm-agent-nodejs/node_modules/@elastic/ecs-helpers/lib/http-formatters.js:120
-      const headers = res.getHeaders()
-                          ^
-
-    TypeError: res.getHeaders is not a function
-        at formatHttpResponse (/Users/trentm/tm/apm-agent-nodejs/node_modules/@elastic/ecs-helpers/lib/http-formatters.js:120:23)
-        at Object.ecsPinoOptions.formatters.log (/Users/trentm/tm/apm-agent-nodejs/node_modules/@elastic/ecs-pino-format/index.js:168:11)
-        at Pino.asJson (/Users/trentm/tm/apm-agent-nodejs/node_modules/pino/lib/tools.js:109:22)
-        at Pino.write (/Users/trentm/tm/apm-agent-nodejs/node_modules/pino/lib/proto.js:166:28)
-        at Pino.LOG [as trace] (/Users/trentm/tm/apm-agent-nodejs/node_modules/pino/lib/tools.js:55:21)
-        at ClientRequest.<anonymous> (/Users/trentm/tm/apm-nodejs-http-client/index.js:719:11)
-        ...
-    */
+    // TODO: log intakeReq and intakeRes when
+    // https://github.com/elastic/ecs-logging-nodejs/issues/67 is implemented.
     log.trace('intake request start')
 
     // Handle events on the intake request.
