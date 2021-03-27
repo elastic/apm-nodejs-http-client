@@ -420,7 +420,7 @@ Client.prototype._writeBatch = function (objs, cb) {
 }
 
 Client.prototype._writeFlush = function (cb) {
-  this._log.trace('_writeFlush')
+  this._log.trace({ active: this._active }, '_writeFlush')
   if (this._active) {
     this._onflushed = cb
     this._chopper.chop()
@@ -810,8 +810,8 @@ function getChoppedStreamHandler (client, onerror) {
       })
     })
 
-    // intakeReq.on('abort', () => { log.trace('intakeReq "abort"') })
-    // intakeReq.on('close', () => { log.trace('intakeReq "close"') })
+    intakeReq.on('abort', () => { log.trace('intakeReq "abort"') })
+    intakeReq.on('close', () => { log.trace('intakeReq "close"') })
     // XXX What was the error scenario that led me to use 'close' instead of 'finish' here?
     intakeReq.on('finish', () => {
       log.trace('intakeReq "finish"')
@@ -849,11 +849,15 @@ function getChoppedStreamHandler (client, onerror) {
         }, INTAKE_RES_TIMEOUT_S * 1000).unref()
       }
     })
-    // gzipStream.on('end', () => { log.trace('gzipStream "end"') })
-    gzipStream.on('close', () => {
-      log.trace('gzipStream "close"')
+    // Watch the gzip "end" event for its completion, because the "close" event
+    // that we would prefer to use, *does not get emitted* for the
+    // `client.sendSpan(callback) + client.flush()` test case with
+    // *node v12-only*.
+    gzipStream.on('end', () => {
+      log.trace('gzipStream "end"')
       completePart('gzipStream')
     })
+    // gzipStream.on('close', () => { log.trace('gzipStream "close"') })
 
     // Hook up writing data to a file (only intended for local debugging).
     // Append the intake data to `payloadLogFile`, if given. This is only
