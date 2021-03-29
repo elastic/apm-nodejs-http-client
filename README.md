@@ -95,7 +95,7 @@ HTTP client configuration:
   sent or received on the socket for this amount of time, the request
   will be aborted. It's not recommended to set a `serverTimeout` lower
   than the `time` config option. That might result in healthy requests
-  being aborted prematurely (default: `15000` ms)
+  being aborted prematurely. (default: `15000` ms)
 - `keepAlive` - If set the `false` the client will not reuse sockets
   between requests (default: `true`)
 - `keepAliveMsecs` - When using the `keepAlive` option, specifies the
@@ -144,6 +144,11 @@ Streaming configuration:
   lower value will decrease the heap overhead of the agent, while a higher
   value makes it less likely to lose events in case of a temporary spike in
   throughput. (default: 1024)
+- `intakeResTimeout` - The time (in milliseconds) by which a response from the
+  [APM Server events intake API](https://www.elastic.co/guide/en/apm/server/current/events-api.html)
+  is expected *after all the event data for that request has been sent*. This
+  allows a smaller timeout than `serverTimeout` to handle an APM server that
+  is accepting connections but is slow to respond. (default: `10000` ms)
 
 Data sanitizing configuration:
 

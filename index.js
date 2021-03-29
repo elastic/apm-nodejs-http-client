@@ -176,6 +176,7 @@ Client.prototype.config = function (opts) {
   if (!this._conf.bufferWindowTime) this._conf.bufferWindowTime = 20
   if (!this._conf.bufferWindowSize) this._conf.bufferWindowSize = 50
   if (!this._conf.maxQueueSize) this._conf.maxQueueSize = 1024
+  if (!this._conf.intakeResTimeout) this._conf.intakeResTimeout = 10000
   this._conf.keepAlive = this._conf.keepAlive !== false
   this._conf.centralConfig = this._conf.centralConfig || false
 
@@ -651,7 +652,7 @@ function getChoppedStreamHandler (client, onerror) {
     let bytesWritten = 0
     let intakeRes
     let intakeResTimer = null
-    const INTAKE_RES_TIMEOUT_S = 10 // XXX make this configurable as `intakeResponseTimeout`?
+    const intakeResTimeout = client._conf.intakeResTimeout
 
     // `_active` is used to coordinate the callback to `client.flush(db)`.
     client._active = true
@@ -840,12 +841,12 @@ function getChoppedStreamHandler (client, onerror) {
       // already completed (e.g. if it replied quickly with "queue is full").
       log.trace('gzipStream "finish"')
       if (!completedFromPart.intakeReq && !completedFromPart.intakeRes) {
-        log.trace({ timeout: INTAKE_RES_TIMEOUT_S }, 'start intakeResTimer')
+        log.trace({ intakeResTimeout }, 'start intakeResTimer')
         intakeResTimer = setTimeout(() => {
           completePart('intakeRes',
             new Error('intake response timeout: APM server did not respond ' +
-              `within ${INTAKE_RES_TIMEOUT_S}s of gzip stream finish`))
-        }, INTAKE_RES_TIMEOUT_S * 1000).unref()
+              `within ${intakeResTimeout / 1000}s of gzip stream finish`))
+        }, intakeResTimeout).unref()
       }
     })
     // Watch the gzip "end" event for its completion, because the "close" event
