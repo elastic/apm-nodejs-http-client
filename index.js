@@ -611,39 +611,38 @@ function getChoppedStreamHandler (client, onerror) {
   //   (c) `_chopper.chop()` is explicitly called via `client.flush()`,
   //       e.g. used by the Node.js APM agent after `client.sendError()`.
   // - This function makes the HTTP POST to the apm-server, pipes the gzipStream
-  //   to it, waits for the completion of the request and the apm-server
+  //   to it, and waits for the completion of the request and the apm-server
   //   response.
   // - Then it calls the given `next` callback to signal StreamChopper that
   //   another chopped stream can be created, when there is more the send.
   //
-  // XXX clean this up if don't actually used those "quoted-names"
   // Of course, things can go wrong. Here are the known ways this pipeline can
-  // conclude. (The "quoted-names" in this list are used for reference in the
-  // test suite and code comments.)
-  // - "intakeRes-success" - A successful response from the APM server. This is
-  //   the normal operation case described above.
-  // - "gzipStream-error" - An "error" event on the gzip stream.
-  // - "intakeReq-error" - An "error" event on the intake HTTP request, e.g.
+  // conclude.
+  // - intake response success - A successful response from the APM server. This
+  //   is the normal operation case described above.
+  // - gzipStream error - An "error" event on the gzip stream.
+  // - intake request error - An "error" event on the intake HTTP request, e.g.
   //   ECONNREFUSED or ECONNRESET.
-  // - "serverTimeout" - An idle timeout value (default 30s) set on the
-  //   socket. This is a catch-all fallback for an otherwised wedged connection.
-  //   If this is being hit, there is some major issue in the application
-  //   (possibly a bug in the APM agent).
-  // - "intakeResponseTimeout" - A timer started *after* we are finished sending
-  //   data to the APM server by which we require a response (including its
-  //   body). By default this is 10s -- a very long time to allow for a slow or
-  //   far apm-server. If we hit this, APM server is problematic anyway, so
-  //   the delay doesn't add to the problems.
-  // - "process-completion" - The Client takes pains to always `.unref()` its
+  // - intakeResTimeout - A timer started *after* we are finished sending data
+  //   to the APM server by which we require a response (including its body). By
+  //   default this is 10s -- a very long time to allow for a slow or far
+  //   apm-server. If we hit this, APM server is problematic anyway, so the
+  //   delay doesn't add to the problems.
+  // - serverTimeout - An idle timeout value (default 30s) set on the socket.
+  //   This is a catch-all fallback for an otherwised wedged connection. If this
+  //   is being hit, there is some major issue in the application (possibly a
+  //   bug in the APM agent).
+  // - process completion - The Client takes pains to always `.unref()` its
   //   handles to never keep a using process open if it is ready to exit. When
   //   the process is ready to exit, the following happens:
-  //    - The process "beforeExit" handler above will call `client.end()`,
+  //    - The "beforeExit" handler above will call `client.end()`,
   //    - which calls `client._ref()` (to *hold the process open* to complete
   //      this request), then `_chopper.end()` to end the `gzipStream` so
   //      this request can complete soon.
   //    - We then expect this request to complete quickly and the process will
-  //      then finish exiting.
-  //      XXX what happens if the APM server doesn't complete here. Do we get the 10s hang?
+  //      then finish exiting. A subtlety is if the APM server is not responding
+  //      then we'll hang on `intakeResTimeout`. This is handled by forcing
+  //      intakeResTimeout to a max of 1s when the client is ending.
   return function makeIntakeRequest (gzipStream, next) {
     const reqId = crypto.randomBytes(16).toString('hex')
     const log = client._log.child({ reqId })
@@ -652,7 +651,8 @@ function getChoppedStreamHandler (client, onerror) {
     let bytesWritten = 0
     let intakeRes
     let intakeResTimer = null
-    const intakeResTimeout = client._conf.intakeResTimeout
+    let intakeResTimeout = client._conf.intakeResTimeout
+    const MAX_INTAKE_RES_TIMEOUT_WHEN_ENDING = 1000
 
     // `_active` is used to coordinate the callback to `client.flush(db)`.
     client._active = true
@@ -810,9 +810,8 @@ function getChoppedStreamHandler (client, onerror) {
       })
     })
 
-    intakeReq.on('abort', () => { log.trace('intakeReq "abort"') })
-    intakeReq.on('close', () => { log.trace('intakeReq "close"') })
-    // XXX What was the error scenario that led me to use 'close' instead of 'finish' here?
+    // intakeReq.on('abort', () => { log.trace('intakeReq "abort"') })
+    // intakeReq.on('close', () => { log.trace('intakeReq "close"') })
     intakeReq.on('finish', () => {
       log.trace('intakeReq "finish"')
       completePart('intakeReq')
@@ -835,12 +834,20 @@ function getChoppedStreamHandler (client, onerror) {
       // If the apm-server is not reading its input and the gzip data is large
       // enough to fill buffers, then the gzip stream will emit "finish", but
       // not "end". Therefore, this "finish" event is the best indicator that
-      // the ball is now in the apm-server's court. I.e. we can start a timer
-      // waiting on the response, provided we still expect one (we don't if
-      // the request has already errored out, e.g. ECONNREFUSED) and it hasn't
-      // already completed (e.g. if it replied quickly with "queue is full").
+      // the ball is now in the apm-server's court.
+      //
+      // We now start a timer waiting on the response, provided we still expect
+      // one (we don't if the request has already errored out, e.g.
+      // ECONNREFUSED) and it hasn't already completed (e.g. if it replied
+      // quickly with "queue is full").
       log.trace('gzipStream "finish"')
       if (!completedFromPart.intakeReq && !completedFromPart.intakeRes) {
+        if (client._writableState.ending && intakeResTimeout > MAX_INTAKE_RES_TIMEOUT_WHEN_ENDING) {
+          // If we are ending (e.g. when handling a last intake request on
+          // process termination), then force the response timeout to a shorter
+          // time.
+          intakeResTimeout = MAX_INTAKE_RES_TIMEOUT_WHEN_ENDING
+        }
         log.trace({ intakeResTimeout }, 'start intakeResTimer')
         intakeResTimer = setTimeout(() => {
           completePart('intakeRes',
