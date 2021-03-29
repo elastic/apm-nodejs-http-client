@@ -283,10 +283,57 @@ test('socket hang up - continue with new request', function (t) {
   })
 })
 
+test('intakeResTimeoutOnEnd', function (t) {
+  const server = APMServer(function (req, res) {
+    req.resume()
+  }).client({
+    intakeResTimeoutOnEnd: 500
+  }, function (client) {
+    const start = Date.now()
+    client.on('request-error', function (err) {
+      t.ok(err, 'got a request-error from the client')
+      const end = Date.now()
+      const delta = end - start
+      t.ok(delta > 400 && delta < 600, `timeout should be about 500ms, got ${delta}ms`)
+      t.equal(err.message, 'intake response timeout: APM server did not respond within 0.5s of gzip stream finish')
+      server.close()
+      t.end()
+    })
+    client.sendSpan({ foo: 42 })
+    client.end()
+  })
+})
+
+test('intakeResTimeout', function (t) {
+  const server = APMServer(function (req, res) {
+    req.resume()
+  }).client({
+    intakeResTimeout: 400
+  }, function (client) {
+    const start = Date.now()
+    client.on('request-error', function (err) {
+      t.ok(err, 'got a request-error from the client')
+      const end = Date.now()
+      const delta = end - start
+      t.ok(delta > 300 && delta < 500, `timeout should be about 400ms, got ${delta}ms`)
+      t.equal(err.message, 'intake response timeout: APM server did not respond within 0.4s of gzip stream finish')
+      server.close()
+      t.end()
+    })
+    client.sendSpan({ foo: 42 })
+    // Do *not* `client.end()` else we are testing intakeResTimeoutOnEnd.
+    client.flush()
+  })
+})
+
 test('socket timeout - server response too slow', function (t) {
   const server = APMServer(function (req, res) {
     req.resume()
-  }).client({ serverTimeout: 1000 }, function (client) {
+  }).client({
+    serverTimeout: 1000,
+    // Set the intake res timeout higher to be able to test serverTimeout.
+    intakeResTimeoutOnEnd: 5000
+  }, function (client) {
     const start = Date.now()
     client.on('request-error', function (err) {
       t.ok(err, 'got a request-error from the client')

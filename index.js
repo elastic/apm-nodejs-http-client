@@ -177,6 +177,7 @@ Client.prototype.config = function (opts) {
   if (!this._conf.bufferWindowSize) this._conf.bufferWindowSize = 50
   if (!this._conf.maxQueueSize) this._conf.maxQueueSize = 1024
   if (!this._conf.intakeResTimeout) this._conf.intakeResTimeout = 10000
+  if (!this._conf.intakeResTimeoutOnEnd) this._conf.intakeResTimeoutOnEnd = 1000
   this._conf.keepAlive = this._conf.keepAlive !== false
   this._conf.centralConfig = this._conf.centralConfig || false
 
@@ -641,8 +642,7 @@ function getChoppedStreamHandler (client, onerror) {
   //      this request can complete soon.
   //    - We then expect this request to complete quickly and the process will
   //      then finish exiting. A subtlety is if the APM server is not responding
-  //      then we'll hang on `intakeResTimeout`. This is handled by forcing
-  //      intakeResTimeout to a max of 1s when the client is ending.
+  //      then we'll wait on `intakeResTimeoutOnEnd` (by default 1s).
   return function makeIntakeRequest (gzipStream, next) {
     const reqId = crypto.randomBytes(16).toString('hex')
     const log = client._log.child({ reqId })
@@ -651,8 +651,8 @@ function getChoppedStreamHandler (client, onerror) {
     let bytesWritten = 0
     let intakeRes
     let intakeResTimer = null
-    let intakeResTimeout = client._conf.intakeResTimeout
-    const MAX_INTAKE_RES_TIMEOUT_WHEN_ENDING = 1000
+    const intakeResTimeout = client._conf.intakeResTimeout
+    const intakeResTimeoutOnEnd = client._conf.intakeResTimeoutOnEnd
 
     // `_active` is used to coordinate the callback to `client.flush(db)`.
     client._active = true
@@ -842,18 +842,13 @@ function getChoppedStreamHandler (client, onerror) {
       // quickly with "queue is full").
       log.trace('gzipStream "finish"')
       if (!completedFromPart.intakeReq && !completedFromPart.intakeRes) {
-        if (client._writableState.ending && intakeResTimeout > MAX_INTAKE_RES_TIMEOUT_WHEN_ENDING) {
-          // If we are ending (e.g. when handling a last intake request on
-          // process termination), then force the response timeout to a shorter
-          // time.
-          intakeResTimeout = MAX_INTAKE_RES_TIMEOUT_WHEN_ENDING
-        }
-        log.trace({ intakeResTimeout }, 'start intakeResTimer')
+        const timeout = client._writableState.ending ? intakeResTimeoutOnEnd : intakeResTimeout
+        log.trace({ timeout }, 'start intakeResTimer')
         intakeResTimer = setTimeout(() => {
           completePart('intakeRes',
             new Error('intake response timeout: APM server did not respond ' +
-              `within ${intakeResTimeout / 1000}s of gzip stream finish`))
-        }, intakeResTimeout).unref()
+              `within ${timeout / 1000}s of gzip stream finish`))
+        }, timeout).unref()
       }
     })
     // Watch the gzip "end" event for its completion, because the "close" event

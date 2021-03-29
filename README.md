@@ -149,6 +149,10 @@ Streaming configuration:
   is expected *after all the event data for that request has been sent*. This
   allows a smaller timeout than `serverTimeout` to handle an APM server that
   is accepting connections but is slow to respond. (default: `10000` ms)
+- `intakeResTimeoutOnEnd` - The same as `intakeResTimeout`, but used when
+  the client has ended, hence for the possible last request to APM server. This
+  is typically a lower value to not hang an ending process that is waiting for
+  that APM server request to complete. (default: `1000` ms)
 
 Data sanitizing configuration:
 
