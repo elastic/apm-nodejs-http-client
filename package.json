@@ -9,9 +9,10 @@
   "files": [
     "lib"
   ],
+  "// scripts.test": "quoting arg to tape to avoid too long argv, let tape do globbing",
   "scripts": {
     "coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
-    "test": "standard && nyc tape test/*.js"
+    "test": "standard && nyc tape \"test/*.js\""
   },
   "engines": {
     "node": "^8.6.0 || 10 || >=12"
