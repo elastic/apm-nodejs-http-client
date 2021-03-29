@@ -134,6 +134,16 @@ Streaming configuration:
   This config option controls the maximum size of that buffer (counted
   in number of objects). Set to `-1` for no max size (default: `50`
   objects)
+- `maxQueueSize` - The maximum number of buffered events (transactions,
+  spans, errors, metricsets). Events are buffered when the agent can't keep
+  up with sending them to the APM Server or if the APM server is down.
+  If the queue is full, events are rejected which means transactions, spans,
+  etc. will be lost. This guards the application from consuming unbounded
+  memory, possibly overusing CPU (spent on serializing events), and possibly
+  crashing in case the APM server is unavailable for a long period of time. A
+  lower value will decrease the heap overhead of the agent, while a higher
+  value makes it less likely to lose events in case of a temporary spike in
+  throughput. (default: 1024)
 
 Data sanitizing configuration:
 

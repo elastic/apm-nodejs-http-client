@@ -32,8 +32,6 @@ const requiredOpts = [
   'userAgent'
 ]
 
-const MAX_QUEUE_SIZE = 1024 // XXX make this configurable a la https://www.elastic.co/guide/en/apm/agent/java/current/config-reporter.html#config-max-queue-size
-// const MAX_QUEUE_SIZE = Infinity // XXX make this configurable a la https://www.elastic.co/guide/en/apm/agent/java/current/config-reporter.html#config-max-queue-size
 const containerInfo = getContainerInfo()
 
 // All sockets on the agent are unreffed when they are created. This means that
@@ -177,6 +175,7 @@ Client.prototype.config = function (opts) {
   if (!this._conf.truncateQueriesAt) this._conf.truncateQueriesAt = 10000
   if (!this._conf.bufferWindowTime) this._conf.bufferWindowTime = 20
   if (!this._conf.bufferWindowSize) this._conf.bufferWindowSize = 50
+  if (!this._conf.maxQueueSize) this._conf.maxQueueSize = 1024
   this._conf.keepAlive = this._conf.keepAlive !== false
   this._conf.centralConfig = this._conf.centralConfig || false
 
@@ -502,7 +501,7 @@ Client.prototype._isUnsafeToWrite = function () {
 
 Client.prototype._shouldDropEvent = function () {
   this._numEvents++
-  const shouldDrop = this._writableState.length >= MAX_QUEUE_SIZE
+  const shouldDrop = this._writableState.length >= this._conf.maxQueueSize
   if (shouldDrop) {
     this._numEventsDropped++
   }
