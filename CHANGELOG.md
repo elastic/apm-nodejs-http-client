@@ -1,5 +1,34 @@
 # elastic-apm-http-client changelog
 
+## Unreleased
+
+- A number of changes were made to fix issues with the APM agent under heavy
+  load and with a slow or non-responsive APM server.
+  ([#144](https://github.com/elastic/apm-nodejs-http-client/pull/144))
+
+  1. A new `maxQueueSize` config option is added (default 1024 for now) to
+    control how many events (transactions, spans, errors, metricsets)
+    will be queued before being dropped if events are incoming faster
+    than can be sent to APM server. This ensures the APM agent memory usage
+    does not grow unbounded.
+
+  2. JSON encoding of events (when uncorking) is done in limited size
+    batches to control the amount of single chunk CPU eventloop blocking
+    time. (See MAX_WRITE_BATCH_SIZE in Client._writev.) Internal stats
+    are collected to watch for long(est) batch processing times.
+
+  3. The handling of individual requests to the APM Server intake API has
+    be rewritten to handle some error cases -- especially from a
+    non-responsive APM server -- and to ensure that only one intake
+    request is being performed at a time. Two new config options --
+    `intakeResTimeout` and `intakeResTimeoutOnEnd` -- have been added to
+    allow fine control over some parts of this handling. See the comment on
+    `makeIntakeRequest` for the best overview.
+
+  4. Support for backoff on intake API requests has been implemented per
+    https://github.com/elastic/apm/blob/master/specs/agents/transport.md#transport-errors
+
+
 ## v9.6.0
 
 - Fix config initialization such that the keep-alive agent is used all the
