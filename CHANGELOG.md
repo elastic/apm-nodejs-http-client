@@ -28,6 +28,8 @@
   4. Support for backoff on intake API requests has been implemented per
     https://github.com/elastic/apm/blob/master/specs/agents/transport.md#transport-errors
 
+- Started testing against node v15 in preparation for supporting the coming
+  node v16.
 
 ## v9.6.0
 
