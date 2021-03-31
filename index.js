@@ -432,7 +432,6 @@ Client.prototype._writeFlush = function (cb) {
 
 Client.prototype._maybeCork = function () {
   if (!this._writableState.corked && this._conf.bufferWindowTime !== -1) {
-    // this._log.trace('cork (from _maybeCork)')
     this.cork()
     if (this._corkTimer && this._corkTimer.refresh) {
       // the refresh function was added in Node 10.2.0
