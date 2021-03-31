@@ -727,7 +727,7 @@ function getChoppedStreamHandler (client, onerror) {
       if (backoffDelayMs > 0) {
         setTimeout(next, backoffDelayMs).unref()
       } else {
-        next()
+        setImmediate(next)
       }
     }
 
