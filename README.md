@@ -95,7 +95,7 @@ HTTP client configuration:
   sent or received on the socket for this amount of time, the request
   will be aborted. It's not recommended to set a `serverTimeout` lower
   than the `time` config option. That might result in healthy requests
-  being aborted prematurely (default: `15000` ms)
+  being aborted prematurely. (default: `15000` ms)
 - `keepAlive` - If set the `false` the client will not reuse sockets
   between requests (default: `true`)
 - `keepAliveMsecs` - When using the `keepAlive` option, specifies the
@@ -134,6 +134,25 @@ Streaming configuration:
   This config option controls the maximum size of that buffer (counted
   in number of objects). Set to `-1` for no max size (default: `50`
   objects)
+- `maxQueueSize` - The maximum number of buffered events (transactions,
+  spans, errors, metricsets). Events are buffered when the agent can't keep
+  up with sending them to the APM Server or if the APM server is down.
+  If the queue is full, events are rejected which means transactions, spans,
+  etc. will be lost. This guards the application from consuming unbounded
+  memory, possibly overusing CPU (spent on serializing events), and possibly
+  crashing in case the APM server is unavailable for a long period of time. A
+  lower value will decrease the heap overhead of the agent, while a higher
+  value makes it less likely to lose events in case of a temporary spike in
+  throughput. (default: 1024)
+- `intakeResTimeout` - The time (in milliseconds) by which a response from the
+  [APM Server events intake API](https://www.elastic.co/guide/en/apm/server/current/events-api.html)
+  is expected *after all the event data for that request has been sent*. This
+  allows a smaller timeout than `serverTimeout` to handle an APM server that
+  is accepting connections but is slow to respond. (default: `10000` ms)
+- `intakeResTimeoutOnEnd` - The same as `intakeResTimeout`, but used when
+  the client has ended, hence for the possible last request to APM server. This
+  is typically a lower value to not hang an ending process that is waiting for
+  that APM server request to complete. (default: `1000` ms)
 
 Data sanitizing configuration:
 

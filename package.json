@@ -9,9 +9,10 @@
   "files": [
     "lib"
   ],
+  "// scripts.test": "quoting arg to tape to avoid too long argv, let tape do globbing",
   "scripts": {
     "coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
-    "test": "standard && nyc tape test/*.js"
+    "test": "standard && nyc tape \"test/*.js\""
   },
   "engines": {
     "node": "^8.6.0 || 10 || >=12"
@@ -24,7 +25,6 @@
     "end-of-stream": "^1.4.4",
     "fast-safe-stringify": "^2.0.7",
     "fast-stream-to-buffer": "^1.0.0",
-    "pump": "^3.0.0",
     "readable-stream": "^3.4.0",
     "stream-chopper": "^3.0.1",
     "unicode-byte-truncate": "^1.0.0"

@@ -12,58 +12,6 @@ const assertMetadata = utils.assertMetadata
 const assertEvent = utils.assertEvent
 const validOpts = utils.validOpts
 
-test('Event: close - if ndjson stream ends', function (t) {
-  t.plan(1)
-  let client
-  const server = APMServer(function (req, res) {
-    client._chopper.end()
-    setTimeout(function () {
-      // wait a little to allow close to be emitted
-      t.end()
-      server.close()
-    }, 10)
-  }).listen(function () {
-    client = new Client(validOpts({
-      serverUrl: 'http://localhost:' + server.address().port
-    }))
-
-    client.on('finish', function () {
-      t.fail('should not emit finish event')
-    })
-    client.on('close', function () {
-      t.pass('should emit close event')
-    })
-
-    client.sendSpan({ req: 1 })
-  })
-})
-
-test('Event: close - if ndjson stream is destroyed', function (t) {
-  t.plan(1)
-  let client
-  const server = APMServer(function (req, res) {
-    client._chopper.destroy()
-    setTimeout(function () {
-      // wait a little to allow close to be emitted
-      t.end()
-      server.close()
-    }, 10)
-  }).listen(function () {
-    client = new Client(validOpts({
-      serverUrl: 'http://localhost:' + server.address().port
-    }))
-
-    client.on('finish', function () {
-      t.fail('should not emit finish event')
-    })
-    client.on('close', function () {
-      t.pass('should emit close event')
-    })
-
-    client.sendSpan({ req: 1 })
-  })
-})
-
 test('Event: close - if chopper ends', function (t) {
   t.plan(1)
   let client
@@ -316,31 +264,79 @@ test('socket hang up - continue with new request', function (t) {
     req.on('end', function () {
       t.pass('should end request')
       res.end()
-      server.close() // cleanup 1: stop listening
-      client.end() // cleanup 2: end the client stream so it can 'finish'
+      client.end() // cleanup 1: end the client stream so it can 'finish'
     })
   }).client(function (_client) {
     client = _client
     client.on('request-error', function (err) {
-      t.equal(err.message, 'socket hang up')
-      t.equal(err.code, 'ECONNRESET')
+      t.equal(err.message, 'socket hang up', 'got "socket hang up" request-error')
+      t.equal(err.code, 'ECONNRESET', 'request-error code is "ECONNRESET"')
       client.sendSpan({ req: 2 })
     })
     client.on('finish', function () {
       t.equal(reqs, 2, 'should emit finish after last request')
+      client.end()
+      server.close()
       t.end()
-      client.destroy() // cleanup 3: destroy keep-alive agent to close idle sockets
     })
     client.sendSpan({ req: 1 })
+  })
+})
+
+test('intakeResTimeoutOnEnd', function (t) {
+  const server = APMServer(function (req, res) {
+    req.resume()
+  }).client({
+    intakeResTimeoutOnEnd: 500
+  }, function (client) {
+    const start = Date.now()
+    client.on('request-error', function (err) {
+      t.ok(err, 'got a request-error from the client')
+      const end = Date.now()
+      const delta = end - start
+      t.ok(delta > 400 && delta < 600, `timeout should be about 500ms, got ${delta}ms`)
+      t.equal(err.message, 'intake response timeout: APM server did not respond within 0.5s of gzip stream finish')
+      server.close()
+      t.end()
+    })
+    client.sendSpan({ foo: 42 })
+    client.end()
+  })
+})
+
+test('intakeResTimeout', function (t) {
+  const server = APMServer(function (req, res) {
+    req.resume()
+  }).client({
+    intakeResTimeout: 400
+  }, function (client) {
+    const start = Date.now()
+    client.on('request-error', function (err) {
+      t.ok(err, 'got a request-error from the client')
+      const end = Date.now()
+      const delta = end - start
+      t.ok(delta > 300 && delta < 500, `timeout should be about 400ms, got ${delta}ms`)
+      t.equal(err.message, 'intake response timeout: APM server did not respond within 0.4s of gzip stream finish')
+      server.close()
+      t.end()
+    })
+    client.sendSpan({ foo: 42 })
+    // Do *not* `client.end()` else we are testing intakeResTimeoutOnEnd.
+    client.flush()
   })
 })
 
 test('socket timeout - server response too slow', function (t) {
   const server = APMServer(function (req, res) {
     req.resume()
-  }).client({ serverTimeout: 1000 }, function (client) {
+  }).client({
+    serverTimeout: 1000,
+    // Set the intake res timeout higher to be able to test serverTimeout.
+    intakeResTimeoutOnEnd: 5000
+  }, function (client) {
     const start = Date.now()
     client.on('request-error', function (err) {
+      t.ok(err, 'got a request-error from the client')
       const end = Date.now()
       const delta = end - start
       t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')

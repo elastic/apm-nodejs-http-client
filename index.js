@@ -1,5 +1,8 @@
 'use strict'
 
+const assert = require('assert')
+const crypto = require('crypto')
+const fs = require('fs')
 const http = require('http')
 const https = require('https')
 const util = require('util')
@@ -9,7 +12,6 @@ const zlib = require('zlib')
 const querystring = require('querystring')
 const Writable = require('readable-stream').Writable
 const getContainerInfo = require('./lib/container-info')
-const pump = require('pump')
 const eos = require('end-of-stream')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
@@ -32,17 +34,19 @@ const requiredOpts = [
 
 const containerInfo = getContainerInfo()
 
-const node8 = process.version.indexOf('v8.') === 0
-
 // All sockets on the agent are unreffed when they are created. This means that
 // when those are the only handles left, the `beforeExit` event will be
 // emitted. By listening for this we can make sure to end the requests properly
 // before exiting. This way we don't keep the process running until the `time`
 // timeout happens.
-const clients = []
+const clientsToAutoEnd = []
 process.once('beforeExit', function () {
-  clients.forEach(function (client) {
-    if (!client) return // clients remove them selfs from the array when they end
+  clientsToAutoEnd.forEach(function (client) {
+    if (!client) {
+      // Clients remove themselves from the array when they end.
+      return
+    }
+    client._log.trace('auto-end client beforeExit')
     client.end()
   })
 })
@@ -69,8 +73,11 @@ function Client (opts) {
   this._transport = null
   this._configTimer = null
   this._encodedMetadata = null
+  this._backoffReconnectCount = 0
 
   // Internal runtime stats for developer debugging/tuning.
+  this._numEvents = 0 // number of events given to the client
+  this._numEventsDropped = 0 // number of events dropped because overloaded
   this._numEventsEnqueued = 0 // number of events written through to chopper
   this.sent = 0 // number of events sent to APM server (not necessarily accepted)
   this._slowWriteBatch = { // data on slow or the slowest _writeBatch
@@ -104,9 +111,6 @@ function Client (opts) {
     this.emit('cloud-metadata', this._encodedMetadata)
   })
 
-  const errorproxy = (err) => {
-    if (this.destroyed === false) this.emit('request-error', err)
-  }
   this._chopper = new StreamChopper({
     size: this._conf.size,
     time: this._conf.time,
@@ -114,15 +118,23 @@ function Client (opts) {
     transform () {
       return zlib.createGzip()
     }
-  }).on('stream', onStream(this, errorproxy))
+  })
+  const onIntakeError = (err) => {
+    if (this.destroyed === false) {
+      this.emit('request-error', err)
+    }
+  }
+  this._chopper.on('stream', getChoppedStreamHandler(this, onIntakeError))
 
+  // We don't expect the chopper stream to end until the client is ending.
+  // Make sure to clean up if this does happen unexpectedly.
   const fail = () => {
     if (this._writableState.ending === false) this.destroy()
   }
   eos(this._chopper, fail)
 
-  this._index = clients.length
-  clients.push(this)
+  this._index = clientsToAutoEnd.length
+  clientsToAutoEnd.push(this)
 
   if (this._conf.centralConfig) {
     this._pollConfig()
@@ -132,9 +144,12 @@ function Client (opts) {
 // Return current internal stats.
 Client.prototype._getStats = function () {
   return {
+    numEvents: this._numEvents,
+    numEventsDropped: this._numEventsDropped,
     numEventsEnqueued: this._numEventsEnqueued,
     numEventsSent: this.sent,
-    slowWriteBatch: this._slowWriteBatch
+    slowWriteBatch: this._slowWriteBatch,
+    backoffReconnectCount: this._backoffReconnectCount
   }
 }
 
@@ -160,6 +175,9 @@ Client.prototype.config = function (opts) {
   if (!this._conf.truncateQueriesAt) this._conf.truncateQueriesAt = 10000
   if (!this._conf.bufferWindowTime) this._conf.bufferWindowTime = 20
   if (!this._conf.bufferWindowSize) this._conf.bufferWindowSize = 50
+  if (!this._conf.maxQueueSize) this._conf.maxQueueSize = 1024
+  if (!this._conf.intakeResTimeout) this._conf.intakeResTimeout = 10000
+  if (!this._conf.intakeResTimeoutOnEnd) this._conf.intakeResTimeoutOnEnd = 1000
   this._conf.keepAlive = this._conf.keepAlive !== false
   this._conf.centralConfig = this._conf.centralConfig || false
 
@@ -322,30 +340,43 @@ Client.prototype._write = function (obj, enc, cb) {
 }
 
 Client.prototype._writev = function (objs, cb) {
+  // Limit the size of individual writes to manageable batches, primarily to
+  // limit large sync pauses due to `_encode`ing in `_writeBatch`. This value
+  // is not particularly well tuned. It was selected to get sync pauses under
+  // 10ms on a developer machine.
+  const MAX_WRITE_BATCH_SIZE = 32
+
   let offset = 0
 
   const processBatch = () => {
-    let index = -1
-    for (let i = offset; i < objs.length; i++) {
+    if (this.destroyed) {
+      cb()
+      return
+    }
+
+    let flushIdx = -1
+    const limit = Math.min(objs.length, offset + MAX_WRITE_BATCH_SIZE)
+    for (let i = offset; i < limit; i++) {
       if (objs[i].chunk === flush) {
-        index = i
+        flushIdx = i
         break
       }
     }
 
-    if (offset === 0 && index === -1) {
-      // normally there's no flush object queued, so here's a shortcut that just
-      // skips all the complicated splitting logic
+    if (offset === 0 && flushIdx === -1 && objs.length <= MAX_WRITE_BATCH_SIZE) {
+      // A shortcut if there is no `flush` and the whole `objs` fits in a batch.
       this._writeBatch(objs, cb)
-    } else if (index === -1) {
-      // no more flush elements in the queue, just write the rest
-      this._writeBatch(objs.slice(offset), cb)
-    } else if (index > offset) {
-      // there's a few items in the queue before we need to flush, let's first write those
-      this._writeBatch(objs.slice(offset, index), processBatch)
-      offset = index
-    } else if (index === objs.length - 1) {
-      // the last item in the queue is a flush
+    } else if (flushIdx === -1) {
+      // No `flush` in this batch.
+      this._writeBatch(objs.slice(offset, limit),
+        limit === objs.length ? cb : processBatch)
+      offset = limit
+    } else if (flushIdx > offset) {
+      // There are some events in the queue before a `flush`.
+      this._writeBatch(objs.slice(offset, flushIdx), processBatch)
+      offset = flushIdx
+    } else if (flushIdx === objs.length - 1) {
+      // The next item is a flush, and it is the *last* item in the queue.
       this._writeFlush(cb)
     } else {
       // the next item in the queue is a flush
@@ -390,6 +421,7 @@ Client.prototype._writeBatch = function (objs, cb) {
 }
 
 Client.prototype._writeFlush = function (cb) {
+  this._log.trace({ active: this._active }, '_writeFlush')
   if (this._active) {
     this._onflushed = cb
     this._chopper.chop()
@@ -426,7 +458,9 @@ Client.prototype._maybeUncork = function () {
     // to `_maybeUncork` have time to be added to the queue. If we didn't do
     // this, that last write would trigger a single call to `_write`.
     process.nextTick(() => {
-      if (this.destroyed === false) this.uncork()
+      if (this.destroyed === false) {
+        this.uncork()
+      }
     })
 
     if (this._corkTimer) {
@@ -466,8 +500,17 @@ Client.prototype._isUnsafeToWrite = function () {
   return this.destroyed
 }
 
+Client.prototype._shouldDropEvent = function () {
+  this._numEvents++
+  const shouldDrop = this._writableState.length >= this._conf.maxQueueSize
+  if (shouldDrop) {
+    this._numEventsDropped++
+  }
+  return shouldDrop
+}
+
 Client.prototype.sendSpan = function (span, cb) {
-  if (this._isUnsafeToWrite()) {
+  if (this._isUnsafeToWrite() || this._shouldDropEvent()) {
     return
   }
   this._maybeCork()
@@ -475,7 +518,7 @@ Client.prototype.sendSpan = function (span, cb) {
 }
 
 Client.prototype.sendTransaction = function (transaction, cb) {
-  if (this._isUnsafeToWrite()) {
+  if (this._isUnsafeToWrite() || this._shouldDropEvent()) {
     return
   }
   this._maybeCork()
@@ -483,7 +526,7 @@ Client.prototype.sendTransaction = function (transaction, cb) {
 }
 
 Client.prototype.sendError = function (error, cb) {
-  if (this._isUnsafeToWrite()) {
+  if (this._isUnsafeToWrite() || this._shouldDropEvent()) {
     return
   }
   this._maybeCork()
@@ -491,7 +534,7 @@ Client.prototype.sendError = function (error, cb) {
 }
 
 Client.prototype.sendMetricSet = function (metricset, cb) {
-  if (this._isUnsafeToWrite()) {
+  if (this._isUnsafeToWrite() || this._shouldDropEvent()) {
     return
   }
   this._maybeCork()
@@ -509,17 +552,19 @@ Client.prototype.flush = function (cb) {
 }
 
 Client.prototype._final = function (cb) {
+  this._log.trace('_final')
   if (this._configTimer) {
     clearTimeout(this._configTimer)
     this._configTimer = null
   }
-  clients[this._index] = null // remove global reference to ease garbage collection
+  clientsToAutoEnd[this._index] = null // remove global reference to ease garbage collection
   this._ref()
   this._chopper.end()
   cb()
 }
 
 Client.prototype._destroy = function (err, cb) {
+  this._log.trace({ err }, '_destroy')
   if (this._configTimer) {
     clearTimeout(this._configTimer)
     this._configTimer = null
@@ -528,80 +573,140 @@ Client.prototype._destroy = function (err, cb) {
     clearTimeout(this._corkTimer)
     this._corkTimer = null
   }
-  clients[this._index] = null // remove global reference to ease garbage collection
+  clientsToAutoEnd[this._index] = null // remove global reference to ease garbage collection
   this._chopper.destroy()
   this._agent.destroy()
   cb(err)
 }
 
-function onStream (client, onerror) {
-  return function (stream, next) {
-    const onerrorproxy = (err) => {
-      stream.removeListener('error', onerrorproxy)
-      req.removeListener('error', onerrorproxy)
-      destroyStream(stream)
-      onerror(err)
-    }
+// Return the appropriate backoff delay (in milliseconds) before a next possible
+// request to APM server.
+// Spec: https://github.com/elastic/apm/blob/master/specs/agents/transport.md#transport-errors
+Client.prototype._getBackoffDelay = function (isErr) {
+  let reconnectCount = this._backoffReconnectCount
+  if (isErr) {
+    this._backoffReconnectCount++
+  } else {
+    this._backoffReconnectCount = 0
+    reconnectCount = 0
+  }
 
+  // min(reconnectCount++, 6) ** 2 ± 10%
+  const delayS = Math.pow(Math.min(reconnectCount, 6), 2)
+  const jitterS = delayS * (0.2 * Math.random() - 0.1)
+  const delayMs = (delayS + jitterS) * 1000
+  return delayMs
+}
+
+function getChoppedStreamHandler (client, onerror) {
+  // Make a request to the apm-server intake API.
+  // https://www.elastic.co/guide/en/apm/server/current/events-api.html
+  //
+  // In normal operation this works as follows:
+  // - The StreamChopper (`this._chopper`) calls this function with a newly
+  //   created Gzip stream, to which it writes encoded event data.
+  // - It `gzipStream.end()`s the stream when:
+  //   (a) approximately `apiRequestSize` of data have been written,
+  //   (b) `apiRequestTime` seconds have passed, or
+  //   (c) `_chopper.chop()` is explicitly called via `client.flush()`,
+  //       e.g. used by the Node.js APM agent after `client.sendError()`.
+  // - This function makes the HTTP POST to the apm-server, pipes the gzipStream
+  //   to it, and waits for the completion of the request and the apm-server
+  //   response.
+  // - Then it calls the given `next` callback to signal StreamChopper that
+  //   another chopped stream can be created, when there is more the send.
+  //
+  // Of course, things can go wrong. Here are the known ways this pipeline can
+  // conclude.
+  // - intake response success - A successful response from the APM server. This
+  //   is the normal operation case described above.
+  // - gzipStream error - An "error" event on the gzip stream.
+  // - intake request error - An "error" event on the intake HTTP request, e.g.
+  //   ECONNREFUSED or ECONNRESET.
+  // - intakeResTimeout - A timer started *after* we are finished sending data
+  //   to the APM server by which we require a response (including its body). By
+  //   default this is 10s -- a very long time to allow for a slow or far
+  //   apm-server. If we hit this, APM server is problematic anyway, so the
+  //   delay doesn't add to the problems.
+  // - serverTimeout - An idle timeout value (default 30s) set on the socket.
+  //   This is a catch-all fallback for an otherwised wedged connection. If this
+  //   is being hit, there is some major issue in the application (possibly a
+  //   bug in the APM agent).
+  // - process completion - The Client takes pains to always `.unref()` its
+  //   handles to never keep a using process open if it is ready to exit. When
+  //   the process is ready to exit, the following happens:
+  //    - The "beforeExit" handler above will call `client.end()`,
+  //    - which calls `client._ref()` (to *hold the process open* to complete
+  //      this request), then `_chopper.end()` to end the `gzipStream` so
+  //      this request can complete soon.
+  //    - We then expect this request to complete quickly and the process will
+  //      then finish exiting. A subtlety is if the APM server is not responding
+  //      then we'll wait on `intakeResTimeoutOnEnd` (by default 1s).
+  return function makeIntakeRequest (gzipStream, next) {
+    const reqId = crypto.randomBytes(16).toString('hex')
+    const log = client._log.child({ reqId })
+    const startTime = process.hrtime()
+    const timeline = []
+    let bytesWritten = 0
+    let intakeRes
+    let intakeResTimer = null
+    const intakeResTimeout = client._conf.intakeResTimeout
+    const intakeResTimeoutOnEnd = client._conf.intakeResTimeoutOnEnd
+
+    // `_active` is used to coordinate the callback to `client.flush(db)`.
     client._active = true
 
-    const req = client._transport.request(client._conf.requestIntake, onResult(onerror))
+    // Handle conclusion of this intake request. Each "part" is expected to call
+    // `completePart()` at least once -- multiple calls are okay for cases like
+    // the "error" and "close" events on a stream being called. When a part
+    // errors or all parts are completed, then we can conclude.
+    let concluded = false
+    const completedFromPart = {
+      gzipStream: false,
+      intakeReq: false,
+      intakeRes: false
+    }
+    let numToComplete = Object.keys(completedFromPart).length
+    const completePart = (part, err) => {
+      log.trace({ err, concluded }, 'completePart %s', part)
+      timeline.push([deltaMs(startTime), `completePart ${part}`, err && err.message])
+      assert(part in completedFromPart, `'${part}' is in completedFromPart`)
 
-    // Abort the current request if the server responds prior to the request
-    // being finished
-    req.on('response', function (res) {
-      if (!req.finished) {
-        // In Node.js 8, the zlib stream will emit a 'zlib binding closed'
-        // error when destroyed. Furthermore, the HTTP response will not emit
-        // any data events after the request have been destroyed, so it becomes
-        // impossible to see the error returned by the server if we abort the
-        // request. So for Node.js 8, we'll work around this by closing the
-        // stream gracefully.
-        //
-        // This results in the gzip buffer being flushed and a little more data
-        // being sent to the APM Server, but it's better than not getting the
-        // error body.
-        if (node8) {
-          stream.end()
-        } else {
-          destroyStream(stream)
+      if (concluded) {
+        return
+      }
+
+      // If this is the final part to complete, then we are ready to conclude.
+      let allPartsCompleted = false
+      if (!completedFromPart[part]) {
+        completedFromPart[part] = true
+        numToComplete--
+        if (numToComplete === 0) {
+          allPartsCompleted = true
         }
       }
-    })
+      if (!err && !allPartsCompleted) {
+        return
+      }
 
-    // Mointor streams for errors so that we can make sure to destory the
-    // output stream as soon as that occurs
-    stream.on('error', onerrorproxy)
-    req.on('error', onerrorproxy)
+      // Conclude.
+      concluded = true
+      if (err) {
+        // There was an error: clean up resources.
 
-    req.on('socket', function (socket) {
-      // Sockets will automatically be unreffed by the HTTP agent when they are
-      // not in use by an HTTP request, but as we're keeping the HTTP request
-      // open, we need to unref the socket manually
-      socket.unref()
-    })
-
-    if (Number.isFinite(client._conf.serverTimeout)) {
-      req.setTimeout(client._conf.serverTimeout, function () {
-        req.destroy(new Error(`APM Server response timeout (${client._conf.serverTimeout}ms)`))
-      })
-    }
-
-    pump(stream, req, function () {
-      // This function is technically called with an error, but because we
-      // manually attach error listeners on all the streams in the pipeline
-      // above, we can safely ignore it.
-      //
-      // We do this for two reasons:
-      //
-      // 1) This callback might be called a few ticks too late, in which case a
-      //    race condition could occur where the user would write to the output
-      //    stream before the rest of the system discovered that it was
-      //    unwritable
-      //
-      // 2) The error might occur post the end of the stream. In that case we
-      //    would not get it here as the internal error listener would have
-      //    been removed and the stream would throw the error instead
+        // Note that in Node v8, destroying the gzip stream results in it
+        // emitting an "error" event as follows. No harm, however.
+        //    Error: gzip stream error: zlib binding closed
+        //      at Gzip._transform (zlib.js:369:15)
+        //      ...
+        destroyStream(gzipStream)
+        intakeReq.destroy()
+        if (intakeResTimer) {
+          log.trace('cancel intakeResTimer')
+          clearTimeout(intakeResTimer)
+          intakeResTimer = null
+        }
+      }
 
       client.sent = client._numEventsEnqueued
       client._active = false
@@ -610,36 +715,164 @@ function onStream (client, onerror) {
         client._onflushed = null
       }
 
-      next()
+      const backoffDelayMs = client._getBackoffDelay(!!err)
+      if (err) {
+        log.trace({ timeline, bytesWritten, backoffDelayMs, err },
+          'conclude intake request: error')
+        onerror(err)
+      } else {
+        log.trace({ timeline, bytesWritten, backoffDelayMs },
+          'conclude intake request: success')
+      }
+      if (backoffDelayMs > 0) {
+        setTimeout(next, backoffDelayMs).unref()
+      } else {
+        setImmediate(next)
+      }
+    }
+
+    // Start the request and set its timeout.
+    const intakeReq = client._transport.request(client._conf.requestIntake)
+    if (Number.isFinite(client._conf.serverTimeout)) {
+      intakeReq.setTimeout(client._conf.serverTimeout)
+    }
+    // TODO: log intakeReq and intakeRes when
+    // https://github.com/elastic/ecs-logging-nodejs/issues/67 is implemented.
+    log.trace('intake request start')
+
+    // Handle events on the intake request.
+    // https://nodejs.org/api/http.html#http_http_request_options_callback docs
+    // emitted events on the req and res objects for different scenarios.
+    intakeReq.on('timeout', () => {
+      log.trace('intakeReq "timeout"')
+      // `.destroy(err)` will result in an "error" event.
+      intakeReq.destroy(new Error(`APM Server response timeout (${client._conf.serverTimeout}ms)`))
     })
 
-    // Only intended for local debugging
-    if (client._conf.payloadLogFile) {
-      if (!client._payloadLogFile) {
-        client._payloadLogFile = require('fs').createWriteStream(client._conf.payloadLogFile, { flags: 'a' })
+    intakeReq.on('socket', function (socket) {
+      // Unref the socket for this request so that the Client does not keep
+      // the node process running if it otherwise would be done. (This is
+      // tested by the "unref-client" test in test/side-effects.js.)
+      //
+      // The HTTP keep-alive agent will unref sockets when unused, and ref them
+      // during a request. Given that the normal makeIntakeRequest behaviour
+      // is to keep a request open for up to 10s (`apiRequestTimeout`), we must
+      // manually unref the socket.
+      log.trace('intakeReq "socket": unref it')
+      socket.unref()
+    })
+
+    intakeReq.on('response', (intakeRes_) => {
+      intakeRes = intakeRes_
+      log.trace({ statusCode: intakeRes.statusCode, reqFinished: intakeReq.finished },
+        'intakeReq "response"')
+      let err
+      const chunks = []
+
+      if (!intakeReq.finished) {
+        // Premature response from APM server. Typically this is for errors
+        // like "queue is full", for which the response body will be parsed
+        // below. However, set an `err` as a fallback for the unexpected case
+        // that is with a 2xx response.
+        if (intakeRes.statusCode >= 200 && intakeRes.statusCode < 300) {
+          err = new Error(`premature apm-server response with statusCode=${intakeRes.statusCode}`)
+        }
+        // There is no point (though no harm) in sending more data to the APM
+        // server. In case reading the error response body takes a while, pause
+        // the gzip stream until it is destroyed in `completePart()`.
+        gzipStream.pause()
       }
 
-      // Manually write to the file instead of using pipe/pump so that the file
-      // handle isn't closed when the stream ends
-      stream.pipe(zlib.createGunzip()).on('data', function (chunk) {
-        client._payloadLogFile.write(chunk)
+      // Handle events on the intake response.
+      intakeRes.on('error', (intakeResErr) => {
+        // I am not aware of a way to get an "error" event on the
+        // IncomingMessage (see also https://stackoverflow.com/q/53691119), but
+        // handling it here is preferable to an uncaughtException.
+        intakeResErr = wrapError(intakeResErr, 'intake response error event')
+        completePart('intakeRes', intakeResErr)
       })
+      intakeRes.on('data', (chunk) => {
+        chunks.push(chunk)
+      })
+      // intakeRes.on('close', () => { log.trace('intakeRes "close"') })
+      // intakeRes.on('aborted', () => { log.trace('intakeRes "aborted"') })
+      intakeRes.on('end', () => {
+        log.trace('intakeRes "end"')
+        if (intakeResTimer) {
+          clearTimeout(intakeResTimer)
+          intakeResTimer = null
+        }
+        if (intakeRes.statusCode < 200 || intakeRes.statusCode > 299) {
+          err = processIntakeErrorResponse(intakeRes, Buffer.concat(chunks))
+        }
+        completePart('intakeRes', err)
+      })
+    })
+
+    // intakeReq.on('abort', () => { log.trace('intakeReq "abort"') })
+    // intakeReq.on('close', () => { log.trace('intakeReq "close"') })
+    intakeReq.on('finish', () => {
+      log.trace('intakeReq "finish"')
+      completePart('intakeReq')
+    })
+    intakeReq.on('error', (err) => {
+      log.trace('intakeReq "error"')
+      completePart('intakeReq', err)
+    })
+
+    // Handle events on the gzip stream.
+    gzipStream.on('data', (chunk) => {
+      bytesWritten += chunk.length
+    })
+    gzipStream.on('error', (gzipErr) => {
+      log.trace('gzipStream "error"')
+      gzipErr = wrapError(gzipErr, 'gzip stream error')
+      completePart('gzipStream', gzipErr)
+    })
+    gzipStream.on('finish', () => {
+      // If the apm-server is not reading its input and the gzip data is large
+      // enough to fill buffers, then the gzip stream will emit "finish", but
+      // not "end". Therefore, this "finish" event is the best indicator that
+      // the ball is now in the apm-server's court.
+      //
+      // We now start a timer waiting on the response, provided we still expect
+      // one (we don't if the request has already errored out, e.g.
+      // ECONNREFUSED) and it hasn't already completed (e.g. if it replied
+      // quickly with "queue is full").
+      log.trace('gzipStream "finish"')
+      if (!completedFromPart.intakeReq && !completedFromPart.intakeRes) {
+        const timeout = client._writableState.ending ? intakeResTimeoutOnEnd : intakeResTimeout
+        log.trace({ timeout }, 'start intakeResTimer')
+        intakeResTimer = setTimeout(() => {
+          completePart('intakeRes',
+            new Error('intake response timeout: APM server did not respond ' +
+              `within ${timeout / 1000}s of gzip stream finish`))
+        }, timeout).unref()
+      }
+    })
+    // Watch the gzip "end" event for its completion, because the "close" event
+    // that we would prefer to use, *does not get emitted* for the
+    // `client.sendSpan(callback) + client.flush()` test case with
+    // *node v12-only*.
+    gzipStream.on('end', () => {
+      log.trace('gzipStream "end"')
+      completePart('gzipStream')
+    })
+    // gzipStream.on('close', () => { log.trace('gzipStream "close"') })
+
+    // Hook up writing data to a file (only intended for local debugging).
+    // Append the intake data to `payloadLogFile`, if given. This is only
+    // intended for local debugging because it can have a significant perf
+    // impact.
+    if (client._conf.payloadLogFile) {
+      const payloadLogStream = fs.createWriteStream(client._conf.payloadLogFile, { flags: 'a' })
+      gzipStream.pipe(zlib.createGunzip()).pipe(payloadLogStream)
     }
 
-    // The _encodedMetadata property _should_ be set in the Client
-    // constructor function after making a cloud metadata call.
-    //
-    // Since we cork data until the client._encodedMetadata is set the
-    // following conditional should not be necessary. However, we'll
-    // leave it in place out of a healthy sense of caution in case
-    // something unsets _encodedMetadata or _encodedMetadata is somehow
-    // never set.
-    if (!client._encodedMetadata) {
-      client._encodedMetadata = client._encode({ metadata: client._conf.metadata }, Client.encoding.METADATA)
-    }
-
-    // All requests to the APM Server must start with a metadata object
-    stream.write(client._encodedMetadata)
+    // Send the metadata object (always first) and hook up the streams.
+    assert(client._encodedMetadata, 'client._encodedMetadata is set')
+    gzipStream.write(client._encodedMetadata)
+    gzipStream.pipe(intakeReq)
   }
 }
 
@@ -672,15 +905,6 @@ Client.prototype._fetchAndEncodeMetadata = function (cb) {
       cb(err, this._encodedMetadata)
     })
   }
-}
-
-function onResult (onerror) {
-  return streamToBuffer.onStream(function (err, buf, res) {
-    if (err) return onerror(err)
-    if (res.statusCode < 200 || res.statusCode > 299) {
-      onerror(processIntakeErrorResponse(res, buf))
-    }
-  })
 }
 
 function getIntakeRequestOptions (opts, agent) {
@@ -860,12 +1084,27 @@ function getMaxAge (res) {
   return parseInt(match && match[1], 10)
 }
 
+// Wrap the given Error object, including the given message.
+//
+// Dev Note: Various techniques exist to wrap `Error`s in node.js and JavaScript
+// to provide a cause chain, e.g. see
+// https://www.joyent.com/node-js/production/design/errors
+// However, I'm not aware of a de facto "winner". Eventually there may be
+// https://github.com/tc39/proposal-error-cause
+// For now we will simply prefix the existing error object's `message` property.
+// This is simple and preserves the root error `stack`.
+function wrapError (err, msg) {
+  err.message = msg + ': ' + err.message
+  return err
+}
+
 function processIntakeErrorResponse (res, buf) {
   const err = new Error('Unexpected APM Server response')
 
   err.code = res.statusCode
 
   if (buf.length > 0) {
+    // https://www.elastic.co/guide/en/apm/server/current/events-api.html#events-api-errors
     const body = buf.toString('utf8')
     const contentType = res.headers['content-type']
     if (contentType && contentType.startsWith('application/json')) {

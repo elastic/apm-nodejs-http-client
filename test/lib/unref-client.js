@@ -1,8 +1,13 @@
 'use strict'
 
+// This is used in test/side-effects.js to ensure that a Client with a
+// (sometimes long-lived) request open to APM server does *not* keep a node
+// process alive.
+
 const Client = require('../../')
 
 const client = new Client({
+  // logger: require('pino')({ level: 'trace' }, process.stderr), // uncomment for debugging
   serverUrl: process.argv[2],
   secretToken: 'secret',
   agentName: 'my-agent-name',
@@ -11,6 +16,6 @@ const client = new Client({
   userAgent: 'my-user-agent'
 })
 
-process.stdout.write(String(Date.now()))
+process.stdout.write(String(Date.now()) + '\n')
 
 client.sendSpan({ hello: 'world' }) // Don't end the stream
