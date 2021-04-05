@@ -1,6 +1,6 @@
 # elastic-apm-http-client changelog
 
-## Unreleased
+## v9.7.0
 
 - A number of changes were made to fix issues with the APM agent under heavy
   load and with a slow or non-responsive APM server.
