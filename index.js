@@ -46,12 +46,7 @@ process.once('beforeExit', function () {
       // Clients remove themselves from the array when they end.
       return
     }
-    client._log.trace('ref client sockets and end client beforeExit')
-    // Calling _ref here, instead of relying on the _ref call in `_final`,
-    // is necessary because `client.end()` does *not* result in the Client's
-    // `_final()` being called when the process is exiting.
-    client._ref()
-    client.end()
+    client._gracefulExit()
   })
 })
 
@@ -78,6 +73,7 @@ function Client (opts) {
   this._configTimer = null
   this._encodedMetadata = null
   this._backoffReconnectCount = 0
+  this._intakeRequestGracefulExitFn = null // set in makeIntakeRequest
 
   // Internal runtime stats for developer debugging/tuning.
   this._numEvents = 0 // number of events given to the client
@@ -555,6 +551,23 @@ Client.prototype.flush = function (cb) {
   return this.write(flush, cb)
 }
 
+// A handler that can be called on process "beforeExit" to attempt quick and
+// orderly shutdown of the client. It attempts to ensure that the current
+// active intake API request to APM server is completed quickly.
+Client.prototype._gracefulExit = function () {
+  this._log.trace('_gracefulExit')
+
+  if (this._intakeRequestGracefulExitFn) {
+    this._intakeRequestGracefulExitFn()
+  }
+
+  // Calling _ref here, instead of relying on the _ref call in `_final`,
+  // is necessary because `client.end()` does *not* result in the Client's
+  // `_final()` being called when the process is exiting.
+  this._ref()
+  this.end()
+}
+
 Client.prototype._final = function (cb) {
   this._log.trace('_final')
   if (this._configTimer) {
@@ -639,13 +652,13 @@ function getChoppedStreamHandler (client, onerror) {
   // - process completion - The Client takes pains to always `.unref()` its
   //   handles to never keep a using process open if it is ready to exit. When
   //   the process is ready to exit, the following happens:
-  //    - The "beforeExit" handler above will call `client._ref()` to *hold the
-  //      process open* to complete this request,
-  //    - then calls `client.end(), which calls `_chopper.end()` to end the
-  //      `gzipStream` so this request can complete soon.
+  //    - The "beforeExit" handler above will call `client._gracefulExit()` ...
+  //    - ... which calls `client._ref()` to *hold the process open* to
+  //      complete this request, and `client.end()` to end the `gzipStream` so
+  //      this request can complete soon.
   //    - We then expect this request to complete quickly and the process will
   //      then finish exiting. A subtlety is if the APM server is not responding
-  //      then we'll wait on `intakeResTimeoutOnEnd` (by default 1s).
+  //      then we'll wait on the shorter `intakeResTimeoutOnEnd` (by default 1s).
   return function makeIntakeRequest (gzipStream, next) {
     const reqId = crypto.randomBytes(16).toString('hex')
     const log = client._log.child({ reqId })
@@ -732,6 +745,19 @@ function getChoppedStreamHandler (client, onerror) {
         setTimeout(next, backoffDelayMs).unref()
       } else {
         setImmediate(next)
+      }
+    }
+
+    // Provide a function on the client for it to signal this intake request
+    // to gracefully shutdown, i.e. finish up quickly.
+    client._intakeRequestGracefulExitFn = () => {
+      if (intakeResTimer) {
+        clearTimeout(intakeResTimer)
+        intakeResTimer = setTimeout(() => {
+          completePart('intakeRes',
+            new Error('intake response timeout: APM server did not respond ' +
+              `within ${intakeResTimeoutOnEnd / 1000}s of graceful exit signal`))
+        }, intakeResTimeoutOnEnd).unref()
       }
     }
 
