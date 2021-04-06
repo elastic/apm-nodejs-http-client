@@ -46,7 +46,11 @@ process.once('beforeExit', function () {
       // Clients remove themselves from the array when they end.
       return
     }
-    client._log.trace('auto-end client beforeExit')
+    client._log.trace('ref client sockets and end client beforeExit')
+    // Calling _ref here, instead of relying on the _ref call in `_final`,
+    // is necessary because `client.end()` does *not* result in the Client's
+    // `_final()` being called when the process is exiting.
+    client._ref()
     client.end()
   })
 })
@@ -635,10 +639,10 @@ function getChoppedStreamHandler (client, onerror) {
   // - process completion - The Client takes pains to always `.unref()` its
   //   handles to never keep a using process open if it is ready to exit. When
   //   the process is ready to exit, the following happens:
-  //    - The "beforeExit" handler above will call `client.end()`,
-  //    - which calls `client._ref()` (to *hold the process open* to complete
-  //      this request), then `_chopper.end()` to end the `gzipStream` so
-  //      this request can complete soon.
+  //    - The "beforeExit" handler above will call `client._ref()` to *hold the
+  //      process open* to complete this request,
+  //    - then calls `client.end(), which calls `_chopper.end()` to end the
+  //      `gzipStream` so this request can complete soon.
   //    - We then expect this request to complete quickly and the process will
   //      then finish exiting. A subtlety is if the APM server is not responding
   //      then we'll wait on `intakeResTimeoutOnEnd` (by default 1s).

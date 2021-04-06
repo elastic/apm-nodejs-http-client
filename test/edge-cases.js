@@ -1,8 +1,11 @@
 'use strict'
 
+const { exec } = require('child_process')
 const http = require('http')
+const path = require('path')
 const test = require('tape')
 const utils = require('./lib/utils')
+
 const Client = require('../')
 
 const APMServer = utils.APMServer
@@ -539,7 +542,6 @@ test('client.send*() after client.destroy() should not result in error', functio
 })
 
 const dataTypes = ['span', 'transaction', 'error']
-
 dataTypes.forEach(function (dataType) {
   const sendFn = 'send' + dataType.charAt(0).toUpperCase() + dataType.substr(1)
 
@@ -565,6 +567,52 @@ dataTypes.forEach(function (dataType) {
       obj.bar = obj
       client[sendFn](obj)
       client.flush(() => { client.destroy() })
+    })
+  })
+})
+
+// Ensure that the client.flush(cb) callback is called even if there are no
+// active handles -- i.e. the process is exiting. We test this out of process
+// to ensure no conflict with other tests or the test framework.
+test.only('client.flush callbacks must be called, even if no active handles', function (t) {
+  let theError
+
+  const server = APMServer(function (req, res) {
+    const objStream = processIntakeReq(req)
+    let n = 0
+    objStream.on('data', function (obj) {
+      if (++n === 2) {
+        theError = obj.error
+      }
+    })
+    objStream.on('end', function () {
+      res.statusCode = 202
+      res.end()
+      server.close()
+    })
+  })
+
+  server.listen(function () {
+    const url = 'http://localhost:' + server.address().port
+    const script = path.resolve(__dirname, 'lib', 'call-me-back-maybe.js')
+    const start = Date.now()
+    exec(`${process.execPath} ${script} ${url}`, function (err, stdout, stderr) {
+      if (stderr.trim()) {
+        t.comment(`stderr from ${script}:\n${stderr}`)
+      }
+      if (err) {
+        throw err
+      }
+      t.equal(stdout, 'sendCb called\nflushCb called\n',
+        'stdout shows both callbacks were called')
+      const duration = Date.now() - start
+      t.ok(duration < 1000, `should complete quickly, ie. not timeout (was: ${duration}ms)`)
+
+      t.ok(theError, `APM server got an error object from ${script}`)
+      if (theError) {
+        t.equal(theError.exception.message, 'boom', 'error message is "boom"')
+      }
+      t.end()
     })
   })
 })
