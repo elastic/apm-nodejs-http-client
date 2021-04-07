@@ -1,5 +1,12 @@
 # elastic-apm-http-client changelog
 
+## Unreleased
+
+- Fix to ensure the `client.flush(cb)` callback is called in the (expected to
+  be rare) case where there are no active handles -- i.e., the process is
+  exiting.
+  ([#150](https://github.com/elastic/apm-nodejs-http-client/issues/150))
+
 ## v9.7.0
 
 - A number of changes were made to fix issues with the APM agent under heavy
