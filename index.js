@@ -724,6 +724,7 @@ function getChoppedStreamHandler (client, onerror) {
           intakeResTimer = null
         }
       }
+      client._intakeRequestGracefulExitFn = null
 
       client.sent = client._numEventsEnqueued
       client._active = false
