@@ -1,6 +1,6 @@
 # elastic-apm-http-client changelog
 
-## Unreleased
+## v9.7.1
 
 - Fix to ensure the `client.flush(cb)` callback is called in the (expected to
   be rare) case where there are no active handles -- i.e., the process is
