@@ -574,7 +574,7 @@ dataTypes.forEach(function (dataType) {
 // Ensure that the client.flush(cb) callback is called even if there are no
 // active handles -- i.e. the process is exiting. We test this out of process
 // to ensure no conflict with other tests or the test framework.
-test.only('client.flush callbacks must be called, even if no active handles', function (t) {
+test('client.flush callbacks must be called, even if no active handles', function (t) {
   let theError
 
   const server = APMServer(function (req, res) {
