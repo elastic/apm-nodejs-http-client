@@ -908,14 +908,9 @@ function getChoppedStreamHandler (client, onerror) {
 }
 
 /**
- * Fetches cloud metadata and encodes with other metadata
+ * Fetches cloud metadata, if any, and encodes metadata (to `_encodedMetadata`).
  *
- * This method will encode the fetched cloud-metadata with other metadata
- * and memoize the data into the _encodedMetadata property.  Data will
- * be "returned" to the calling function via the passed in callback.
- *
- * The cloudMetadataFetcher configuration values is an error first callback
- * that fetches the cloud metadata.
+ * @param {function} cb - Called, with no arguments, when complete.
  */
 Client.prototype._fetchAndEncodeMetadata = function (cb) {
   const toEncode = { metadata: this._conf.metadata }
@@ -923,17 +918,20 @@ Client.prototype._fetchAndEncodeMetadata = function (cb) {
   if (!this._conf.cloudMetadataFetcher) {
     // no metadata fetcher from the agent -- encode our data and move on
     this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
-
-    process.nextTick(cb, null, this._encodedMetadata)
+    process.nextTick(cb)
   } else {
-    // agent provided a metadata fetcher function.  Call it, use its return
-    // return-via-callback value to set the cloud metadata and then move on
     this._conf.cloudMetadataFetcher.getCloudMetadata((err, cloudMetadata) => {
-      if (!err && cloudMetadata) {
+      if (err) {
+        // We ignore this error (other than logging it). A common case, when
+        // not running on one of the big 3 clouds, is "all callbacks failed",
+        // which is *fine*. Because it is a common "error" we don't log the
+        // stack trace.
+        this._log.trace('getCloudMetadata err: %s', err)
+      } else if (cloudMetadata) {
         toEncode.metadata.cloud = cloudMetadata
       }
       this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
-      cb(err, this._encodedMetadata)
+      cb()
     })
   }
 }
