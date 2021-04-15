@@ -21,4 +21,3 @@ npm --version
 nvm --version
 npm install
 npm test | tee ${TARGET_FOLDER}/test-suite-output.tap
-npm run coverage

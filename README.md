@@ -3,7 +3,6 @@
 [![npm](https://img.shields.io/npm/v/elastic-apm-http-client.svg)](https://www.npmjs.com/package/elastic-apm-http-client)
 [![Test status in GitHub Actions](https://github.com/elastic/apm-nodejs-http-client/workflows/Test/badge.svg)](https://github.com/elastic/apm-nodejs-http-client/actions)
 [![Build Status in Jenkins](https://apm-ci.elastic.co/buildStatus/icon?job=apm-agent-nodejs%2Fapm-nodejs-http-client-mbp%2Fmaster)](https://apm-ci.elastic.co/job/apm-agent-nodejs/job/apm-nodejs-http-client-mbp/job/master/)
-[![codecov](https://img.shields.io/codecov/c/github/elastic/apm-nodejs-http-client.svg)](https://codecov.io/gh/elastic/apm-nodejs-http-client)
 
 A low-level HTTP client for communicating with the Elastic APM intake
 API version 2. For support for version 1, use version 5.x of this
