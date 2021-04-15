@@ -1,6 +1,6 @@
 # elastic-apm-http-client changelog
 
-## Unreleased
+## v9.8.0
 
 - Add `client.addMetadataFilter(fn)`. See the
   [APM agent issue](https://github.com/elastic/apm-agent-nodejs/issues/1916).
