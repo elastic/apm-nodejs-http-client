@@ -441,7 +441,7 @@ test('should not open new request until it\'s needed after timeout', function (t
   }
 })
 
-test('cloud metadata: updateEncodedMetadata', function (t) {
+test('cloud metadata: _encodedMetadata maintains cloud info after re-config', function (t) {
   const conf = {
     agentName: 'a',
     agentVersion: 'b',
@@ -457,22 +457,33 @@ test('cloud metadata: updateEncodedMetadata', function (t) {
   t.equals(metadataPreUpdate.service.agent.version, conf.agentVersion, 'initial agent version set')
   t.ok(!metadataPreUpdate.cloud, 'no cloud metadata set initially')
 
-  // tests that cloud metadata included in the _encodedPayload
-  // is included after an update
+  // Simulate cloud metadata having been gathered.
+  client._cloudMetadata = { foo: 'bar' }
+  client._resetEncodedMetadata()
 
-  // inject our fixture
-  metadataPreUpdate.cloud = { foo: 'bar' }
-  client._encodedMetadata = JSON.stringify({ metadata: metadataPreUpdate })
+  // Ensure cloud metadata is on `_encodedMetadata`.
+  const metadataPostCloud = JSON.parse(client._encodedMetadata).metadata
+  t.equals(metadataPostCloud.service.name, conf.serviceName, 'service name still set')
+  t.equals(metadataPostCloud.service.agent.name, conf.agentName, 'agent name still set')
+  t.equals(metadataPostCloud.service.agent.version, conf.agentVersion, 'agent version still set')
+  t.ok(metadataPostCloud.cloud, 'cloud metadata set after fetch')
+  t.equals(metadataPostCloud.cloud.foo, 'bar', 'cloud metadata set after fetch')
 
-  client.updateEncodedMetadata()
+  // Simulate an update of some metadata from re-config.
+  client.config({
+    frameworkName: 'superFastify',
+    frameworkVersion: '1.0.0'
+  })
 
+  // Ensure _encodedMetadata keeps cloud info and updates appropriately.
   const metadataPostUpdate = JSON.parse(client._encodedMetadata).metadata
-  // console.log(metadataPostUpdate)
   t.equals(metadataPostUpdate.service.name, conf.serviceName, 'service name still set')
   t.equals(metadataPostUpdate.service.agent.name, conf.agentName, 'agent name still set')
   t.equals(metadataPostUpdate.service.agent.version, conf.agentVersion, 'agent version still set')
-  t.ok(metadataPostUpdate.cloud, 'cloud metadata still set after call to updateEncodedMetadata')
-  t.equals(metadataPostUpdate.cloud.foo, 'bar', 'cloud metadata "passed through" when something calls updateEncodedMetadata')
+  t.equals(metadataPostUpdate.service.framework.name, 'superFastify', 'service.framework.name properly set')
+  t.equals(metadataPostUpdate.service.framework.version, '1.0.0', 'service.framework.version properly set')
+  t.ok(metadataPostUpdate.cloud, 'cloud metadata still set after re-config')
+  t.equals(metadataPostUpdate.cloud.foo, 'bar', 'cloud metadata "passed through" after re-config')
   t.end()
 })
 

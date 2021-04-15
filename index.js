@@ -9,6 +9,8 @@ const util = require('util')
 const os = require('os')
 const { URL } = require('url')
 const zlib = require('zlib')
+
+const Filters = require('object-filter-sequence')
 const querystring = require('querystring')
 const Writable = require('readable-stream').Writable
 const getContainerInfo = require('./lib/container-info')
@@ -71,9 +73,13 @@ function Client (opts) {
   this._onflushed = null
   this._transport = null
   this._configTimer = null
-  this._encodedMetadata = null
   this._backoffReconnectCount = 0
   this._intakeRequestGracefulExitFn = null // set in makeIntakeRequest
+  // _encodedMetadata is pre-encoded JSON of metadata from `_conf.metadata` and
+  // `_cloudMetadata` (asynchronously fetched via `_conf.cloudMetadataFetcher`)
+  this._encodedMetadata = null
+  this._cloudMetadata = null
+  this._metadataFilters = new Filters()
 
   // Internal runtime stats for developer debugging/tuning.
   this._numEvents = 0 // number of events given to the client
@@ -231,20 +237,43 @@ Client.prototype.config = function (opts) {
   // fixes bug where cached/memoized _encodedMetadata wouldn't be
   // updated when client was reconfigured
   if (this._encodedMetadata) {
-    this.updateEncodedMetadata()
+    this._resetEncodedMetadata()
   }
 }
 
 /**
- * Updates the encoded metadata without refetching cloud metadata
+ * Add a filter function used to filter the "metadata" object sent to APM
+ * server. See the APM Agent `addMetadataFilter` documentation for details.
+ * https://www.elastic.co/guide/en/apm/agent/nodejs/current/agent-api.html#apm-add-metadata-filter
  */
-Client.prototype.updateEncodedMetadata = function () {
-  const oldMetadata = JSON.parse(this._encodedMetadata)
-  const toEncode = { metadata: this._conf.metadata }
-  if (oldMetadata.metadata.cloud) {
-    toEncode.metadata.cloud = oldMetadata.metadata.cloud
+Client.prototype.addMetadataFilter = function (fn) {
+  assert.strictEqual(typeof fn, 'function', 'fn arg must be a function')
+  this._metadataFilters.push(fn)
+  if (this._encodedMetadata) {
+    this._resetEncodedMetadata()
   }
-  this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
+}
+
+/**
+ * (Re)set `_encodedMetadata` from this._conf.metadata and this._cloudMetadata.
+ */
+Client.prototype._resetEncodedMetadata = function () {
+  // Make a deep clone so that the originals are not modified when (a) adding
+  // `.cloud` and (b) filtering. This isn't perf-sensitive code, so this JSON
+  // cycle for cloning should suffice.
+  let metadata = JSON.parse(JSON.stringify(this._conf.metadata))
+  if (this._cloudMetadata) {
+    metadata.cloud = JSON.parse(JSON.stringify(this._cloudMetadata))
+  }
+
+  // Possible filters from APM agent's `apm.addMetadataFilter()`.
+  if (this._metadataFilters && this._metadataFilters.length > 0) {
+    metadata = this._metadataFilters.process(metadata)
+    this._log.trace({ filteredMetadata: metadata }, 'filtered metadata')
+  }
+
+  // This is the only code path that should set `_encodedMetadata`.
+  this._encodedMetadata = this._encode({ metadata }, Client.encoding.METADATA)
 }
 
 Client.prototype._pollConfig = function () {
@@ -913,11 +942,9 @@ function getChoppedStreamHandler (client, onerror) {
  * @param {function} cb - Called, with no arguments, when complete.
  */
 Client.prototype._fetchAndEncodeMetadata = function (cb) {
-  const toEncode = { metadata: this._conf.metadata }
-
   if (!this._conf.cloudMetadataFetcher) {
     // no metadata fetcher from the agent -- encode our data and move on
-    this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
+    this._resetEncodedMetadata()
     process.nextTick(cb)
   } else {
     this._conf.cloudMetadataFetcher.getCloudMetadata((err, cloudMetadata) => {
@@ -928,9 +955,9 @@ Client.prototype._fetchAndEncodeMetadata = function (cb) {
         // stack trace.
         this._log.trace('getCloudMetadata err: %s', err)
       } else if (cloudMetadata) {
-        toEncode.metadata.cloud = cloudMetadata
+        this._cloudMetadata = cloudMetadata
       }
-      this._encodedMetadata = this._encode(toEncode, Client.encoding.METADATA)
+      this._resetEncodedMetadata()
       cb()
     })
   }
