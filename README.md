@@ -263,8 +263,11 @@ configuration options can be updated except:
 ### `client.addMetadataFilter(fn)`
 
 Add a filter function for the ["metadata" object](https://www.elastic.co/guide/en/apm/server/current/metadata-api.html)
-sent to APM server. Here is an example of a filter that removes the
-`metadata.process.argv` field:
+sent to APM server. This will be called once at client creation, and possibly
+again later if `client.config()` is called to reconfigure the client or
+`client.addMetadataFilter(fn)` is called to add additional filters.
+
+Here is an example of a filter that removes the `metadata.process.argv` field:
 
 ```js
 apm.addMetadataFilter(function dropArgv(md) {
