@@ -57,7 +57,7 @@ Arguments:
 - `options` - An object containing config options (see below). All options
   are optional, except those marked "(required)".
 
-Data sent to the APM Server as part of the metadata package:
+Data sent to the APM Server as part of the [metadata object](https://www.elastic.co/guide/en/apm/server/current/metadata-api.html):
 
 - `agentName` - (required) The APM agent name
 - `agentVersion` - (required) The APM agent version
@@ -259,6 +259,40 @@ configuration options can be updated except:
 - `maxSockets`
 - `maxFreeSockets`
 - `centralConfig`
+
+### `client.addMetadataFilter(fn)`
+
+Add a filter function for the ["metadata" object](https://www.elastic.co/guide/en/apm/server/current/metadata-api.html)
+sent to APM server. This will be called once at client creation, and possibly
+again later if `client.config()` is called to reconfigure the client or
+`client.addMetadataFilter(fn)` is called to add additional filters.
+
+Here is an example of a filter that removes the `metadata.process.argv` field:
+
+```js
+apm.addMetadataFilter(function dropArgv(md) {
+  if (md.process && md.process.argv) {
+    delete md.process.argv
+  }
+  return md
+})
+```
+
+It is up to the user to ensure the returned object conforms to the
+[metadata schema](https://www.elastic.co/guide/en/apm/server/current/metadata-api.html),
+otherwise APM data injest will be broken. An example of that (when used with
+the Node.js APM agent) is this in the application's log:
+
+```
+[2021-04-14T22:28:35.419Z] ERROR (elastic-apm-node): APM Server transport error (400): Unexpected APM Server response
+APM Server accepted 0 events in the last request
+Error: validation error: 'metadata' required
+  Document: {"metadata":null}
+```
+
+See the [APM Agent `addMetadataFilter` documentation](https://www.elastic.co/guide/en/apm/agent/nodejs/current/agent-api.html#apm-add-metadata-filter)
+for further details.
+
 
 ### `client.sendSpan(span[, callback])`
 

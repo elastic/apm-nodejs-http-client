@@ -1,5 +1,10 @@
 # elastic-apm-http-client changelog
 
+## Unreleased
+
+- Add `client.addMetadataFilter(fn)`. See the
+  [APM agent issue](https://github.com/elastic/apm-agent-nodejs/issues/1916).
+
 ## v9.7.1
 
 - Fix to ensure the `client.flush(cb)` callback is called in the (expected to
