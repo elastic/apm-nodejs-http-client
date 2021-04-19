@@ -9,7 +9,6 @@ pipeline {
     PIPELINE_LOG_LEVEL='INFO'
     NOTIFY_TO = credentials('notify-to')
     JOB_GCS_BUCKET = credentials('gcs-bucket')
-    CODECOV_SECRET = "secret/apm-team/ci/${env.REPO}-codecov"
   }
   options {
     timeout(time: 30, unit: 'MINUTES')
@@ -85,7 +84,6 @@ def generateStep(version){
           dir('target'){
             tap2Junit(pattern: '*-output.tap', suffix: 'junit.xml', package: 'APM http client')
           }
-          codecov(repo: env.REPO, basedir: ".", secret: "${CODECOV_SECRET}")
         }
       }
     }
