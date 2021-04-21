@@ -13,7 +13,7 @@ jobs:
   test-vers:
     strategy:
       matrix:
-        node: ['8.6', '8', '10', '12', '14', '15']
+        node: ['8.6', '8', '10', '12', '14', '15', '16']
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
