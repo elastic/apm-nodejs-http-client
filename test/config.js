@@ -498,39 +498,6 @@ test('update conf', function (t) {
   })
 })
 
-test('metadata - cloud info', function (t) {
-  // tests that a Client whose opts include a `config` key
-  // will pass that config key on into the generated
-  // metadata
-  const optsTestFixture = {
-    cloudMetadata: { foo: 'bar' }
-  }
-  // Clear Client and APMServer from require cache
-  delete require.cache[require.resolve('../')]
-  delete require.cache[require.resolve('./lib/utils')]
-
-  const APMServer = require('./lib/utils').APMServer
-
-  let client
-  const server = APMServer(function (req, res) {
-    req = processIntakeReq(req)
-    req.once('data', function (obj) {
-      t.ok(obj.metadata.cloud, 'cloud metadata set')
-      t.deepEqual(obj.metadata.cloud, optsTestFixture.cloudMetadata, 'cloud metadata passed through')
-    })
-    req.on('end', function () {
-      res.end()
-      client.destroy()
-      server.close()
-      t.end()
-    })
-  }).client(optsTestFixture, function (client_) {
-    client = client_
-    client.sendSpan({ foo: 42 })
-    client.end()
-  })
-})
-
 // There was a case (https://github.com/elastic/apm-agent-nodejs/issues/1749)
 // where a non-200 response from apm-server would crash the agent.
 test('503 response from apm-server for central config should not crash', function (t) {
