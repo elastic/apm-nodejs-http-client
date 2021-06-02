@@ -417,15 +417,17 @@ Client.prototype._writev = function (objs, cb) {
   processBatch()
 }
 
-function encodeObject (obj) {
-  return this._encode(obj.chunk, obj.encoding)
-}
-
 // Write a batch of events (excluding specially handled "flush" events) to
 // the stream chopper.
 Client.prototype._writeBatch = function (objs, cb) {
   const t = process.hrtime()
-  const chunk = objs.map(encodeObject.bind(this)).join('')
+  // XXX perf: elims `encodeObject` stack frame; faster loop
+  const chunks = []
+  for (var i = 0; i < objs.length; i++) {
+    const obj = objs[i]
+    chunks.push(this._encode(obj.chunk, obj.encoding))
+  }
+  const chunk = chunks.join('')
   const encodeTimeMs = deltaMs(t)
 
   this._numEventsEnqueued += objs.length
