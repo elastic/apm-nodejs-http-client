@@ -1,5 +1,12 @@
 # elastic-apm-http-client changelog
 
+## v9.8.1
+
+- perf: eliminate encodeObject stack and faster loop in `_writeBatch`
+  ([#159](https://github.com/elastic/apm-nodejs-http-client/pull/159))
+- test: start testing with node 16
+  ([#157](https://github.com/elastic/apm-nodejs-http-client/pull/157))
+
 ## v9.8.0
 
 - Add `client.addMetadataFilter(fn)`. See the
