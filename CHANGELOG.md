@@ -1,5 +1,11 @@
 # elastic-apm-http-client changelog
 
+## v9.9.0
+
+- feat: Use uninstrumented HTTP(S) client request functions to avoid tracing
+  requests made by the APM agent itself.
+  ([#161](https://github.com/elastic/apm-nodejs-http-client/pull/161))
+
 ## v9.8.1
 
 - perf: eliminate encodeObject stack and faster loop in `_writeBatch`
