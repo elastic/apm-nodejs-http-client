@@ -12,19 +12,19 @@ const truncate = require('../lib/truncate')
 
 const options = [
   {}, // default options
-  { truncateKeywordsAt: 100, truncateErrorMessagesAt: 200, truncateStringsAt: 300, truncateQueriesAt: 400 },
+  { truncateKeywordsAt: 100, truncateErrorMessagesAt: 200, truncateStringsAt: 300, truncateLongFieldsAt: 400 },
   { truncateErrorMessagesAt: -1 }
 ]
 
 options.forEach(function (opts) {
   const veryLong = 12000
   const lineLen = opts.truncateStringsAt || 1024
-  const queryLen = opts.truncateQueriesAt || 10000
+  const longFieldLen = opts.truncateLongFieldsAt || 10000
   const keywordLen = opts.truncateKeywordsAt || 1024
   const customKeyLen = opts.truncateCustomKeysAt || 1024
   const errMsgLen = opts.truncateErrorMessagesAt === -1
     ? veryLong
-    : (opts.truncateErrorMessagesAt || 2048)
+    : (opts.truncateErrorMessagesAt || longFieldLen)
 
   test('truncate transaction', function (t) {
     t.plan(assertIntakeReq.asserts + assertMetadata.asserts + assertEvent.asserts)
@@ -127,7 +127,7 @@ options.forEach(function (opts) {
               foo: genStr('m', lineLen)
             },
             db: {
-              statement: genStr('n', queryLen)
+              statement: genStr('n', longFieldLen)
             },
             destination: {
               address: genStr('o', keywordLen),

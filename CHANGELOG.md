@@ -1,5 +1,25 @@
 # elastic-apm-http-client changelog
 
+## v10.0.0
+
+- All truncation of string fields (per `truncate*At` config options) have
+  changed from truncating at a number of unicode chars, rather than a number
+  of bytes. This is both faster and matches [the json-schema spec](https://json-schema.org/draft/2019-09/json-schema-validation.html#rfc.section.6.3.1)
+  for [apm-server intake fields](https://www.elastic.co/guide/en/apm/server/current/events-api.html#events-api-schema-definition)
+  that specify `maxLength`.
+- BREAKING CHANGE: The `truncateQueriesAt` config option has been removed.
+- In its place the `truncateLongFieldsAt` config option has been added to cover
+  `span.context.db.statement` and a number of other possibly-long fields (per
+  [spec](https://github.com/elastic/apm/blob/master/specs/agents/field-limits.md#long_field_max_length-configuration)).
+  This *does* mean that in rare cases of long field values longer than the
+  default 10000 chars, this change will result in those values being truncated.
+- The `truncateErrorMessagesAt` config option has been deprecated, in favor
+  of `truncateLongFieldsAt`. Note, however, that `truncateLongFieldsAt` does
+  *not* support the special case `-1` value to disable truncation. If
+  `truncateErrorMessagesAt` is not specified, the value for
+  `truncateLongFieldsAt` is used. This means the effective default is now 10000,
+  no longer 2048.
+
 ## v9.9.0
 
 - feat: Use uninstrumented HTTP(S) client request functions to avoid tracing

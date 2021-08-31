@@ -184,10 +184,10 @@ Client.prototype.config = function (opts) {
   if (!this._conf.hostname) this._conf.hostname = hostname
   if (!this._conf.environment) this._conf.environment = process.env.NODE_ENV || 'development'
   if (!this._conf.truncateKeywordsAt) this._conf.truncateKeywordsAt = 1024
-  if (!this._conf.truncateErrorMessagesAt) this._conf.truncateErrorMessagesAt = 2048
   if (!this._conf.truncateStringsAt) this._conf.truncateStringsAt = 1024
   if (!this._conf.truncateCustomKeysAt) this._conf.truncateCustomKeysAt = 1024
-  if (!this._conf.truncateQueriesAt) this._conf.truncateQueriesAt = 10000
+  if (!this._conf.truncateLongFieldsAt) this._conf.truncateLongFieldsAt = 10000
+  // The deprecated `truncateErrorMessagesAt` will be honored if specified.
   if (!this._conf.bufferWindowTime) this._conf.bufferWindowTime = 20
   if (!this._conf.bufferWindowSize) this._conf.bufferWindowSize = 50
   if (!this._conf.maxQueueSize) this._conf.maxQueueSize = 1024
