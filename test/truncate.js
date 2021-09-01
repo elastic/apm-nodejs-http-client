@@ -452,3 +452,22 @@ test('truncate cloud metadata', function (t) {
 
   t.end()
 })
+
+test('do not break surrogate pairs in truncation', function (t) {
+  const span = {
+    name: 'theSpan',
+    type: 'theType',
+    context: {
+      db: {
+        statement: 'foo🎉bar'
+      }
+    }
+  }
+  const truncateLongFieldsAt = 4
+  const truncatedSpan = truncate.span(span, { truncateLongFieldsAt })
+  t.ok(truncatedSpan.context.db.statement.length <= truncateLongFieldsAt,
+    'context.db.statement was truncated')
+  t.equal(truncatedSpan.context.db.statement, 'foo',
+    'context.db.statement was truncated without breaking a surrogate pair')
+  t.end()
+})
