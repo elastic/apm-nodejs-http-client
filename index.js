@@ -467,6 +467,9 @@ Client.prototype._writeBatch = function (objs, cb) {
 Client.prototype._writeFlush = function (cb) {
   this._log.trace({ active: this._active }, '_writeFlush')
   if (this._active) {
+    if (this._intakeRequestGracefulExitFn) {
+      this._intakeRequestGracefulExitFn()
+    }
     this._onflushed = cb
     this._chopper.chop()
   } else {
@@ -795,7 +798,13 @@ function getChoppedStreamHandler (client, onerror) {
 
     // Provide a function on the client for it to signal this intake request
     // to gracefully shutdown, i.e. finish up quickly.
+    let intakeReqSocket = null
     client._intakeRequestGracefulExitFn = () => {
+      // ensure intake request socket is reffed -- otherwise lambda
+      // functions will freeze prior to data being sent.
+      if (intakeReqSocket) {
+        intakeReqSocket.ref()
+      }
       if (intakeResTimer) {
         clearTimeout(intakeResTimer)
         intakeResTimer = setTimeout(() => {
@@ -835,6 +844,7 @@ function getChoppedStreamHandler (client, onerror) {
       // manually unref the socket.
       log.trace('intakeReq "socket": unref it')
       socket.unref()
+      intakeReqSocket = socket
     })
 
     intakeReq.on('response', (intakeRes_) => {
