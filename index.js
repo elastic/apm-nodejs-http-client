@@ -800,7 +800,7 @@ function getChoppedStreamHandler (client, onerror) {
     // to gracefully shutdown, i.e. finish up quickly.
     let intakeReqSocket = null
     client._intakeRequestGracefulExitFn = () => {
-      // ensure intake request socket is reffed -- otherwise lambda
+      // Ensure intake request socket is reffed -- otherwise lambda
       // functions will freeze prior to data being sent.
       if (intakeReqSocket) {
         intakeReqSocket.ref()
