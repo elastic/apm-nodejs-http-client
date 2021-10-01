@@ -1,5 +1,10 @@
 # elastic-apm-http-client changelog
 
+## unreleased
+
+- feat: Added code to `ref` the intake request socket during a graceful exit in order to   
+  ensure the client completes sending data in an AWS Lambda environment.  
+
 ## v10.0.0
 
 - All truncation of string fields (per `truncate*At` config options) have
