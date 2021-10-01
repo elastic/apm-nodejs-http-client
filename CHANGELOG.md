@@ -2,8 +2,9 @@
 
 ## unreleased
 
-- feat: Added code to `ref` the intake request socket during a graceful exit in order to   
-  ensure the client completes sending data in an AWS Lambda environment.  
+- feat: Added code to `ref` the intake request socket during a graceful exit in
+  order to  ensure the client completes sending data after a flush in an AWS Lambda
+  environment.
 
 ## v10.0.0
 
