@@ -118,7 +118,7 @@ Streaming configuration:
 - `size` - The maxiumum compressed body size (in bytes) of each HTTP
   request to the APM Server. An overshoot of up to the size of the
   internal zlib buffer should be expected as the buffer is flushed after
-  this limit is reached. The default zlib buffer size is 16 kb (default:
+  this limit is reached. The default zlib buffer size is 16kB. (default:
   `768000` bytes)
 - `time` - The maxiumum number of milliseconds a streaming HTTP request
   to the APM Server can be ongoing before it's ended. Set to `-1` to
@@ -155,18 +155,24 @@ Streaming configuration:
 
 Data sanitizing configuration:
 
-- `truncateKeywordsAt` - Maximum size in bytes for strings stored as
-  Elasticsearch keywords. Strings larger than this will be trucated
-  (default: `1024` bytes)
-- `truncateErrorMessagesAt` - The maximum size in bytes for error
-  messages. Messages above this length will be truncated. Set to `-1` to
-  disable truncation. This applies to the following properties:
-  `error.exception.message` and `error.log.message` (default: `2048`
-  bytes)
-- `truncateStringsAt` - The maximum size in bytes for strings.
-  String values above this length will be truncated (default: `1024` bytes)
-- `truncateQueriesAt` - The maximum size in bytes for database queries.
-  Queries above this length will be truncated (default: `10000` bytes)
+- `truncateKeywordsAt` - Maximum size in unicode characters for strings stored
+  as Elasticsearch keywords. Strings larger than this will be trucated
+  (default: `1024`)
+- `truncateLongFieldsAt` - The maximum size in unicode characters for a
+  specific set of long string fields. String values above this length will be
+  truncated. Default: `10000`. This applies to the following fields:
+    - `transaction.context.request.body`, `error.context.request.body`
+    - `transaction.context.message.body`, `span.context.message.body`, `error.context.message.body`
+    - `span.context.db.statement`
+    - `error.exception.message` (unless `truncateErrorMessagesAt` is specified)
+    - `error.log.message` (unless `truncateErrorMessagesAt` is specified)
+- `truncateStringsAt` - The maximum size in unicode characters for strings.
+  String values above this length will be truncated (default: `1024`)
+- `truncateErrorMessagesAt` - **DEPRECATED:** prefer `truncateLongFieldsAt`.
+  The maximum size in unicode characters for error messages. Messages above this
+  length will be truncated. Set to `-1` to disable truncation. This applies to
+  the following properties: `error.exception.message` and `error.log.message`.
+  (default: `2048`)
 
 Debug options:
 

@@ -34,6 +34,15 @@ const requiredOpts = [
   'userAgent'
 ]
 
+// Get handles on uninstrumented functions for making HTTP(S) requests before
+// the APM agent has a chance to wrap them. This allows the Client to make
+// requests to APM server without interfering with the APM agent's tracing
+// of the user application.
+const httpGet = http.get
+const httpRequest = http.request
+const httpsGet = https.get
+const httpsRequest = https.request
+
 const containerInfo = getContainerInfo()
 
 // All sockets on the agent are unreffed when they are created. This means that
@@ -175,10 +184,10 @@ Client.prototype.config = function (opts) {
   if (!this._conf.hostname) this._conf.hostname = hostname
   if (!this._conf.environment) this._conf.environment = process.env.NODE_ENV || 'development'
   if (!this._conf.truncateKeywordsAt) this._conf.truncateKeywordsAt = 1024
-  if (!this._conf.truncateErrorMessagesAt) this._conf.truncateErrorMessagesAt = 2048
   if (!this._conf.truncateStringsAt) this._conf.truncateStringsAt = 1024
   if (!this._conf.truncateCustomKeysAt) this._conf.truncateCustomKeysAt = 1024
-  if (!this._conf.truncateQueriesAt) this._conf.truncateQueriesAt = 10000
+  if (!this._conf.truncateLongFieldsAt) this._conf.truncateLongFieldsAt = 10000
+  // The deprecated `truncateErrorMessagesAt` will be honored if specified.
   if (!this._conf.bufferWindowTime) this._conf.bufferWindowTime = 20
   if (!this._conf.bufferWindowSize) this._conf.bufferWindowSize = 50
   if (!this._conf.maxQueueSize) this._conf.maxQueueSize = 1024
@@ -205,9 +214,13 @@ Client.prototype.config = function (opts) {
   switch (this._conf.serverUrl.protocol) {
     case 'http:':
       this._transport = http
+      this._transportRequest = httpRequest
+      this._transportGet = httpGet
       break
     case 'https:':
       this._transport = https
+      this._transportRequest = httpsRequest
+      this._transportGet = httpsGet
       break
     default:
       throw new Error('Unknown protocol ' + this._conf.serverUrl.protocol)
@@ -282,7 +295,7 @@ Client.prototype._pollConfig = function () {
     opts.headers['If-None-Match'] = this._conf.lastConfigEtag
   }
 
-  const req = this._transport.get(opts, res => {
+  const req = this._transportGet(opts, res => {
     res.on('error', err => {
       // Not sure this event can ever be emitted, but just in case
       res.destroy(err)
@@ -801,7 +814,7 @@ function getChoppedStreamHandler (client, onerror) {
     }
 
     // Start the request and set its timeout.
-    const intakeReq = client._transport.request(client._conf.requestIntake)
+    const intakeReq = client._transportRequest(client._conf.requestIntake)
     if (Number.isFinite(client._conf.serverTimeout)) {
       intakeReq.setTimeout(client._conf.serverTimeout)
     }
