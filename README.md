@@ -346,7 +346,7 @@ Server. If no HTTP request is in process nothing happens.
 
 Arguments:
 
-- `callback` - Callback is called when the internal buffer have been
+- `callback` - Callback is called when the internal buffer has been
   flushed and the HTTP request ended. If no HTTP request is in progress
   the callback is called in the next tick.
 
