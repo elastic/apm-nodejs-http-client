@@ -1,5 +1,15 @@
 # elastic-apm-http-client changelog
 
+## Unreleased
+
+- Fix client handling of an AWS Lambda environment:
+  1. `client.flush()` will initiate a quicker completion of the current intake
+     request.
+  2. The process 'beforeExit' event is *not* used to start a graceful shutdown
+     of the client, because the Lambda Runtime sometimes uses 'beforeExit' to
+     handle *freezing* of the Lambda VM instance. That VM instance is typically
+     unfrozen and used again, for which this Client is still needed.
+
 ## v10.0.0
 
 - All truncation of string fields (per `truncate*At` config options) have
