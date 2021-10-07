@@ -46,20 +46,27 @@ const httpsRequest = https.request
 const containerInfo = getContainerInfo()
 
 // All sockets on the agent are unreffed when they are created. This means that
-// when those are the only handles left, the `beforeExit` event will be
-// emitted. By listening for this we can make sure to end the requests properly
-// before exiting. This way we don't keep the process running until the `time`
-// timeout happens.
+// when the user process's event loop is done, and these are the only handles
+// left, the process 'beforeExit' event will be emitted. By listening for this
+// we can make sure to end the requests properly before process exit. This way
+// we don't keep the process running until the `time` timeout happens.
+//
+// An exception to this is AWS Lambda which, in some cases (sync function
+// handlers that use a callback), will wait for 'beforeExit' to freeze the
+// Lambda instance VM *for later re-use*. This means we never want to shutdown
+// the `Client` on 'beforeExit'.
 const clientsToAutoEnd = []
-process.once('beforeExit', function () {
-  clientsToAutoEnd.forEach(function (client) {
-    if (!client) {
-      // Clients remove themselves from the array when they end.
-      return
-    }
-    client._gracefulExit()
+if (!process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  process.once('beforeExit', function () {
+    clientsToAutoEnd.forEach(function (client) {
+      if (!client) {
+        // Clients remove themselves from the array when they end.
+        return
+      }
+      client._gracefulExit()
+    })
   })
-})
+}
 
 util.inherits(Client, Writable)
 
@@ -434,7 +441,6 @@ Client.prototype._writev = function (objs, cb) {
 // the stream chopper.
 Client.prototype._writeBatch = function (objs, cb) {
   const t = process.hrtime()
-  // XXX perf: elims `encodeObject` stack frame; faster loop
   const chunks = []
   for (var i = 0; i < objs.length; i++) {
     const obj = objs[i]
@@ -713,7 +719,9 @@ function getChoppedStreamHandler (client, onerror) {
     const timeline = []
     let bytesWritten = 0
     let intakeRes
+    let intakeReqSocket = null
     let intakeResTimer = null
+    let intakeRequestGracefulExitCalled = false
     const intakeResTimeout = client._conf.intakeResTimeout
     const intakeResTimeoutOnEnd = client._conf.intakeResTimeoutOnEnd
 
@@ -775,11 +783,6 @@ function getChoppedStreamHandler (client, onerror) {
 
       client.sent = client._numEventsEnqueued
       client._active = false
-      if (client._onflushed) {
-        client._onflushed()
-        client._onflushed = null
-      }
-
       const backoffDelayMs = client._getBackoffDelay(!!err)
       if (err) {
         log.trace({ timeline, bytesWritten, backoffDelayMs, err },
@@ -789,6 +792,11 @@ function getChoppedStreamHandler (client, onerror) {
         log.trace({ timeline, bytesWritten, backoffDelayMs },
           'conclude intake request: success')
       }
+      if (client._onflushed) {
+        client._onflushed()
+        client._onflushed = null
+      }
+
       if (backoffDelayMs > 0) {
         setTimeout(next, backoffDelayMs).unref()
       } else {
@@ -798,12 +806,14 @@ function getChoppedStreamHandler (client, onerror) {
 
     // Provide a function on the client for it to signal this intake request
     // to gracefully shutdown, i.e. finish up quickly.
-    let intakeReqSocket = null
     client._intakeRequestGracefulExitFn = () => {
+      intakeRequestGracefulExitCalled = true
       if (intakeReqSocket) {
+        log.trace('_intakeRequestGracefulExitFn: re-ref intakeReqSocket')
         intakeReqSocket.ref()
       }
       if (intakeResTimer) {
+        log.trace('_intakeRequestGracefulExitFn: reset intakeResTimer to short timeout')
         clearTimeout(intakeResTimer)
         intakeResTimer = setTimeout(() => {
           completePart('intakeRes',
@@ -832,6 +842,7 @@ function getChoppedStreamHandler (client, onerror) {
     })
 
     intakeReq.on('socket', function (socket) {
+      intakeReqSocket = socket
       // Unref the socket for this request so that the Client does not keep
       // the node process running if it otherwise would be done. (This is
       // tested by the "unref-client" test in test/side-effects.js.)
@@ -840,9 +851,10 @@ function getChoppedStreamHandler (client, onerror) {
       // during a request. Given that the normal makeIntakeRequest behaviour
       // is to keep a request open for up to 10s (`apiRequestTimeout`), we must
       // manually unref the socket.
-      log.trace('intakeReq "socket": unref it')
-      socket.unref()
-      intakeReqSocket = socket
+      if (!intakeRequestGracefulExitCalled) {
+        log.trace('intakeReq "socket": unref it')
+        intakeReqSocket.unref()
+      }
     })
 
     intakeReq.on('response', (intakeRes_) => {
@@ -924,7 +936,8 @@ function getChoppedStreamHandler (client, onerror) {
       // quickly with "queue is full").
       log.trace('gzipStream "finish"')
       if (!completedFromPart.intakeReq && !completedFromPart.intakeRes) {
-        const timeout = client._writableState.ending ? intakeResTimeoutOnEnd : intakeResTimeout
+        const timeout = (client._writableState.ending || intakeRequestGracefulExitCalled
+          ? intakeResTimeoutOnEnd : intakeResTimeout)
         log.trace({ timeout }, 'start intakeResTimer')
         intakeResTimer = setTimeout(() => {
           completePart('intakeRes',
