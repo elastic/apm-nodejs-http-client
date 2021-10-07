@@ -45,7 +45,7 @@ const httpsRequest = https.request
 
 const containerInfo = getContainerInfo()
 
-const isLambdaExecutionEnviornment = !!process.env.AWS_LAMBDA_FUNCTION_NAME
+const isLambdaExecutionEnvironment = !!process.env.AWS_LAMBDA_FUNCTION_NAME
 
 // All sockets on the agent are unreffed when they are created. This means that
 // when the user process's event loop is done, and these are the only handles
@@ -58,7 +58,7 @@ const isLambdaExecutionEnviornment = !!process.env.AWS_LAMBDA_FUNCTION_NAME
 // Lambda instance VM *for later re-use*. This means we never want to shutdown
 // the `Client` on 'beforeExit'.
 const clientsToAutoEnd = []
-if (!isLambdaExecutionEnviornment) {
+if (!isLambdaExecutionEnvironment) {
   process.once('beforeExit', function () {
     clientsToAutoEnd.forEach(function (client) {
       if (!client) {
@@ -478,7 +478,7 @@ Client.prototype._writeFlush = function (cb) {
     // In a Lambda environment a flush is almost certainly a signal that the
     // runtime environment is about to be frozen: tell the intake request
     // to finish up quickly.
-    if (this._intakeRequestGracefulExitFn && isLambdaExecutionEnviornment) {
+    if (this._intakeRequestGracefulExitFn && isLambdaExecutionEnvironment) {
       this._intakeRequestGracefulExitFn()
     }
     this._onflushed = cb
