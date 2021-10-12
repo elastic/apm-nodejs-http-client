@@ -1,6 +1,6 @@
 # elastic-apm-http-client changelog
 
-## Unreleased
+## v10.1.0
 
 - Fix client handling of an AWS Lambda environment:
   1. `client.flush()` will initiate a quicker completion of the current intake
