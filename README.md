@@ -342,11 +342,13 @@ Arguments:
 ### `client.flush([callback])`
 
 Flush the internal buffer and end the current HTTP request to the APM
-Server. If no HTTP request is in process nothing happens.
+Server. If no HTTP request is in process nothing happens. In an AWS Lambda
+environment this will also initiate a quicker shutdown of the intake request,
+because the APM agent always flushes at the end of a Lambda handler.
 
 Arguments:
 
-- `callback` - Callback is called when the internal buffer have been
+- `callback` - Callback is called when the internal buffer has been
   flushed and the HTTP request ended. If no HTTP request is in progress
   the callback is called in the next tick.
 
