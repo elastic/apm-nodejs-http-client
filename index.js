@@ -1041,7 +1041,7 @@ function getHeaders (opts) {
   if (opts.secretToken) headers.Authorization = 'Bearer ' + opts.secretToken
   if (opts.apiKey) headers.Authorization = 'ApiKey ' + opts.apiKey
   headers.Accept = 'application/json'
-  headers['User-Agent'] = `${opts.userAgent} ${pkg.name}/${pkg.version} ${process.release.name}/${process.versions.node}`
+  headers['User-Agent'] = opts.userAgent
   return Object.assign(headers, opts.headers)
 }
 
