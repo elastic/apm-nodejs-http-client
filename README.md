@@ -79,7 +79,7 @@ Data sent to the APM Server as part of the [metadata object](https://www.elastic
 HTTP client configuration:
 
 - `userAgent` - (required) The HTTP user agent that your module should
-  identify it self as
+  identify itself as
 - `secretToken` - The Elastic APM intake API secret token
 - `apiKey` - Elastic APM API key
 - `serverUrl` - The APM Server URL (default: `http://localhost:8200`)

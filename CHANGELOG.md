@@ -1,5 +1,13 @@
 # elastic-apm-http-client changelog
 
+## v10.2.0
+
+- The client will no longer append data to the configured `userAgent` string.
+  Before this it would append " elastic-apm-http-client/$ver node/$ver". This
+  is to support [the APM agents spec for
+  User-Agent](https://github.com/elastic/apm/blob/master/specs/agents/transport.md#user-agent).
+
+
 ## v10.1.0
 
 - Fix client handling of an AWS Lambda environment:

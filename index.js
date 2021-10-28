@@ -21,7 +21,6 @@ const StreamChopper = require('stream-chopper')
 const ndjson = require('./lib/ndjson')
 const { NoopLogger } = require('./lib/logging')
 const truncate = require('./lib/truncate')
-const pkg = require('./package')
 
 module.exports = Client
 
@@ -1041,7 +1040,7 @@ function getHeaders (opts) {
   if (opts.secretToken) headers.Authorization = 'Bearer ' + opts.secretToken
   if (opts.apiKey) headers.Authorization = 'ApiKey ' + opts.apiKey
   headers.Accept = 'application/json'
-  headers['User-Agent'] = `${opts.userAgent} ${pkg.name}/${pkg.version} ${process.release.name}/${process.versions.node}`
+  headers['User-Agent'] = opts.userAgent
   return Object.assign(headers, opts.headers)
 }
 
