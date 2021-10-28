@@ -21,7 +21,6 @@ const StreamChopper = require('stream-chopper')
 const ndjson = require('./lib/ndjson')
 const { NoopLogger } = require('./lib/logging')
 const truncate = require('./lib/truncate')
-const pkg = require('./package')
 
 module.exports = Client
 
