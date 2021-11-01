@@ -92,10 +92,9 @@ function Client (opts) {
   this._configTimer = null
   this._backoffReconnectCount = 0
   this._intakeRequestGracefulExitFn = null // set in makeIntakeRequest
-  // _encodedMetadata is pre-encoded JSON of metadata from `_conf.metadata` and
-  // `_cloudMetadata` (asynchronously fetched via `_conf.cloudMetadataFetcher`)
   this._encodedMetadata = null
   this._cloudMetadata = null
+  this._extraMetadata = null
   this._metadataFilters = new Filters()
 
   // Internal runtime stats for developer debugging/tuning.
@@ -115,24 +114,35 @@ function Client (opts) {
   this.config(opts)
   this._log = this._conf.logger || new NoopLogger()
 
-  // start stream in corked mode, uncork when cloud
-  // metadata is fetched and assigned.  Also, the
-  // _maybeUncork will not uncork until _encodedMetadata
-  // is set
-  this.cork()
-  this._fetchAndEncodeMetadata(() => {
-    // _fetchAndEncodeMetadata will have set/memoized the encoded
-    // metadata to the _encodedMetadata property.
+  if (this._conf.cloudMetadataFetcher && this._conf.expectExtraMetadata) {
+    throw new Error('it is an error to create a Client with both cloudMetadataFetcher and expectExtraMetadata')
+  } else if (this._conf.cloudMetadataFetcher) {
+    // Start stream in corked mode, uncork when cloud metadata is fetched and
+    // assigned.  Also, the _maybeUncork will not uncork until _encodedMetadata
+    // is set.
+    this._log.trace('corking (cloudMetadataFetcher)')
+    this.cork()
+    this._fetchAndEncodeMetadata(() => {
+      // _fetchAndEncodeMetadata will have set/memoized the encoded
+      // metadata to the _encodedMetadata property.
 
-    // This reverses the cork() call in the constructor above. "Maybe" uncork,
-    // in case the client has been destroyed before this callback is called.
-    this._maybeUncork()
+      // This reverses the cork() call in the constructor above. "Maybe" uncork,
+      // in case the client has been destroyed before this callback is called.
+      this._maybeUncork()
+      this._log.trace('uncorked (cloudMetadataFetcher)')
 
-    // the `cloud-metadata` event allows listeners to know when the
-    // agent has finished fetching and encoding its metadata for the
-    // first time
-    this.emit('cloud-metadata', this._encodedMetadata)
-  })
+      // the `cloud-metadata` event allows listeners to know when the
+      // agent has finished fetching and encoding its metadata for the
+      // first time
+      this.emit('cloud-metadata', this._encodedMetadata)
+    })
+  } else if (this._conf.expectExtraMetadata) {
+    // Uncorking will happen in the expected `.setExtraMetadata()` call.
+    this._log.trace('corking (expectExtraMetadata)')
+    this.cork()
+  } else {
+    this._resetEncodedMetadata()
+  }
 
   this._chopper = new StreamChopper({
     size: this._conf.size,
@@ -263,6 +273,28 @@ Client.prototype.config = function (opts) {
 }
 
 /**
+ * Set extra additional metadata to be sent to APM Server in intake requests.
+ *
+ * If the Client was configured with `expectExtraMetadata: true` then will
+ * uncork the client to allow intake requests to begin.
+ *
+ * If this is called multiple times, it is additive.
+ */
+Client.prototype.setExtraMetadata = function (extraMetadata) {
+  if (!this._extraMetadata) {
+    this._extraMetadata = extraMetadata
+  } else {
+    metadataMergeDeep(this._extraMetadata, extraMetadata)
+  }
+  this._resetEncodedMetadata()
+
+  if (this._conf.expectExtraMetadata) {
+    this._maybeUncork()
+    this._log.trace('uncorked (expectExtraMetadata)')
+  }
+}
+
+/**
  * Add a filter function used to filter the "metadata" object sent to APM
  * server. See the APM Agent `addMetadataFilter` documentation for details.
  * https://www.elastic.co/guide/en/apm/agent/nodejs/current/agent-api.html#apm-add-metadata-filter
@@ -276,25 +308,29 @@ Client.prototype.addMetadataFilter = function (fn) {
 }
 
 /**
- * (Re)set `_encodedMetadata` from this._conf.metadata and this._cloudMetadata.
+ * (Re)set `_encodedMetadata` from this._conf.metadata, this._cloudMetadata,
+ * this._extraMetadata and possible this._metadataFilters.
  */
 Client.prototype._resetEncodedMetadata = function () {
   // Make a deep clone so that the originals are not modified when (a) adding
   // `.cloud` and (b) filtering. This isn't perf-sensitive code, so this JSON
   // cycle for cloning should suffice.
-  let metadata = JSON.parse(JSON.stringify(this._conf.metadata))
+  let metadata = deepClone(this._conf.metadata)
   if (this._cloudMetadata) {
-    metadata.cloud = JSON.parse(JSON.stringify(this._cloudMetadata))
+    metadata.cloud = deepClone(this._cloudMetadata)
+  }
+  if (this._extraMetadata) {
+    metadataMergeDeep(metadata, deepClone(this._extraMetadata))
   }
 
   // Possible filters from APM agent's `apm.addMetadataFilter()`.
   if (this._metadataFilters && this._metadataFilters.length > 0) {
     metadata = this._metadataFilters.process(metadata)
-    this._log.trace({ filteredMetadata: metadata }, 'filtered metadata')
   }
 
   // This is the only code path that should set `_encodedMetadata`.
   this._encodedMetadata = this._encode({ metadata }, Client.encoding.METADATA)
+  this._log.trace({ _encodedMetadata: this._encodedMetadata }, '_resetEncodedMetadata')
 }
 
 Client.prototype._pollConfig = function () {
@@ -982,25 +1018,20 @@ function getChoppedStreamHandler (client, onerror) {
  * @param {function} cb - Called, with no arguments, when complete.
  */
 Client.prototype._fetchAndEncodeMetadata = function (cb) {
-  if (!this._conf.cloudMetadataFetcher) {
-    // no metadata fetcher from the agent -- encode our data and move on
+  assert(this._conf.cloudMetadataFetcher, '_fetchAndEncodeMetadata should not be called without a configured cloudMetadataFetcher')
+  this._conf.cloudMetadataFetcher.getCloudMetadata((err, cloudMetadata) => {
+    if (err) {
+      // We ignore this error (other than logging it). A common case, when
+      // not running on one of the big 3 clouds, is "all callbacks failed",
+      // which is *fine*. Because it is a common "error" we don't log the
+      // stack trace.
+      this._log.trace('getCloudMetadata err: %s', err)
+    } else if (cloudMetadata) {
+      this._cloudMetadata = cloudMetadata
+    }
     this._resetEncodedMetadata()
-    process.nextTick(cb)
-  } else {
-    this._conf.cloudMetadataFetcher.getCloudMetadata((err, cloudMetadata) => {
-      if (err) {
-        // We ignore this error (other than logging it). A common case, when
-        // not running on one of the big 3 clouds, is "all callbacks failed",
-        // which is *fine*. Because it is a common "error" we don't log the
-        // stack trace.
-        this._log.trace('getCloudMetadata err: %s', err)
-      } else if (cloudMetadata) {
-        this._cloudMetadata = cloudMetadata
-      }
-      this._resetEncodedMetadata()
-      cb()
-    })
-  }
+    cb()
+  })
 }
 
 function getIntakeRequestOptions (opts, agent) {
@@ -1264,4 +1295,35 @@ function processConfigErrorResponse (res, buf, err) {
 function deltaMs (t) {
   const d = process.hrtime(t)
   return d[0] * 1e3 + d[1] / 1e6
+}
+
+/**
+ * Performs a deep merge of `source` into `target`.  Mutates `target` only but
+ * not its objects. Objects are merged, Arrays are not.
+ *
+ * @author inspired by [eden](https://gist.github.com/ahtcx/0cd94e62691f539160b32ecda18af3d6#gistcomment-2930530)
+ */
+function metadataMergeDeep (target, source) {
+  const isObject = (obj) => obj && typeof obj === 'object' && !Array.isArray(obj)
+
+  if (!isObject(target) || !isObject(source)) {
+    return source
+  }
+
+  Object.keys(source).forEach(key => {
+    const targetValue = target[key]
+    const sourceValue = source[key]
+
+    if (isObject(targetValue) && isObject(sourceValue)) {
+      target[key] = metadataMergeDeep(Object.assign({}, targetValue), sourceValue)
+    } else {
+      target[key] = sourceValue
+    }
+  })
+
+  return target
+}
+
+function deepClone (obj) {
+  return JSON.parse(JSON.stringify(obj))
 }

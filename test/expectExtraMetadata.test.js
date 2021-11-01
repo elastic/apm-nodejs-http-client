@@ -74,7 +74,7 @@ test('empty setExtraMetadata is fine, and calling after send* is fine', function
   })
 })
 
-test.only('no setExtraMetadata call results in a corked client', function (t) {
+test('expectExtraMetadata:true with *no* setExtraMetadata call results in a corked client', function (t) {
   const server = APMServer(function (req, res) {
     t.fail('do NOT expect to get intake request to APM server')
   }).client({ expectExtraMetadata: true }, function (client) {

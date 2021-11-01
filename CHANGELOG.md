@@ -1,5 +1,17 @@
 # elastic-apm-http-client changelog
 
+## v10.3.0
+
+- Add the `expectExtraMetadata: true` configuration option and
+  `Client#setExtraMetadata(metadata)` method to provide a mechanism for the
+  Node.js APM Agent to pass in metadata asynchronously and be sure that the
+  client will not begin an intake request until that metadata is provided.
+  This is to support passing in [AWS Lambda metadata that cannot be gathered
+  until the first Lambda function
+  invocation](https://github.com/elastic/apm-agent-nodejs/issues/2404).
+  (Note: The `expectExtraMetadata` option cannot be used in combination with
+  `cloudMetadataFetcher`.)
+
 ## v10.2.0
 
 - The client will no longer append data to the configured `userAgent` string.
