@@ -139,7 +139,9 @@ function Client (opts) {
     time: this._conf.time,
     type: StreamChopper.overflow,
     transform () {
-      return zlib.createGzip()
+      return zlib.createGzip({
+        level: zlib.constants.Z_BEST_SPEED
+      })
     }
   })
   const onIntakeError = (err) => {
