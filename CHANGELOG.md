@@ -1,5 +1,11 @@
 # elastic-apm-http-client changelog
 
+## Unreleased
+
+- Use `Z_BEST_SPEED` for gzip compression per
+  https://github.com/elastic/apm/blob/master/specs/agents/transport.md#compression
+
+
 ## v10.2.0
 
 - The client will no longer append data to the configured `userAgent` string.
