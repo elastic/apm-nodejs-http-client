@@ -1,10 +1,19 @@
 # elastic-apm-http-client changelog
 
-## Unreleased
+## v10.3.0
+
+- Add the `expectExtraMetadata: true` configuration option and
+  `Client#setExtraMetadata(metadata)` method to provide a mechanism for the
+  Node.js APM Agent to pass in metadata asynchronously and be sure that the
+  client will not begin an intake request until that metadata is provided.
+  This is to support passing in [AWS Lambda metadata that cannot be gathered
+  until the first Lambda function
+  invocation](https://github.com/elastic/apm-agent-nodejs/issues/2404).
+  (Note: The `expectExtraMetadata` option cannot be used in combination with
+  `cloudMetadataFetcher`.)
 
 - Use `Z_BEST_SPEED` for gzip compression per
   https://github.com/elastic/apm/blob/master/specs/agents/transport.md#compression
-
 
 ## v10.2.0
 

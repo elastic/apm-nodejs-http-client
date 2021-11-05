@@ -105,6 +105,22 @@ HTTP client configuration:
 - `maxFreeSockets` - Maximum number of sockets to leave open in a free
   state. Only relevant if `keepAlive` is set to `true` (default: `256`)
 
+Cloud & Extra Metadata Configuration:
+
+- `cloudMetadataFetcher` - An object with a `getCloudMetadata(cb)` method
+  for fetching metadata related to the current cloud environment. The callback
+  is of the form `function (err, cloudMetadata)` and the returned `cloudMetadata`
+  will be set on `metadata.cloud` for intake requests to APM Server. If
+  provided, this client will not begin any intake requests until the callback
+  is called. The `cloudMetadataFetcher` option must not be used with the
+  `expectExtraMetadata` option.
+- `expectExtraMetadata` - A boolean option to indicate that the client should
+  not allow any intake requests to begin until `cloud.setExtraMetadata(...)`
+  has been called. It is the responsibility of the caller to call
+  `cloud.setExtraMetadata()`. If not, then the Client will never perform an
+  intake request. The `expectExtraMetadata` option must not be used with the
+  `cloudMetadataFetcher` option.
+
 APM Agent Configuration via Kibana:
 
 - `centralConfig` - Whether or not the client should poll the APM
@@ -298,6 +314,18 @@ Error: validation error: 'metadata' required
 See the [APM Agent `addMetadataFilter` documentation](https://www.elastic.co/guide/en/apm/agent/nodejs/current/agent-api.html#apm-add-metadata-filter)
 for further details.
 
+### `client.setExtraMetadata([metadata])`
+
+Add extra metadata to be included in the "metadata" object sent to APM Server in
+intake requests. The given `metadata` object is merged into the metadata
+determined from the client configuration.
+
+The reason this exists is to allow some metadata to be provided asynchronously,
+especially in combination with the `expectExtraMetadata` configuration option
+to ensure that event data is not sent to APM Server until this extra metadata
+is provided. For example, in an AWS Lambda function some metadata is not
+available until the first function invocation -- which is some async time after
+Client creation.
 
 ### `client.sendSpan(span[, callback])`
 

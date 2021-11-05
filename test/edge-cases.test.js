@@ -513,31 +513,25 @@ test('client.send*() after client.destroy() should not result in error', functio
       bufferWindowTime: UNCORK_TIMER_MS
     }))
 
-    // 1. Wait until cloud-metadata and the nextTick after which it will uncork
-    //    the client's stream.
-    client.on('cloud-metadata', function () {
-      process.nextTick(function () {
-        // 2. Destroy the client, and then call one of its `.send*()` methods.
-        client.destroy()
-        client.sendSpan({ a: 'fake span' })
-
-        // 4. Give it until after `conf.bufferWindowTime` time (the setTimeout
-        //    length used for `_corkTimer`) -- which is the error code path we
-        //    are testing.
-        setTimeout(function () {
-          t.ok('waited 2 * UNCORK_TIMER_MS')
-          mockApmServer.close(function () {
-            t.end()
-          })
-        }, 2 * UNCORK_TIMER_MS)
-      })
-    })
-
-    // 3. We should *not* receive:
+    // 2. We should *not* receive:
     //      Error: Cannot call write after a stream was destroyed
     client.on('error', function (err) {
       t.ifErr(err, 'should *not* receive a "Cannot call write after a stream was destroyed" error')
     })
+
+    // 1. Destroy the client, and then call one of its `.send*()` methods.
+    client.destroy()
+    client.sendSpan({ a: 'fake span' })
+
+    // 3. Give it until after `conf.bufferWindowTime` time (the setTimeout
+    //    length used for `_corkTimer`) -- which is the error code path we
+    //    are testing.
+    setTimeout(function () {
+      t.ok('waited 2 * UNCORK_TIMER_MS')
+      mockApmServer.close(function () {
+        t.end()
+      })
+    }, 2 * UNCORK_TIMER_MS)
   })
 })
 

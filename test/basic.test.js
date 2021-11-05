@@ -221,23 +221,14 @@ test('client.flush(callback) - with active request', function (t) {
       res.end()
     })
   }).client({ bufferWindowTime: -1 }, function (client) {
-    // Cloud metadata fetching means that a write (via `client.sendSpan()` or
-    // similar) does *not* mean an immediately active outgoing request until
-    // *some time after* cloud metadata is fetched. That "some time after" is
-    // after (a) the "cloud-metadata" event, plus (b) the `nextTick()` in
-    // `_maybeUncork()` before calling `uncork()`.
-    client.on('cloud-metadata', function () {
-      process.nextTick(function () {
-        t.equal(client._active, false, 'no outgoing HTTP request to begin with')
-        client.sendSpan({ foo: 42 })
-        t.equal(client._active, true, 'an outgoing HTTP request should be active')
-        client.flush(function () {
-          t.equal(client._active, false, 'the outgoing HTTP request should be done')
-          client.end()
-          server.close()
-          t.end()
-        })
-      })
+    t.equal(client._active, false, 'no outgoing HTTP request to begin with')
+    client.sendSpan({ foo: 42 })
+    t.equal(client._active, true, 'an outgoing HTTP request should be active')
+    client.flush(function () {
+      t.equal(client._active, false, 'the outgoing HTTP request should be done')
+      client.end()
+      server.close()
+      t.end()
     })
   })
 })
@@ -262,24 +253,15 @@ test('client.flush(callback) - with queued request', function (t) {
       res.end()
     })
   }).client({ bufferWindowTime: -1 }, function (client) {
-    // Cloud metadata fetching means that a write (via `client.sendSpan()` or
-    // similar) does *not* mean an immediately active outgoing request until
-    // *some time after* cloud metadata is fetched. That "some time after" is
-    // after (a) the "cloud-metadata" event, plus (b) the `nextTick()` in
-    // `_maybeUncork()` before calling `uncork()`.
-    client.on('cloud-metadata', function () {
-      process.nextTick(function () {
-        client.sendSpan({ req: 1 })
-        client.flush()
-        client.sendSpan({ req: 2 })
-        t.equal(client._active, true, 'an outgoing HTTP request should be active')
-        client.flush(function () {
-          t.equal(client._active, false, 'the outgoing HTTP request should be done')
-          client.end()
-          server.close()
-          t.end()
-        })
-      })
+    client.sendSpan({ req: 1 })
+    client.flush()
+    client.sendSpan({ req: 2 })
+    t.equal(client._active, true, 'an outgoing HTTP request should be active')
+    client.flush(function () {
+      t.equal(client._active, false, 'the outgoing HTTP request should be done')
+      client.end()
+      server.close()
+      t.end()
     })
   })
 })
@@ -485,24 +467,6 @@ test('cloud metadata: _encodedMetadata maintains cloud info after re-config', fu
   t.ok(metadataPostUpdate.cloud, 'cloud metadata still set after re-config')
   t.equals(metadataPostUpdate.cloud.foo, 'bar', 'cloud metadata "passed through" after re-config')
   t.end()
-})
-
-test('cloud metadata: _fetchAndEncodeMetadata with no fetcher configured', function (t) {
-  const conf = {
-    agentName: 'a',
-    agentVersion: 'b',
-    serviceName: 'c',
-    userAgent: 'd'
-  }
-  const client = new Client(conf)
-  client._fetchAndEncodeMetadata(function () {
-    const metadata = JSON.parse(client._encodedMetadata).metadata
-    t.equals(metadata.service.name, conf.serviceName, 'service name set')
-    t.equals(metadata.service.agent.name, conf.agentName, 'agent name set')
-    t.equals(metadata.service.agent.version, conf.agentVersion, 'agent version set')
-    t.ok(!metadata.cloud, 'no cloud metadata set with a fetcher configured')
-    t.end()
-  })
 })
 
 test('cloud metadata: _fetchAndEncodeMetadata with fetcher configured ', function (t) {
