@@ -693,7 +693,7 @@ Client.prototype._destroy = function (err, cb) {
 
 // Return the appropriate backoff delay (in milliseconds) before a next possible
 // request to APM server.
-// Spec: https://github.com/elastic/apm/blob/master/specs/agents/transport.md#transport-errors
+// Spec: https://github.com/elastic/apm/blob/main/specs/agents/transport.md#transport-errors
 Client.prototype._getBackoffDelay = function (isErr) {
   let reconnectCount = this._backoffReconnectCount
   if (isErr) {

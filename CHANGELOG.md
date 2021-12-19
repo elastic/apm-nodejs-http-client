@@ -13,14 +13,14 @@
   `cloudMetadataFetcher`.)
 
 - Use `Z_BEST_SPEED` for gzip compression per
-  https://github.com/elastic/apm/blob/master/specs/agents/transport.md#compression
+  https://github.com/elastic/apm/blob/main/specs/agents/transport.md#compression
 
 ## v10.2.0
 
 - The client will no longer append data to the configured `userAgent` string.
   Before this it would append " elastic-apm-http-client/$ver node/$ver". This
   is to support [the APM agents spec for
-  User-Agent](https://github.com/elastic/apm/blob/master/specs/agents/transport.md#user-agent).
+  User-Agent](https://github.com/elastic/apm/blob/main/specs/agents/transport.md#user-agent).
 
 
 ## v10.1.0
@@ -43,7 +43,7 @@
 - BREAKING CHANGE: The `truncateQueriesAt` config option has been removed.
 - In its place the `truncateLongFieldsAt` config option has been added to cover
   `span.context.db.statement` and a number of other possibly-long fields (per
-  [spec](https://github.com/elastic/apm/blob/master/specs/agents/field-limits.md#long_field_max_length-configuration)).
+  [spec](https://github.com/elastic/apm/blob/main/specs/agents/field-limits.md#long_field_max_length-configuration)).
   This *does* mean that in rare cases of long field values longer than the
   default 10000 chars, this change will result in those values being truncated.
 - The `truncateErrorMessagesAt` config option has been deprecated, in favor
@@ -104,7 +104,7 @@
     `makeIntakeRequest` for the best overview.
 
   4. Support for backoff on intake API requests has been implemented per
-    https://github.com/elastic/apm/blob/master/specs/agents/transport.md#transport-errors
+    https://github.com/elastic/apm/blob/main/specs/agents/transport.md#transport-errors
 
 - Started testing against node v15 in preparation for supporting the coming
   node v16.
@@ -123,7 +123,7 @@
   [`Writable`](https://nodejs.org/api/stream.html#stream_new_stream_writable_options)
   and [`http[s].Agent`](https://nodejs.org/api/http.html#http_new_agent_options)
   constructors no longer include the full options object passed to the
-  [Client constructor](https://github.com/elastic/apm-nodejs-http-client/blob/master/README.md#new-clientoptions).
+  [Client constructor](https://github.com/elastic/apm-nodejs-http-client/blob/main/README.md#new-clientoptions).
   Therefore usage of *undocumented* options can no longer be used.
 
 ## v9.5.1

@@ -38,7 +38,7 @@ pipeline {
     stage('Run Tasks'){
       steps {
         script {
-          ['master'].each { branch ->
+          ['main'].each { branch ->
             build(
               job: "apm-agent-nodejs/apm-nodejs-http-client-mbp/${branch}",
               quietPeriod: 10,

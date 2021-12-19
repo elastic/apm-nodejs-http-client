@@ -16,7 +16,7 @@ function assertDelayWithinTenPercentOf (t, value, target, context) {
 test('_getBackoffDelay', function (t) {
   const client = new Client(validOpts())
 
-  // From https://github.com/elastic/apm/blob/master/specs/agents/transport.md#transport-errors
+  // From https://github.com/elastic/apm/blob/main/specs/agents/transport.md#transport-errors
   // "The grace period should be calculated in seconds using the algorithm
   // min(reconnectCount++, 6) ** 2 ± 10%, where reconnectCount starts at zero.
   // So the delay after the first error is 0 seconds, then circa 1, 4, 9, 16, 25
