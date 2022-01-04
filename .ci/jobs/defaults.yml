@@ -9,7 +9,6 @@
 
 - job:
     view: APM-CI
-    project-type: multibranch
     logrotate:
       daysToKeep: 30
       numToKeep: 100
