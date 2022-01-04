@@ -3,6 +3,7 @@
     name: apm-agent-nodejs/apm-nodejs-http-client-mbp
     display-name: APM Node.js http client
     description: APM Node.js http client
+    project-type: multibranch
     script-path: .ci/Jenkinsfile
     scm:
     - github:
