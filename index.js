@@ -5,6 +5,7 @@ const crypto = require('crypto')
 const fs = require('fs')
 const http = require('http')
 const https = require('https')
+const performance = require('perf_hooks').performance
 const util = require('util')
 const os = require('os')
 const { URL } = require('url')
@@ -150,7 +151,9 @@ function Client (opts) {
     type: StreamChopper.overflow,
     transform () {
       return zlib.createGzip({
+        // XXX
         level: zlib.constants.Z_BEST_SPEED
+        // level: zlib.constants.Z_NO_COMPRESSION
       })
     }
   })
@@ -415,12 +418,16 @@ Client.prototype._write = function (obj, enc, cb) {
   if (obj === flush) {
     this._writeFlush(cb)
   } else {
-    const t = process.hrtime()
+    const s = performance.now()
+
     const chunk = this._encode(obj, enc)
     this._numEventsEnqueued++
     this._chopper.write(chunk, cb)
+
+    const fullTimeMs = performance.now() - s
+    this._conf.accumulateAgentTimeFn(fullTimeMs, 'apmclient._write')
     this._log.trace({
-      fullTimeMs: deltaMs(t),
+      fullTimeMs,
       numEvents: 1,
       numBytes: chunk.length
     }, '_write: encode object')
@@ -479,19 +486,20 @@ Client.prototype._writev = function (objs, cb) {
 // Write a batch of events (excluding specially handled "flush" events) to
 // the stream chopper.
 Client.prototype._writeBatch = function (objs, cb) {
-  const t = process.hrtime()
+  const s = performance.now()
   const chunks = []
   for (var i = 0; i < objs.length; i++) {
     const obj = objs[i]
     chunks.push(this._encode(obj.chunk, obj.encoding))
   }
   const chunk = chunks.join('')
-  const encodeTimeMs = deltaMs(t)
+  const encodeTimeMs = performance.now() - s
 
   this._numEventsEnqueued += objs.length
   this._chopper.write(chunk, cb)
-  const fullTimeMs = deltaMs(t)
+  const fullTimeMs = performance.now() - s
 
+  this._conf.accumulateAgentTimeFn(fullTimeMs, 'apmclient._writeBatch')
   if (fullTimeMs > this._slowWriteBatch.fullTimeMs) {
     this._slowWriteBatch.encodeTimeMs = encodeTimeMs
     this._slowWriteBatch.fullTimeMs = fullTimeMs
@@ -502,8 +510,8 @@ Client.prototype._writeBatch = function (objs, cb) {
     this._slowWriteBatch.numOver10Ms++
   }
   this._log.trace({
-    encodeTimeMs: encodeTimeMs,
-    fullTimeMs: fullTimeMs,
+    encodeTimeMs,
+    fullTimeMs,
     numEvents: objs.length,
     numBytes: chunk.length
   }, '_writeBatch')
@@ -572,7 +580,10 @@ Client.prototype._encode = function (obj, enc) {
       out.span = truncate.span(obj.span, this._conf)
       break
     case Client.encoding.TRANSACTION:
+      // XXX
       out.transaction = truncate.transaction(obj.transaction, this._conf)
+      // XXX drop truncation *and* serialization
+      // return '{"transaction":{"name":"GET /","type":"request","result":"HTTP 2xx","id":"bb2c7eb69b18fdcf","trace_id":"12345678901234567890123456789012","parent_id":"1234567890123456","duration":0.209,"timestamp":1639692319808001,"sampled":true,"span_count":{"started":0,"dropped":2},"outcome":"success"}}\n'
       break
     case Client.encoding.METADATA:
       out.metadata = truncate.metadata(obj.metadata, this._conf)
