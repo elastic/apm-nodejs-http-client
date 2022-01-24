@@ -38,7 +38,7 @@ dataTypes.forEach(function (dataType) {
         server.close()
         t.end()
       })
-    }).client(function (client) {
+    }).client({ apmServerVersion: '8.0.0' }, function (client) {
       client[sendFn]({ foo: 42 })
       client.flush(() => { client.destroy() })
     })
@@ -59,7 +59,7 @@ dataTypes.forEach(function (dataType) {
       req.on('end', function () {
         res.end()
       })
-    }).client(function (client) {
+    }).client({ apmServerVersion: '8.0.0' }, function (client) {
       let nexttick = false
       client[sendFn]({ foo: 42 }, function () {
         t.ok(nexttick, 'should call callback')
@@ -92,7 +92,7 @@ dataTypes.forEach(function (dataType) {
         client.destroy()
         t.end()
       })
-    }).client(function (client_) {
+    }).client({ apmServerVersion: '8.0.0' }, function (client_) {
       client = client_
       client[sendFn]({ foo: 42 })
       client.end()
@@ -118,7 +118,7 @@ dataTypes.forEach(function (dataType) {
         client.destroy()
         t.end()
       })
-    }).client({ time: 100 }, function (client_) {
+    }).client({ time: 100, apmServerVersion: '8.0.0' }, function (client_) {
       client = client_
       client[sendFn]({ foo: 42 })
     })
@@ -145,7 +145,7 @@ dataTypes.forEach(function (dataType) {
         client.destroy()
         t.end()
       })
-    }).client({ time: 100 }, function (client_) {
+    }).client({ time: 100, apmServerVersion: '8.0.0' }, function (client_) {
       client = client_
       client[sendFn]({ req: 1 })
       client[sendFn]({ req: 2 })
@@ -189,7 +189,7 @@ dataTypes.forEach(function (dataType) {
           t.end()
         }
       })
-    }).client({ time: 100 }, function (_client) {
+    }).client({ time: 100, apmServerVersion: '8.0.0' }, function (_client) {
       client = _client
       send()
     })
@@ -220,7 +220,7 @@ test('client.flush(callback) - with active request', function (t) {
     req.on('end', function () {
       res.end()
     })
-  }).client({ bufferWindowTime: -1 }, function (client) {
+  }).client({ bufferWindowTime: -1, apmServerVersion: '8.0.0' }, function (client) {
     t.equal(client._active, false, 'no outgoing HTTP request to begin with')
     client.sendSpan({ foo: 42 })
     t.equal(client._active, true, 'an outgoing HTTP request should be active')
@@ -252,7 +252,7 @@ test('client.flush(callback) - with queued request', function (t) {
     req.on('end', function () {
       res.end()
     })
-  }).client({ bufferWindowTime: -1 }, function (client) {
+  }).client({ bufferWindowTime: -1, apmServerVersion: '8.0.0' }, function (client) {
     client.sendSpan({ req: 1 })
     client.flush()
     client.sendSpan({ req: 2 })
@@ -289,7 +289,7 @@ test('2nd flush before 1st flush have finished', function (t) {
       requestEnds++
       res.end()
     })
-  }).client({ bufferWindowTime: -1 }, function (client) {
+  }).client({ bufferWindowTime: -1, apmServerVersion: '8.0.0' }, function (client) {
     client.sendSpan({ req: 1 })
     client.flush()
     client.sendSpan({ req: 2 })
@@ -322,7 +322,7 @@ test('client.end(callback)', function (t) {
       client.destroy()
       t.end()
     })
-  }).client(function (client_) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client_) {
     client = client_
     client.sendSpan({ foo: 42 })
     client.end(function () {
@@ -339,7 +339,7 @@ test('client.sent', function (t) {
     req.on('end', function () {
       res.end()
     })
-  }).client(function (client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client) {
     client.sendError({ foo: 42 })
     client.sendSpan({ foo: 42 })
     client.sendTransaction({ foo: 42 })
@@ -380,7 +380,7 @@ test('should not open new request until it\'s needed after flush', function (t) 
         setTimeout(sendData, 250)
       }
     })
-  }).client(function (_client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (_client) {
     client = _client
     sendData()
   })
@@ -412,7 +412,7 @@ test('should not open new request until it\'s needed after timeout', function (t
         setTimeout(sendData, 250)
       }
     })
-  }).client({ time: 1 }, function (_client) {
+  }).client({ time: 1, apmServerVersion: '8.0.0' }, function (_client) {
     client = _client
     sendData()
   })

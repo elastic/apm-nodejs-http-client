@@ -18,7 +18,7 @@ test('no environment variables', function (t) {
       server.close()
       t.end()
     })
-  }).client(function (client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client) {
     client.sendError({})
     client.flush(() => { client.destroy() })
   })
@@ -37,7 +37,7 @@ test('kubernetesNodeName only', function (t) {
       server.close()
       t.end()
     })
-  }).client({ kubernetesNodeName: 'foo' }, function (client) {
+  }).client({ kubernetesNodeName: 'foo', apmServerVersion: '8.0.0' }, function (client) {
     client.sendError({})
     client.flush(() => { client.destroy() })
   })
@@ -56,7 +56,7 @@ test('kubernetesNamespace only', function (t) {
       server.close()
       t.end()
     })
-  }).client({ kubernetesNamespace: 'foo' }, function (client) {
+  }).client({ kubernetesNamespace: 'foo', apmServerVersion: '8.0.0' }, function (client) {
     client.sendError({})
     client.flush(() => { client.destroy() })
   })
@@ -75,7 +75,7 @@ test('kubernetesPodName only', function (t) {
       server.close()
       t.end()
     })
-  }).client({ kubernetesPodName: 'foo' }, function (client) {
+  }).client({ kubernetesPodName: 'foo', apmServerVersion: '8.0.0' }, function (client) {
     client.sendError({})
     client.flush(() => { client.destroy() })
   })
@@ -94,7 +94,7 @@ test('kubernetesPodUID only', function (t) {
       server.close()
       t.end()
     })
-  }).client({ kubernetesPodUID: 'foo' }, function (client) {
+  }).client({ kubernetesPodUID: 'foo', apmServerVersion: '8.0.0' }, function (client) {
     client.sendError({})
     client.flush(() => { client.destroy() })
   })
@@ -117,7 +117,7 @@ test('all', function (t) {
       server.close()
       t.end()
     })
-  }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodName: 'baz', kubernetesPodUID: 'qux' }, function (client) {
+  }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodName: 'baz', kubernetesPodUID: 'qux', apmServerVersion: '8.0.0' }, function (client) {
     client.sendError({})
     client.flush(() => { client.destroy() })
   })
@@ -139,7 +139,7 @@ test('all except kubernetesNodeName', function (t) {
       server.close()
       t.end()
     })
-  }).client({ kubernetesNamespace: 'bar', kubernetesPodName: 'baz', kubernetesPodUID: 'qux' }, function (client) {
+  }).client({ kubernetesNamespace: 'bar', kubernetesPodName: 'baz', kubernetesPodUID: 'qux', apmServerVersion: '8.0.0' }, function (client) {
     client.sendError({})
     client.flush(() => { client.destroy() })
   })
@@ -161,7 +161,7 @@ test('all except kubernetesNamespace', function (t) {
       server.close()
       t.end()
     })
-  }).client({ kubernetesNodeName: 'foo', kubernetesPodName: 'baz', kubernetesPodUID: 'qux' }, function (client) {
+  }).client({ kubernetesNodeName: 'foo', kubernetesPodName: 'baz', kubernetesPodUID: 'qux', apmServerVersion: '8.0.0' }, function (client) {
     client.sendError({})
     client.flush(() => { client.destroy() })
   })
@@ -184,7 +184,7 @@ test('all except kubernetesPodName', function (t) {
       server.close()
       t.end()
     })
-  }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodUID: 'qux' }, function (client) {
+  }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodUID: 'qux', apmServerVersion: '8.0.0' }, function (client) {
     client.sendError({})
     client.flush(() => { client.destroy() })
   })
@@ -207,7 +207,7 @@ test('all except kubernetesPodUID', function (t) {
       server.close()
       t.end()
     })
-  }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodName: 'baz' }, function (client) {
+  }).client({ kubernetesNodeName: 'foo', kubernetesNamespace: 'bar', kubernetesPodName: 'baz', apmServerVersion: '8.0.0' }, function (client) {
     client.sendError({})
     client.flush(() => { client.destroy() })
   })

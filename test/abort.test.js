@@ -54,7 +54,7 @@ test('abort request if server responds early', function (t) {
     } else {
       t.fail('should not get more than two requests')
     }
-  }).client(function (_client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (_client) {
     client = _client
     client.sendSpan({ foo: 1 })
     client.on('request-error', function (err) {

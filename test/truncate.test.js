@@ -17,6 +17,7 @@ const options = [
 ]
 
 options.forEach(function (opts) {
+  const clientOpts = Object.assign({ apmServerVersion: '8.0.0' }, opts)
   const veryLong = 12000
   const lineLen = opts.truncateStringsAt || 1024
   const longFieldLen = opts.truncateLongFieldsAt || 10000
@@ -74,7 +75,7 @@ options.forEach(function (opts) {
         server.close()
         t.end()
       })
-    }).client(opts, function (client) {
+    }).client(clientOpts, function (client) {
       client.sendTransaction({
         id: 'abc123',
         name: genStr('a', veryLong),
@@ -153,7 +154,7 @@ options.forEach(function (opts) {
         server.close()
         t.end()
       })
-    }).client(opts, function (client) {
+    }).client(clientOpts, function (client) {
       client.sendSpan({
         id: 'abc123',
         name: genStr('a', veryLong),
@@ -216,7 +217,7 @@ options.forEach(function (opts) {
         server.close()
         t.end()
       })
-    }).client(opts, function (client) {
+    }).client(clientOpts, function (client) {
       client.sendSpan({
         id: 'abc123',
         name: 'cool-name',
@@ -302,7 +303,7 @@ options.forEach(function (opts) {
         server.close()
         t.end()
       })
-    }).client(opts, function (client) {
+    }).client(clientOpts, function (client) {
       client.sendError({
         id: 'abc123',
         log: {
@@ -385,7 +386,7 @@ options.forEach(function (opts) {
         server.close()
         t.end()
       })
-    }).client(opts, function (client) {
+    }).client(clientOpts, function (client) {
       client.sendMetricSet({
         timestamp: 1496170422281000,
         tags: {

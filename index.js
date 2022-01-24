@@ -145,10 +145,11 @@ function Client (opts) {
     this._resetEncodedMetadata()
   }
 
-  // `_apmServerVersion` is semver.SemVer instance or null.
-  // XXX decide if supporting conf.apmServerVersion and if so, test it and doc it as string.
-  this._apmServerVersion = this._conf.apmServerVersion ? semver.SemVer(this._conf.apmServerVersion) : null
-  this._apmServerVersionFetchAttempts = 0
+  // `_apmServerVersion` is one of:
+  // - `undefined`: the version has not yet been fetched
+  // - `null`: the APM server version is unknown, could not be determined
+  // - a semver.SemVer instance
+  this._apmServerVersion = this._conf.apmServerVersion ? semver.SemVer(this._conf.apmServerVersion) : undefined
   if (!this._apmServerVersion) {
     this._fetchApmServerVersion()
   }
@@ -1043,29 +1044,25 @@ Client.prototype.supportsKeepingUnsampledTransaction = function () {
 
 /**
  * Fetch the APM Server version and set `this._apmServerVersion`.
+ * If fetching/parsing fails then the APM server version will be set to `null`
+ * to indicate "unknown version".
  *
- * This request must not keep the process open.  If fetching fails this will
- * retry a little later, up to a max number of attempts.
+ * This request must not keep the process open.
  */
 Client.prototype._fetchApmServerVersion = function () {
   const self = this
 
-  // XXX Could error out or warn if the APM version is less than supported.
-
-  const MAX_ATTEMPTS = 5
-  const RETRY_INTERVAL_MS = 5 * 60 * 1000
-  const emitErrorAndReschedule = (errmsg) => {
-    if (self._apmServerVersionFetchAttempts >= MAX_ATTEMPTS) {
-      self.emit('request-error', new Error(errmsg + `(maximum number of attempts, ${MAX_ATTEMPTS}, to fetch APM server version reached)`))
-    } else {
-      self.emit('request-error', new Error(errmsg))
-      setTimeout(self._fetchApmServerVersion.bind(self), RETRY_INTERVAL_MS).unref()
-    }
+  const emitErrorAndSetUnknown = (errmsg) => {
+    self._apmServerVersion = null // means "unknown version"
+    self.emit('request-error', new Error(errmsg))
   }
-
-  self._apmServerVersionFetchAttempts++
   const headers = getHeaders(this._conf)
-  const reqOpts = getBasicRequestOptions('GET', '/', headers, this._conf, this._agent)
+  // Explicitly do *not* pass in `this._agent` -- the keep-alive http.Agent
+  // used for intake requests -- because the socket.ref() handling in
+  // `Client#_ref()` conflicts with the socket.unref() below.
+  const reqOpts = getBasicRequestOptions('GET', '/', headers, this._conf)
+  reqOpts.timeout = 10000
+
   const req = this._transportGet(reqOpts, res => {
     res.on('error', err => {
       // Not sure this event can ever be emitted, but just in case
@@ -1074,7 +1071,7 @@ Client.prototype._fetchApmServerVersion = function () {
 
     if (res.statusCode !== 200) {
       res.resume()
-      emitErrorAndReschedule(`unexpected status from APM Server information endpoint: ${res.statusCode}`)
+      emitErrorAndSetUnknown(`unexpected status from APM Server information endpoint: ${res.statusCode}`)
       return
     }
 
@@ -1087,28 +1084,36 @@ Client.prototype._fetchApmServerVersion = function () {
       try {
         serverInfo = JSON.parse(Buffer.concat(chunks))
       } catch (parseErr) {
-        emitErrorAndReschedule(`could not parse APM Server information endpoint body: ${parseErr.message}`)
+        emitErrorAndSetUnknown(`could not parse APM Server information endpoint body: ${parseErr.message}`)
         return
       }
 
       if (serverInfo) {
-        // APM Server 7.0.0 changed structure of the info endpoint body.
+        // APM Server 7.0.0 dropped the "ok"-level in the info endpoint body.
         const verStr = serverInfo.ok ? serverInfo.ok.version : serverInfo.version
         try {
           self._apmServerVersion = semver.SemVer(verStr)
         } catch (verErr) {
-          emitErrorAndReschedule(`could not parse APM Server version "${verStr}": ${verErr.message}`)
+          emitErrorAndSetUnknown(`could not parse APM Server version "${verStr}": ${verErr.message}`)
           return
         }
-        self._log.trace({ apmServerVersion: verStr }, 'fetched APM Server version')
+        self._log.debug({ apmServerVersion: verStr }, 'fetched APM Server version')
       } else {
-        emitErrorAndReschedule(`could not determine APM server version from information endpoint body: ${JSON.stringify(serverInfo)}`)
+        emitErrorAndSetUnknown(`could not determine APM Server version from information endpoint body: ${JSON.stringify(serverInfo)}`)
       }
     })
   })
 
+  req.on('socket', socket => {
+    // Unref our socket to ensure this request does not keep the process alive.
+    socket.unref()
+  })
+  req.on('timeout', () => {
+    self._log.trace('_fetchApmServerVersion timeout')
+    req.destroy(new Error(`timeout (${reqOpts.timeout}ms) fetching APM Server version`))
+  })
   req.on('error', err => {
-    emitErrorAndReschedule(`unexpected error fetching APM server version: ${err.message}`)
+    emitErrorAndSetUnknown(`error fetching APM Server version: ${err.message}`)
   })
 }
 

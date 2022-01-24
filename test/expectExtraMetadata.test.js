@@ -20,7 +20,7 @@ test('expectExtraMetadata and setExtraMetadata used properly', function (t) {
       res.statusCode = 202
       res.end()
     })
-  }).client({ expectExtraMetadata: true }, function (client) {
+  }).client({ expectExtraMetadata: true, apmServerVersion: '8.0.0' }, function (client) {
     client.setExtraMetadata({
       foo: 'bar',
       service: {
@@ -58,7 +58,7 @@ test('empty setExtraMetadata is fine, and calling after send* is fine', function
       res.statusCode = 202
       res.end()
     })
-  }).client({ expectExtraMetadata: true }, function (client) {
+  }).client({ expectExtraMetadata: true, apmServerVersion: '8.0.0' }, function (client) {
     client.sendTransaction({ req: 1 })
     client.setExtraMetadata()
 
@@ -77,7 +77,7 @@ test('empty setExtraMetadata is fine, and calling after send* is fine', function
 test('expectExtraMetadata:true with *no* setExtraMetadata call results in a corked client', function (t) {
   const server = APMServer(function (req, res) {
     t.fail('do NOT expect to get intake request to APM server')
-  }).client({ expectExtraMetadata: true }, function (client) {
+  }).client({ expectExtraMetadata: true, apmServerVersion: '8.0.0' }, function (client) {
     // Explicitly *not* calling setExtraMetadata().
     client.sendTransaction({ req: 1 })
 

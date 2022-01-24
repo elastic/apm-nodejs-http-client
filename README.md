@@ -190,7 +190,7 @@ Data sanitizing configuration:
   the following properties: `error.exception.message` and `error.log.message`.
   (default: `2048`)
 
-Debug/Test options:
+Other options:
 
 - `logger` - A [pino](https://getpino.io) logger to use for trace and
   debug-level logging.
@@ -200,8 +200,8 @@ Debug/Test options:
   impact performance.
 - `apmServerVersion` - A string version to assume is the version of the
   APM Server at `serverUrl`. This option is typically only used for testing.
-  Normally this client will fetch the APM Server version at startup.
-  XXX
+  Normally this client will fetch the APM Server version at startup via a
+  `GET /` request. Setting this option avoids that request.
 
 ### Event: `config`
 
@@ -291,8 +291,9 @@ This method returns a boolean indicating whether the remote APM Server (per
 the configured `serverUrl`) is of a version that requires unsampled transactions
 to be sent.
 
-This defaults to `true` if the remote APM server version is not yet known. The
-client will query the APM server for its version in the background.
+This defaults to `true` if the remote APM server version is not known -- either
+because the background fetch of the APM Server version hasn't yet completed,
+or the version could not be fetched.
 
 ### `client.addMetadataFilter(fn)`
 

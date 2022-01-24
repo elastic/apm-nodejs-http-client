@@ -8,6 +8,7 @@
 //    handles. For this Client that means:
 //    - ensure no `_pollConfig` requests via `centralConfig: false`
 //    - do not provide a `cloudMetadataFetcher`
+//    - set `apmServerVersion` to not have an APM Server version fetch request
 // 2. There must be a listening APM server to which to send data.
 
 const Client = require('../../') // elastic-apm-http-client
@@ -21,7 +22,8 @@ const client = new Client({
   agentName: 'my-nodejs-agent',
   agentVersion: '1.2.3',
   userAgent: 'my-nodejs-agent/1.2.3',
-  centralConfig: false // important for repro, see above
+  centralConfig: false, // important for repro, see above
+  apmServerVersion: '8.0.0' // important for repro, see above
 })
 
 const e = { exception: { message: 'boom', type: 'Error' } }

@@ -99,7 +99,7 @@ test('polling', function (t) {
       default:
         t.fail('too many request')
     }
-  }).client({ centralConfig: true }, function (_client) {
+  }).client({ centralConfig: true, apmServerVersion: '8.0.0' }, function (_client) {
     client = _client
     client.on('config', function (conf) {
       t.equal(reqs, 6, 'should emit config after 6th request')

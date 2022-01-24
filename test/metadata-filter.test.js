@@ -23,7 +23,7 @@ test('addMetadataFilter', function (t) {
     })
   })
 
-  server.client(function (client) {
+  server.client({ apmServerVersion: '8.0.0' }, function (client) {
     client.addMetadataFilter(function (md) {
       delete md.process.argv
       md.labels = { foo: 'bar' }
