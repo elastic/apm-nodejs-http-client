@@ -1028,7 +1028,7 @@ function getChoppedStreamHandler (client, onerror) {
  * Some behaviors in the APM depend on the APM Server version. These are
  * exposed as `Client#supports...` boolean methods.
  *
- * These `Client#supports...` property names intentionally match those from the Java agent:
+ * These `Client#supports...` method names intentionally match those from the Java agent:
  * https://github.com/elastic/apm-agent-java/blob/master/apm-agent-core/src/main/java/co/elastic/apm/agent/report/ApmServerClient.java#L322-L349
  */
 Client.prototype.supportsKeepingUnsampledTransaction = function () {
@@ -1044,10 +1044,10 @@ Client.prototype.supportsKeepingUnsampledTransaction = function () {
 
 /**
  * Fetch the APM Server version and set `this._apmServerVersion`.
+ * https://www.elastic.co/guide/en/apm/server/current/server-info.html
+ *
  * If fetching/parsing fails then the APM server version will be set to `null`
  * to indicate "unknown version".
- *
- * This request must not keep the process open.
  */
 Client.prototype._fetchApmServerVersion = function () {
   const self = this
@@ -1080,6 +1080,11 @@ Client.prototype._fetchApmServerVersion = function () {
       chunks.push(chunk)
     })
     res.on('end', function () {
+      if (chunks.length === 0) {
+        emitErrorAndSetUnknown('APM Server information endpoint returned no body, often this indicates authentication ("apiKey" or "secretToken") is incorrect')
+        return
+      }
+
       let serverInfo
       try {
         serverInfo = JSON.parse(Buffer.concat(chunks))

@@ -1,5 +1,20 @@
 # elastic-apm-http-client changelog
 
+## v10.4.0
+
+- Add APM Server version checking to the client. On creation the client will
+  call the [APM Server Information API](https://www.elastic.co/guide/en/apm/server/current/server-info.html)
+  to get the server version and save that.
+
+  The new `Client#supportsKeepingUnsampledTransaction()` boolean method returns
+  `true` if APM Server is a version that requires unsampled transactions to
+  be sent. This will be used by the APM Agent to [drop unsampled transactions
+  for newer APM Servers](https://github.com/elastic/apm-agent-nodejs/issues/2455).
+
+  There is a new `apmServerVersion: <string>` config option to tell the Client
+  to skip fetching the APM Server version and use the given value. This config
+  option is intended mainly for internal test suite usage.
+
 ## v10.3.0
 
 - Add the `expectExtraMetadata: true` configuration option and
