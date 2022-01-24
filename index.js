@@ -15,6 +15,7 @@ const querystring = require('querystring')
 const Writable = require('readable-stream').Writable
 const getContainerInfo = require('./lib/container-info')
 const eos = require('end-of-stream')
+const semver = require('semver')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
 
@@ -142,6 +143,14 @@ function Client (opts) {
     this.cork()
   } else {
     this._resetEncodedMetadata()
+  }
+
+  // `_apmServerVersion` is semver.SemVer instance or null.
+  // XXX decide if supporting conf.apmServerVersion and if so, test it and doc it as string.
+  this._apmServerVersion = this._conf.apmServerVersion ? semver.SemVer(this._conf.apmServerVersion) : null
+  this._apmServerVersionFetchAttempts = 0
+  if (!this._apmServerVersion) {
+    this._fetchApmServerVersion()
   }
 
   this._chopper = new StreamChopper({
@@ -1012,6 +1021,95 @@ function getChoppedStreamHandler (client, onerror) {
     gzipStream.write(client._encodedMetadata)
     gzipStream.pipe(intakeReq)
   }
+}
+
+/**
+ * Some behaviors in the APM depend on the APM Server version. These are
+ * exposed as `Client#supports...` boolean methods.
+ *
+ * These `Client#supports...` property names intentionally match those from the Java agent:
+ * https://github.com/elastic/apm-agent-java/blob/master/apm-agent-core/src/main/java/co/elastic/apm/agent/report/ApmServerClient.java#L322-L349
+ */
+Client.prototype.supportsKeepingUnsampledTransaction = function () {
+  // Default to assuming we are using a pre-8.0 APM Server if we haven't
+  // yet fetched the version. There is no harm in sending unsampled transactions
+  // to APM Server >=v8.0.
+  if (!this._apmServerVersion) {
+    return true
+  } else {
+    return this._apmServerVersion.major < 8
+  }
+}
+
+/**
+ * Fetch the APM Server version and set `this._apmServerVersion`.
+ *
+ * This request must not keep the process open.  If fetching fails this will
+ * retry a little later, up to a max number of attempts.
+ */
+Client.prototype._fetchApmServerVersion = function () {
+  const self = this
+
+  // XXX Could error out or warn if the APM version is less than supported.
+
+  const MAX_ATTEMPTS = 5
+  const RETRY_INTERVAL_MS = 5 * 60 * 1000
+  const emitErrorAndReschedule = (errmsg) => {
+    if (self._apmServerVersionFetchAttempts >= MAX_ATTEMPTS) {
+      self.emit('request-error', new Error(errmsg + `(maximum number of attempts, ${MAX_ATTEMPTS}, to fetch APM server version reached)`))
+    } else {
+      self.emit('request-error', new Error(errmsg))
+      setTimeout(self._fetchApmServerVersion.bind(self), RETRY_INTERVAL_MS).unref()
+    }
+  }
+
+  self._apmServerVersionFetchAttempts++
+  const headers = getHeaders(this._conf)
+  const reqOpts = getBasicRequestOptions('GET', '/', headers, this._conf, this._agent)
+  const req = this._transportGet(reqOpts, res => {
+    res.on('error', err => {
+      // Not sure this event can ever be emitted, but just in case
+      res.destroy(err)
+    })
+
+    if (res.statusCode !== 200) {
+      res.resume()
+      emitErrorAndReschedule(`unexpected status from APM Server information endpoint: ${res.statusCode}`)
+      return
+    }
+
+    const chunks = []
+    res.on('data', function (chunk) {
+      chunks.push(chunk)
+    })
+    res.on('end', function () {
+      let serverInfo
+      try {
+        serverInfo = JSON.parse(Buffer.concat(chunks))
+      } catch (parseErr) {
+        emitErrorAndReschedule(`could not parse APM Server information endpoint body: ${parseErr.message}`)
+        return
+      }
+
+      if (serverInfo) {
+        // APM Server 7.0.0 changed structure of the info endpoint body.
+        const verStr = serverInfo.ok ? serverInfo.ok.version : serverInfo.version
+        try {
+          self._apmServerVersion = semver.SemVer(verStr)
+        } catch (verErr) {
+          emitErrorAndReschedule(`could not parse APM Server version "${verStr}": ${verErr.message}`)
+          return
+        }
+        self._log.trace({ apmServerVersion: verStr }, 'fetched APM Server version')
+      } else {
+        emitErrorAndReschedule(`could not determine APM server version from information endpoint body: ${JSON.stringify(serverInfo)}`)
+      }
+    })
+  })
+
+  req.on('error', err => {
+    emitErrorAndReschedule(`unexpected error fetching APM server version: ${err.message}`)
+  })
 }
 
 /**

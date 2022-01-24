@@ -190,7 +190,7 @@ Data sanitizing configuration:
   the following properties: `error.exception.message` and `error.log.message`.
   (default: `2048`)
 
-Debug options:
+Debug/Test options:
 
 - `logger` - A [pino](https://getpino.io) logger to use for trace and
   debug-level logging.
@@ -198,6 +198,10 @@ Debug options:
   sent to the APM Server should be written. The data will be in ndjson
   format and will be uncompressed. Note that using this option can
   impact performance.
+- `apmServerVersion` - A string version to assume is the version of the
+  APM Server at `serverUrl`. This option is typically only used for testing.
+  Normally this client will fetch the APM Server version at startup.
+  XXX
 
 ### Event: `config`
 
@@ -280,6 +284,15 @@ configuration options can be updated except:
 - `maxSockets`
 - `maxFreeSockets`
 - `centralConfig`
+
+### `client.supportsKeepingUnsampledTransaction()`
+
+This method returns a boolean indicating whether the remote APM Server (per
+the configured `serverUrl`) is of a version that requires unsampled transactions
+to be sent.
+
+This defaults to `true` if the remote APM server version is not yet known. The
+client will query the APM server for its version in the background.
 
 ### `client.addMetadataFilter(fn)`
 
