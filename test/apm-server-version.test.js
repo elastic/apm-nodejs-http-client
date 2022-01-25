@@ -125,8 +125,9 @@ test('APM server version fetch works for "8.0.0"', function (t) {
 })
 
 test('APM server version is null on fetch error', function (t) {
+  const HOPEFULLY_UNUSED_PORT_HACK = 62345
   const client = new Client(validOpts({
-    serverUrl: 'http://localhost:62345' // hopefully some unused port
+    serverUrl: 'http://localhost:' + HOPEFULLY_UNUSED_PORT_HACK
   }))
   client.on('request-error', err => {
     t.ok(err, 'got a "request-error" event')
