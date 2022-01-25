@@ -1054,7 +1054,6 @@ Client.prototype._fetchApmServerVersion = function () {
 
   const setVerUnknownAndNotify = (errmsg) => {
     self._apmServerVersion = null // means "unknown version"
-    self.emit('request-error', new Error(errmsg))
     if (isLambdaExecutionEnvironment) {
       // In a Lambda environment, where the process can be frozen, it is not
       // unusual for this request to hit an error. As long as APM Server version
