@@ -1052,16 +1052,25 @@ Client.prototype.supportsKeepingUnsampledTransaction = function () {
 Client.prototype._fetchApmServerVersion = function () {
   const self = this
 
-  const emitErrorAndSetUnknown = (errmsg) => {
+  const setVerUnknownAndNotify = (errmsg) => {
     self._apmServerVersion = null // means "unknown version"
     self.emit('request-error', new Error(errmsg))
+    if (isLambdaExecutionEnvironment) {
+      // In a Lambda environment, where the process can be frozen, it is not
+      // unusual for this request to hit an error. As long as APM Server version
+      // fetching is not critical to tracing of Lambda invocations, then it is
+      // preferable to not add an error message to the users log.
+      self._log.debug('verfetch: ' + errmsg)
+    } else {
+      self.emit('request-error', new Error(errmsg))
+    }
   }
   const headers = getHeaders(this._conf)
   // Explicitly do *not* pass in `this._agent` -- the keep-alive http.Agent
   // used for intake requests -- because the socket.ref() handling in
   // `Client#_ref()` conflicts with the socket.unref() below.
   const reqOpts = getBasicRequestOptions('GET', '/', headers, this._conf)
-  reqOpts.timeout = 10000
+  reqOpts.timeout = 30000
 
   const req = this._transportGet(reqOpts, res => {
     res.on('error', err => {
@@ -1071,7 +1080,7 @@ Client.prototype._fetchApmServerVersion = function () {
 
     if (res.statusCode !== 200) {
       res.resume()
-      emitErrorAndSetUnknown(`unexpected status from APM Server information endpoint: ${res.statusCode}`)
+      setVerUnknownAndNotify(`unexpected status from APM Server information endpoint: ${res.statusCode}`)
       return
     }
 
@@ -1081,7 +1090,7 @@ Client.prototype._fetchApmServerVersion = function () {
     })
     res.on('end', function () {
       if (chunks.length === 0) {
-        emitErrorAndSetUnknown('APM Server information endpoint returned no body, often this indicates authentication ("apiKey" or "secretToken") is incorrect')
+        setVerUnknownAndNotify('APM Server information endpoint returned no body, often this indicates authentication ("apiKey" or "secretToken") is incorrect')
         return
       }
 
@@ -1089,7 +1098,7 @@ Client.prototype._fetchApmServerVersion = function () {
       try {
         serverInfo = JSON.parse(Buffer.concat(chunks))
       } catch (parseErr) {
-        emitErrorAndSetUnknown(`could not parse APM Server information endpoint body: ${parseErr.message}`)
+        setVerUnknownAndNotify(`could not parse APM Server information endpoint body: ${parseErr.message}`)
         return
       }
 
@@ -1099,12 +1108,12 @@ Client.prototype._fetchApmServerVersion = function () {
         try {
           self._apmServerVersion = semver.SemVer(verStr)
         } catch (verErr) {
-          emitErrorAndSetUnknown(`could not parse APM Server version "${verStr}": ${verErr.message}`)
+          setVerUnknownAndNotify(`could not parse APM Server version "${verStr}": ${verErr.message}`)
           return
         }
         self._log.debug({ apmServerVersion: verStr }, 'fetched APM Server version')
       } else {
-        emitErrorAndSetUnknown(`could not determine APM Server version from information endpoint body: ${JSON.stringify(serverInfo)}`)
+        setVerUnknownAndNotify(`could not determine APM Server version from information endpoint body: ${JSON.stringify(serverInfo)}`)
       }
     })
   })
@@ -1118,7 +1127,7 @@ Client.prototype._fetchApmServerVersion = function () {
     req.destroy(new Error(`timeout (${reqOpts.timeout}ms) fetching APM Server version`))
   })
   req.on('error', err => {
-    emitErrorAndSetUnknown(`error fetching APM Server version: ${err.message}`)
+    setVerUnknownAndNotify(`error fetching APM Server version: ${err.message}`)
   })
 }
 
