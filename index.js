@@ -1050,18 +1050,16 @@ Client.prototype.supportsKeepingUnsampledTransaction = function () {
  * to indicate "unknown version".
  */
 Client.prototype._fetchApmServerVersion = function () {
-  const self = this
-
   const setVerUnknownAndNotify = (errmsg) => {
-    self._apmServerVersion = null // means "unknown version"
+    this._apmServerVersion = null // means "unknown version"
     if (isLambdaExecutionEnvironment) {
       // In a Lambda environment, where the process can be frozen, it is not
       // unusual for this request to hit an error. As long as APM Server version
       // fetching is not critical to tracing of Lambda invocations, then it is
       // preferable to not add an error message to the users log.
-      self._log.debug('verfetch: ' + errmsg)
+      this._log.debug('verfetch: ' + errmsg)
     } else {
-      self.emit('request-error', new Error(errmsg))
+      this.emit('request-error', new Error(errmsg))
     }
   }
   const headers = getHeaders(this._conf)
@@ -1084,10 +1082,10 @@ Client.prototype._fetchApmServerVersion = function () {
     }
 
     const chunks = []
-    res.on('data', function (chunk) {
+    res.on('data', chunk => {
       chunks.push(chunk)
     })
-    res.on('end', function () {
+    res.on('end', () => {
       if (chunks.length === 0) {
         setVerUnknownAndNotify('APM Server information endpoint returned no body, often this indicates authentication ("apiKey" or "secretToken") is incorrect')
         return
@@ -1105,12 +1103,12 @@ Client.prototype._fetchApmServerVersion = function () {
         // APM Server 7.0.0 dropped the "ok"-level in the info endpoint body.
         const verStr = serverInfo.ok ? serverInfo.ok.version : serverInfo.version
         try {
-          self._apmServerVersion = semver.SemVer(verStr)
+          this._apmServerVersion = semver.SemVer(verStr)
         } catch (verErr) {
           setVerUnknownAndNotify(`could not parse APM Server version "${verStr}": ${verErr.message}`)
           return
         }
-        self._log.debug({ apmServerVersion: verStr }, 'fetched APM Server version')
+        this._log.debug({ apmServerVersion: verStr }, 'fetched APM Server version')
       } else {
         setVerUnknownAndNotify(`could not determine APM Server version from information endpoint body: ${JSON.stringify(serverInfo)}`)
       }
@@ -1122,7 +1120,7 @@ Client.prototype._fetchApmServerVersion = function () {
     socket.unref()
   })
   req.on('timeout', () => {
-    self._log.trace('_fetchApmServerVersion timeout')
+    this._log.trace('_fetchApmServerVersion timeout')
     req.destroy(new Error(`timeout (${reqOpts.timeout}ms) fetching APM Server version`))
   })
   req.on('error', err => {
