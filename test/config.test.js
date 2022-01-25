@@ -73,7 +73,8 @@ test('no secretToken or apiKey', function (t) {
   })
   server.listen(function () {
     client = new Client(validOpts({
-      serverUrl: 'http://localhost:' + server.address().port
+      serverUrl: 'http://localhost:' + server.address().port,
+      apmServerVersion: '8.0.0'
     }))
     client.sendSpan({ foo: 42 })
     client.end()
@@ -93,7 +94,8 @@ test('has apiKey', function (t) {
   server.listen(function () {
     client = new Client(validOpts({
       serverUrl: 'http://localhost:' + server.address().port,
-      apiKey: 'FooBar123'
+      apiKey: 'FooBar123',
+      apmServerVersion: '8.0.0'
     }))
     client.sendSpan({ foo: 42 })
     client.end()
@@ -115,7 +117,8 @@ test('custom headers', function (t) {
       serverUrl: 'http://localhost:' + server.address().port,
       headers: {
         'X-Foo': 'bar'
-      }
+      },
+      apmServerVersion: '8.0.0'
     }))
     client.sendSpan({ foo: 42 })
     client.end()
@@ -125,7 +128,8 @@ test('custom headers', function (t) {
 test('serverUrl is invalid', function (t) {
   t.throws(function () {
     new Client(validOpts({ // eslint-disable-line no-new
-      serverUrl: 'invalid'
+      serverUrl: 'invalid',
+      apmServerVersion: '8.0.0'
     }))
   })
   t.end()
@@ -142,7 +146,8 @@ test('serverUrl contains path', function (t) {
     t.end()
   }).listen(function () {
     client = new Client(validOpts({
-      serverUrl: 'http://localhost:' + server.address().port + '/subpath'
+      serverUrl: 'http://localhost:' + server.address().port + '/subpath',
+      apmServerVersion: '8.0.0'
     }))
     client.sendSpan({ foo: 42 })
     client.end()
@@ -153,7 +158,7 @@ test('reject unauthorized TLS by default', function (t) {
   t.plan(3)
   const server = APMServer({ secure: true }, function (req, res) {
     t.fail('should should not get request')
-  }).client(function (client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'self signed certificate')
@@ -175,7 +180,7 @@ test('allow unauthorized TLS if asked', function (t) {
     client.destroy()
     server.close()
     t.end()
-  }).client({ rejectUnauthorized: false }, function (client_) {
+  }).client({ rejectUnauthorized: false, apmServerVersion: '8.0.0' }, function (client_) {
     client = client_
     client.sendSpan({ foo: 42 })
     client.end()
@@ -192,7 +197,7 @@ test('allow self-signed TLS certificate by specifying the CA', function (t) {
     server.close()
     t.end()
   })
-  server.client({ serverCaCert: server.cert }, function (client_) {
+  server.client({ serverCaCert: server.cert, apmServerVersion: '8.0.0' }, function (client_) {
     client = client_
     client.sendSpan({ foo: 42 })
     client.end()
@@ -217,7 +222,8 @@ test('metadata', function (t) {
       doesNotNest: {
         nope: 'this should be [object Object]'
       }
-    }
+    },
+    apmServerVersion: '8.0.0' // avoid the APM server version fetch request
   }
   const server = APMServer(function (req, res) {
     req = processIntakeReq(req)
@@ -305,7 +311,8 @@ test('metadata - default values', function (t) {
   const opts = {
     agentName: 'custom-agentName',
     agentVersion: 'custom-agentVersion',
-    serviceName: 'custom-serviceName'
+    serviceName: 'custom-serviceName',
+    apmServerVersion: '8.0.0' // avoid the APM server version fetch request
   }
   const server = APMServer(function (req, res) {
     req = processIntakeReq(req)
@@ -400,7 +407,7 @@ test('metadata - container info', function (t) {
       server.close()
       t.end()
     })
-  }).client({}, function (client_) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client_) {
     client = client_
     client.sendSpan({ foo: 42 })
     client.end()
@@ -421,7 +428,7 @@ test('agentName', function (t) {
       server.close()
       t.end()
     })
-  }).client({ serviceName: 'custom' }, function (client_) {
+  }).client({ serviceName: 'custom', apmServerVersion: '8.0.0' }, function (client_) {
     client = client_
     client.sendSpan({ foo: 42 })
     client.end()
@@ -466,7 +473,7 @@ test('payloadLogFile', function (t) {
         })
       }
     })
-  }).client({ payloadLogFile: filename }, function (client_) {
+  }).client({ payloadLogFile: filename, apmServerVersion: '8.0.0' }, function (client_) {
     client = client_
     client.sendTransaction({ req: 1 })
     client.sendSpan({ req: 2 })
@@ -490,7 +497,7 @@ test('update conf', function (t) {
       server.close()
       t.end()
     })
-  }).client({ serviceName: 'foo' }, function (client_) {
+  }).client({ serviceName: 'foo', apmServerVersion: '8.0.0' }, function (client_) {
     client = client_
     client.config({ serviceName: 'bar' })
     client.sendSpan({ foo: 42 })
@@ -536,7 +543,8 @@ test('503 response from apm-server for central config should not crash', functio
       // Turn centralConfig *off*. We'll manually trigger a poll for central
       // config via internal methods, so that we don't need to muck with
       // internal `setTimeout` intervals.
-      centralConfig: false
+      centralConfig: false,
+      apmServerVersion: '8.0.0'
     }))
 
     // 2. Ensure the client conditions for the crash.

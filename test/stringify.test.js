@@ -53,7 +53,7 @@ dataTypes.forEach(function (dataType) {
           server.close()
           t.end()
         })
-      }).client(function (client) {
+      }).client({ apmServerVersion: '8.0.0' }, function (client) {
         client[sendFn]({
           context: {
             [prop]: {

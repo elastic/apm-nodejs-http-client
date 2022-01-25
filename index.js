@@ -15,6 +15,7 @@ const querystring = require('querystring')
 const Writable = require('readable-stream').Writable
 const getContainerInfo = require('./lib/container-info')
 const eos = require('end-of-stream')
+const semver = require('semver')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
 
@@ -142,6 +143,15 @@ function Client (opts) {
     this.cork()
   } else {
     this._resetEncodedMetadata()
+  }
+
+  // `_apmServerVersion` is one of:
+  // - `undefined`: the version has not yet been fetched
+  // - `null`: the APM server version is unknown, could not be determined
+  // - a semver.SemVer instance
+  this._apmServerVersion = this._conf.apmServerVersion ? semver.SemVer(this._conf.apmServerVersion) : undefined
+  if (!this._apmServerVersion) {
+    this._fetchApmServerVersion()
   }
 
   this._chopper = new StreamChopper({
@@ -1012,6 +1022,110 @@ function getChoppedStreamHandler (client, onerror) {
     gzipStream.write(client._encodedMetadata)
     gzipStream.pipe(intakeReq)
   }
+}
+
+/**
+ * Some behaviors in the APM depend on the APM Server version. These are
+ * exposed as `Client#supports...` boolean methods.
+ *
+ * These `Client#supports...` method names intentionally match those from the Java agent:
+ * https://github.com/elastic/apm-agent-java/blob/master/apm-agent-core/src/main/java/co/elastic/apm/agent/report/ApmServerClient.java#L322-L349
+ */
+Client.prototype.supportsKeepingUnsampledTransaction = function () {
+  // Default to assuming we are using a pre-8.0 APM Server if we haven't
+  // yet fetched the version. There is no harm in sending unsampled transactions
+  // to APM Server >=v8.0.
+  if (!this._apmServerVersion) {
+    return true
+  } else {
+    return this._apmServerVersion.major < 8
+  }
+}
+
+/**
+ * Fetch the APM Server version and set `this._apmServerVersion`.
+ * https://www.elastic.co/guide/en/apm/server/current/server-info.html
+ *
+ * If fetching/parsing fails then the APM server version will be set to `null`
+ * to indicate "unknown version".
+ */
+Client.prototype._fetchApmServerVersion = function () {
+  const setVerUnknownAndNotify = (errmsg) => {
+    this._apmServerVersion = null // means "unknown version"
+    if (isLambdaExecutionEnvironment) {
+      // In a Lambda environment, where the process can be frozen, it is not
+      // unusual for this request to hit an error. As long as APM Server version
+      // fetching is not critical to tracing of Lambda invocations, then it is
+      // preferable to not add an error message to the users log.
+      this._log.debug('verfetch: ' + errmsg)
+    } else {
+      this.emit('request-error', new Error(errmsg))
+    }
+  }
+  const headers = getHeaders(this._conf)
+  // Explicitly do *not* pass in `this._agent` -- the keep-alive http.Agent
+  // used for intake requests -- because the socket.ref() handling in
+  // `Client#_ref()` conflicts with the socket.unref() below.
+  const reqOpts = getBasicRequestOptions('GET', '/', headers, this._conf)
+  reqOpts.timeout = 30000
+
+  const req = this._transportGet(reqOpts, res => {
+    res.on('error', err => {
+      // Not sure this event can ever be emitted, but just in case
+      res.destroy(err)
+    })
+
+    if (res.statusCode !== 200) {
+      res.resume()
+      setVerUnknownAndNotify(`unexpected status from APM Server information endpoint: ${res.statusCode}`)
+      return
+    }
+
+    const chunks = []
+    res.on('data', chunk => {
+      chunks.push(chunk)
+    })
+    res.on('end', () => {
+      if (chunks.length === 0) {
+        setVerUnknownAndNotify('APM Server information endpoint returned no body, often this indicates authentication ("apiKey" or "secretToken") is incorrect')
+        return
+      }
+
+      let serverInfo
+      try {
+        serverInfo = JSON.parse(Buffer.concat(chunks))
+      } catch (parseErr) {
+        setVerUnknownAndNotify(`could not parse APM Server information endpoint body: ${parseErr.message}`)
+        return
+      }
+
+      if (serverInfo) {
+        // APM Server 7.0.0 dropped the "ok"-level in the info endpoint body.
+        const verStr = serverInfo.ok ? serverInfo.ok.version : serverInfo.version
+        try {
+          this._apmServerVersion = semver.SemVer(verStr)
+        } catch (verErr) {
+          setVerUnknownAndNotify(`could not parse APM Server version "${verStr}": ${verErr.message}`)
+          return
+        }
+        this._log.debug({ apmServerVersion: verStr }, 'fetched APM Server version')
+      } else {
+        setVerUnknownAndNotify(`could not determine APM Server version from information endpoint body: ${JSON.stringify(serverInfo)}`)
+      }
+    })
+  })
+
+  req.on('socket', socket => {
+    // Unref our socket to ensure this request does not keep the process alive.
+    socket.unref()
+  })
+  req.on('timeout', () => {
+    this._log.trace('_fetchApmServerVersion timeout')
+    req.destroy(new Error(`timeout (${reqOpts.timeout}ms) fetching APM Server version`))
+  })
+  req.on('error', err => {
+    setVerUnknownAndNotify(`error fetching APM Server version: ${err.message}`)
+  })
 }
 
 /**

@@ -33,17 +33,17 @@ function APMServer (opts, onreq) {
     socket.unref()
   })
 
-  server.client = function (opts, onclient) {
-    if (typeof opts === 'function') {
-      onclient = opts
-      opts = {}
+  server.client = function (clientOpts, onclient) {
+    if (typeof clientOpts === 'function') {
+      onclient = clientOpts
+      clientOpts = {}
     }
     server.listen(function () {
       onclient(new Client(validOpts(Object.assign({
         // logger: require('pino')({ level: 'trace' }), // uncomment for debugging
         serverUrl: `http${secure ? 's' : ''}://localhost:${server.address().port}`,
         secretToken: 'secret'
-      }, opts))))
+      }, clientOpts))))
     })
     return server
   }

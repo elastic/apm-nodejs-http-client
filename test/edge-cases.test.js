@@ -27,7 +27,8 @@ test('Event: close - if chopper ends', function (t) {
     }, 10)
   }).listen(function () {
     client = new Client(validOpts({
-      serverUrl: 'http://localhost:' + server.address().port
+      serverUrl: 'http://localhost:' + server.address().port,
+      apmServerVersion: '8.0.0'
     }))
 
     client.on('finish', function () {
@@ -53,7 +54,8 @@ test('Event: close - if chopper is destroyed', function (t) {
     }, 10)
   }).listen(function () {
     client = new Client(validOpts({
-      serverUrl: 'http://localhost:' + server.address().port
+      serverUrl: 'http://localhost:' + server.address().port,
+      apmServerVersion: '8.0.0'
     }))
 
     client.on('finish', function () {
@@ -71,7 +73,7 @@ test('write after end', function (t) {
   t.plan(2)
   const server = APMServer(function (req, res) {
     t.fail('should never get any request')
-  }).client(function (client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client) {
     client.on('error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'write after end')
@@ -87,7 +89,7 @@ test('request with error - no body', function (t) {
   const server = APMServer(function (req, res) {
     res.statusCode = 418
     res.end()
-  }).client(function (client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected APM Server response')
@@ -108,7 +110,7 @@ test('request with error - non json body', function (t) {
   const server = APMServer(function (req, res) {
     res.statusCode = 418
     res.end('boom!')
-  }).client(function (client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected APM Server response')
@@ -130,7 +132,7 @@ test('request with error - invalid json body', function (t) {
     res.statusCode = 418
     res.setHeader('Content-Type', 'application/json')
     res.end('boom!')
-  }).client(function (client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected APM Server response')
@@ -153,7 +155,7 @@ test('request with error - json body without accepted or errors properties', fun
     res.statusCode = 418
     res.setHeader('Content-Type', 'application/json')
     res.end(body)
-  }).client(function (client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected APM Server response')
@@ -175,7 +177,7 @@ test('request with error - json body with accepted and errors properties', funct
     res.statusCode = 418
     res.setHeader('Content-Type', 'application/json')
     res.end(JSON.stringify({ accepted: 42, errors: [{ message: 'bar' }] }))
-  }).client(function (client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected APM Server response')
@@ -197,7 +199,7 @@ test('request with error - json body where Content-Type contains charset', funct
     res.statusCode = 418
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
     res.end(JSON.stringify({ accepted: 42, errors: [{ message: 'bar' }] }))
-  }).client(function (client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
       t.equal(err.message, 'Unexpected APM Server response')
@@ -217,7 +219,7 @@ test('request with error - json body where Content-Type contains charset', funct
 test('socket hang up', function (t) {
   const server = APMServer(function (req, res) {
     req.socket.destroy()
-  }).client(function (client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (client) {
     let closed = false
     client.on('request-error', function (err) {
       t.equal(err.message, 'socket hang up')
@@ -269,7 +271,7 @@ test('socket hang up - continue with new request', function (t) {
       res.end()
       client.end() // cleanup 1: end the client stream so it can 'finish'
     })
-  }).client(function (_client) {
+  }).client({ apmServerVersion: '8.0.0' }, function (_client) {
     client = _client
     client.on('request-error', function (err) {
       t.equal(err.message, 'socket hang up', 'got "socket hang up" request-error')
@@ -290,7 +292,8 @@ test('intakeResTimeoutOnEnd', function (t) {
   const server = APMServer(function (req, res) {
     req.resume()
   }).client({
-    intakeResTimeoutOnEnd: 500
+    intakeResTimeoutOnEnd: 500,
+    apmServerVersion: '8.0.0'
   }, function (client) {
     const start = Date.now()
     client.on('request-error', function (err) {
@@ -311,7 +314,8 @@ test('intakeResTimeout', function (t) {
   const server = APMServer(function (req, res) {
     req.resume()
   }).client({
-    intakeResTimeout: 400
+    intakeResTimeout: 400,
+    apmServerVersion: '8.0.0'
   }, function (client) {
     const start = Date.now()
     client.on('request-error', function (err) {
@@ -335,7 +339,8 @@ test('socket timeout - server response too slow', function (t) {
   }).client({
     serverTimeout: 1000,
     // Set the intake res timeout higher to be able to test serverTimeout.
-    intakeResTimeoutOnEnd: 5000
+    intakeResTimeoutOnEnd: 5000,
+    apmServerVersion: '8.0.0'
   }, function (client) {
     const start = Date.now()
     client.on('request-error', function (err) {
@@ -358,7 +363,7 @@ test('socket timeout - client request too slow', function (t) {
     req.on('end', function () {
       res.end()
     })
-  }).client({ serverTimeout: 1000 }, function (client) {
+  }).client({ serverTimeout: 1000, apmServerVersion: '8.0.0' }, function (client) {
     const start = Date.now()
     client.on('request-error', function (err) {
       const end = Date.now()
@@ -409,7 +414,8 @@ test('client.destroy() - on ended client', function (t) {
 
   server.listen(function () {
     client = new Client(validOpts({
-      serverUrl: 'http://localhost:' + server.address().port
+      serverUrl: 'http://localhost:' + server.address().port,
+      apmServerVersion: '8.0.0'
     }))
     client.on('finish', function () {
       t.pass('should emit finish only once')
@@ -556,7 +562,7 @@ dataTypes.forEach(function (dataType) {
         server.close()
         t.end()
       })
-    }).client(function (client) {
+    }).client({ apmServerVersion: '8.0.0' }, function (client) {
       const obj = { foo: 42 }
       obj.bar = obj
       client[sendFn](obj)

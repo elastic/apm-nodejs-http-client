@@ -24,6 +24,15 @@ test('client should not hold the process open', function (t) {
   ]
 
   const server = APMServer(function (req, res) {
+    // Handle the server info endpoint.
+    if (req.method === 'GET' && req.url === '/') {
+      req.resume()
+      res.statusCode = 200
+      res.end(JSON.stringify({ build_date: '...', build_sha: '...', version: '8.0.0' }))
+      return
+    }
+
+    // Handle an intake request.
     assertIntakeReq(t, req)
     req = processIntakeReq(req)
     req.on('data', function (obj) {
@@ -70,6 +79,14 @@ test('client should not hold the process open even if APM server not responding'
   ]
 
   const server = APMServer(function (req, res) {
+    // Handle the server info endpoint.
+    if (req.method === 'GET' && req.url === '/') {
+      req.resume()
+      // Intentionally do not respond.
+      return
+    }
+
+    // Handle an intake request.
     assertIntakeReq(t, req)
     req = processIntakeReq(req)
     req.on('data', function (obj) {
@@ -77,6 +94,7 @@ test('client should not hold the process open even if APM server not responding'
     })
     req.on('end', function () {
       res.statusCode = 202
+      // Here the server is intentionally not responding:
       // res.end()
       // server.close()
     })

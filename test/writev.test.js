@@ -92,7 +92,7 @@ dataTypes.forEach(function (dataType) {
   test(`write on destroyed (${dataType})`, function (t) {
     const server = APMServer(function (req, res) {
       t.fail('should not send anything to the APM Server')
-    }).client({ bufferWindowSize: 1 }, function (client) {
+    }).client({ bufferWindowSize: 1, apmServerVersion: '8.0.0' }, function (client) {
       client.on('error', function (err) {
         t.error(err)
       })
