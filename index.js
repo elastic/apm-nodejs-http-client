@@ -93,7 +93,7 @@ function Client (opts) {
 
   this._corkTimer = null
   this._agent = null
-  this._active = false
+  this._activeIntakeReq = false
   this._onflushed = null
   this._transport = null
   this._configTimer = null
@@ -526,8 +526,8 @@ Client.prototype._writeBatch = function (objs, cb) {
 }
 
 Client.prototype._writeFlush = function (cb) {
-  this._log.trace({ active: this._active }, '_writeFlush')
-  if (this._active) {
+  this._log.trace({ activeIntakeReq: this._activeIntakeReq }, '_writeFlush')
+  if (this._activeIntakeReq) {
     // In a Lambda environment a flush is almost certainly a signal that the
     // runtime environment is about to be frozen: tell the intake request
     // to finish up quickly.
@@ -783,8 +783,8 @@ function getChoppedStreamHandler (client, onerror) {
     const intakeResTimeout = client._conf.intakeResTimeout
     const intakeResTimeoutOnEnd = client._conf.intakeResTimeoutOnEnd
 
-    // `_active` is used to coordinate the callback to `client.flush(db)`.
-    client._active = true
+    // `_activeIntakeReq` is used to coordinate the callback to `client.flush(db)`.
+    client._activeIntakeReq = true
 
     // Handle conclusion of this intake request. Each "part" is expected to call
     // `completePart()` at least once -- multiple calls are okay for cases like
@@ -840,7 +840,7 @@ function getChoppedStreamHandler (client, onerror) {
       client._intakeRequestGracefulExitFn = null
 
       client.sent = client._numEventsEnqueued
-      client._active = false
+      client._activeIntakeReq = false
       const backoffDelayMs = client._getBackoffDelay(!!err)
       if (err) {
         log.trace({ timeline, bytesWritten, backoffDelayMs, err },
