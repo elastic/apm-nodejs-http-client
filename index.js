@@ -25,7 +25,13 @@ const truncate = require('./lib/truncate')
 
 module.exports = Client
 
-const flush = Symbol('flush')
+// This symbol is used as a marker in the client stream to indicate special
+// flush handling.
+const kFlush = Symbol('flush')
+function isFlushMarker (obj) {
+  return obj === kFlush
+}
+
 const hostname = os.hostname()
 const requiredOpts = [
   'agentName',
@@ -422,7 +428,7 @@ Client.prototype._ref = function () {
 }
 
 Client.prototype._write = function (obj, enc, cb) {
-  if (obj === flush) {
+  if (isFlushMarker(obj)) {
     this._writeFlush(cb)
   } else {
     const t = process.hrtime()
@@ -455,29 +461,29 @@ Client.prototype._writev = function (objs, cb) {
     let flushIdx = -1
     const limit = Math.min(objs.length, offset + MAX_WRITE_BATCH_SIZE)
     for (let i = offset; i < limit; i++) {
-      if (objs[i].chunk === flush) {
+      if (isFlushMarker(objs[i].chunk)) {
         flushIdx = i
         break
       }
     }
 
     if (offset === 0 && flushIdx === -1 && objs.length <= MAX_WRITE_BATCH_SIZE) {
-      // A shortcut if there is no `flush` and the whole `objs` fits in a batch.
+      // A shortcut if there is no flush marker and the whole `objs` fits in a batch.
       this._writeBatch(objs, cb)
     } else if (flushIdx === -1) {
-      // No `flush` in this batch.
+      // No flush marker in this batch.
       this._writeBatch(objs.slice(offset, limit),
         limit === objs.length ? cb : processBatch)
       offset = limit
     } else if (flushIdx > offset) {
-      // There are some events in the queue before a `flush`.
+      // There are some events in the queue before a flush marker.
       this._writeBatch(objs.slice(offset, flushIdx), processBatch)
       offset = flushIdx
     } else if (flushIdx === objs.length - 1) {
-      // The next item is a flush, and it is the *last* item in the queue.
+      // The next item is a flush marker, and it is the *last* item in the queue.
       this._writeFlush(cb)
     } else {
-      // the next item in the queue is a flush
+      // The next item in the queue is a flush.
       this._writeFlush(processBatch)
       offset++
     }
@@ -653,7 +659,7 @@ Client.prototype.flush = function (cb) {
   // and flushes are kept. If we where to just flush the client right here, the
   // internal Writable buffer might still contain data that hasn't yet been
   // given to the _write function.
-  return this.write(flush, cb)
+  return this.write(kFlush, cb)
 }
 
 // A handler that can be called on process "beforeExit" to attempt quick and
