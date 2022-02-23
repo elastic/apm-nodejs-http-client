@@ -94,7 +94,7 @@ function Client (opts) {
   this._corkTimer = null
   this._agent = null
   this._activeIntakeReq = false
-  this._onflushed = null
+  this._onIntakeReqConcluded = null
   this._transport = null
   this._configTimer = null
   this._backoffReconnectCount = 0
@@ -534,7 +534,7 @@ Client.prototype._writeFlush = function (cb) {
     if (this._intakeRequestGracefulExitFn && isLambdaExecutionEnvironment) {
       this._intakeRequestGracefulExitFn()
     }
-    this._onflushed = cb
+    this._onIntakeReqConcluded = cb
     this._chopper.chop()
   } else {
     this._chopper.chop(cb)
@@ -850,9 +850,9 @@ function getChoppedStreamHandler (client, onerror) {
         log.trace({ timeline, bytesWritten, backoffDelayMs },
           'conclude intake request: success')
       }
-      if (client._onflushed) {
-        client._onflushed()
-        client._onflushed = null
+      if (client._onIntakeReqConcluded) {
+        client._onIntakeReqConcluded()
+        client._onIntakeReqConcluded = null
       }
 
       if (backoffDelayMs > 0) {
