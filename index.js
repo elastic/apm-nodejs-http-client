@@ -532,8 +532,7 @@ Client.prototype._writeBatch = function (objs, cb) {
 }
 
 Client.prototype._writeFlush = function (flushMarker, cb) {
-  this._log.trace({ activeIntakeReq: this._activeIntakeReq,
-    lambdaEnd: flushMarker === kLambdaEndFlush }, '_writeFlush')
+  this._log.trace({ activeIntakeReq: this._activeIntakeReq, lambdaEnd: flushMarker === kLambdaEndFlush }, '_writeFlush')
 
   let onFlushed = cb
   if (isLambdaExecutionEnvironment && flushMarker === kLambdaEndFlush) {
@@ -1122,7 +1121,6 @@ Client.prototype._signalLambdaEnd = function (cb) {
   const startTime = performance.now()
   const finish = errOrErrMsg => {
     const durationMs = performance.now() - startTime
-    let err = null
     if (errOrErrMsg) {
       this._log.error({ err: errOrErrMsg, durationMs }, 'error signaling lambda invocation done')
     } else {
@@ -1159,7 +1157,6 @@ Client.prototype._signalLambdaEnd = function (cb) {
   })
   req.end()
 }
-
 
 /**
  * Fetch the APM Server version and set `this._apmServerVersion`.
