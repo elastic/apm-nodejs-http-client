@@ -7,6 +7,7 @@ const http = require('http')
 const https = require('https')
 const util = require('util')
 const os = require('os')
+const { performance } = require('perf_hooks')
 const { URL } = require('url')
 const zlib = require('zlib')
 
@@ -25,11 +26,12 @@ const truncate = require('./lib/truncate')
 
 module.exports = Client
 
-// This symbol is used as a marker in the client stream to indicate special
+// These symbols are used as markers in the client stream to indicate special
 // flush handling.
 const kFlush = Symbol('flush')
+const kLambdaEndFlush = Symbol('lambdaEndFlush')
 function isFlushMarker (obj) {
-  return obj === kFlush
+  return obj === kFlush || obj === kLambdaEndFlush
 }
 
 const hostname = os.hostname()
@@ -103,6 +105,9 @@ function Client (opts) {
   this._cloudMetadata = null
   this._extraMetadata = null
   this._metadataFilters = new Filters()
+  // _lambdaActive indicates if a Lambda function invocation is active. It is
+  // only meaningful if `isLambdaExecutionEnvironment`.
+  this._lambdaActive = false
 
   // Internal runtime stats for developer debugging/tuning.
   this._numEvents = 0 // number of events given to the client
@@ -280,6 +285,7 @@ Client.prototype.config = function (opts) {
   // http request options
   this._conf.requestIntake = getIntakeRequestOptions(this._conf, this._agent)
   this._conf.requestConfig = getConfigRequestOptions(this._conf, this._agent)
+  this._conf.requestSignalLambdaEnd = getSignalLambdaEndRequestOptions(this._conf, this._agent)
 
   this._conf.metadata = getMetadata(this._conf)
 
@@ -307,8 +313,8 @@ Client.prototype.setExtraMetadata = function (extraMetadata) {
   this._resetEncodedMetadata()
 
   if (this._conf.expectExtraMetadata) {
+    this._log.trace('maybe uncork (expectExtraMetadata)')
     this._maybeUncork()
-    this._log.trace('uncorked (expectExtraMetadata)')
   }
 }
 
@@ -429,7 +435,7 @@ Client.prototype._ref = function () {
 
 Client.prototype._write = function (obj, enc, cb) {
   if (isFlushMarker(obj)) {
-    this._writeFlush(cb)
+    this._writeFlush(obj, cb)
   } else {
     const t = process.hrtime()
     const chunk = this._encode(obj, enc)
@@ -481,10 +487,10 @@ Client.prototype._writev = function (objs, cb) {
       offset = flushIdx
     } else if (flushIdx === objs.length - 1) {
       // The next item is a flush marker, and it is the *last* item in the queue.
-      this._writeFlush(cb)
+      this._writeFlush(objs[flushIdx].chunk, cb)
     } else {
       // The next item in the queue is a flush.
-      this._writeFlush(processBatch)
+      this._writeFlush(objs[flushIdx].chunk, processBatch)
       offset++
     }
   }
@@ -525,32 +531,54 @@ Client.prototype._writeBatch = function (objs, cb) {
   }, '_writeBatch')
 }
 
-Client.prototype._writeFlush = function (cb) {
-  this._log.trace({ activeIntakeReq: this._activeIntakeReq }, '_writeFlush')
-  if (this._activeIntakeReq) {
-    // In a Lambda environment a flush is almost certainly a signal that the
-    // runtime environment is about to be frozen: tell the intake request
-    // to finish up quickly.
-    if (this._intakeRequestGracefulExitFn && isLambdaExecutionEnvironment) {
-      this._intakeRequestGracefulExitFn()
+Client.prototype._writeFlush = function (flushMarker, cb) {
+  this._log.trace({ activeIntakeReq: this._activeIntakeReq,
+    lambdaEnd: flushMarker === kLambdaEndFlush }, '_writeFlush')
+
+  let onFlushed = cb
+  if (isLambdaExecutionEnvironment && flushMarker === kLambdaEndFlush) {
+    // XXX For now the "micdrop" (the `?flushed=true` signal to the ext) is
+    //     disabled by default until there is an extension release after v0.0.3
+    //     with https://github.com/elastic/apm-aws-lambda/pull/132 which fixes
+    //     panics reported in https://github.com/elastic/apm-aws-lambda/issues/133
+    //     To enable: XXX_ELASTIC_APM_ENABLE_MICDROP=1
+    const micdropEnabled = process.env.XXX_ELASTIC_APM_ENABLE_MICDROP &&
+      process.env.XXX_ELASTIC_APM_ENABLE_MICDROP !== '0' &&
+      process.env.XXX_ELASTIC_APM_ENABLE_MICDROP !== 'false'
+    if (micdropEnabled) {
+      onFlushed = () => {
+        // Signal the Elastic AWS Lambda extension that it is done passing data
+        // for this invocation, then call `cb()` so the wrapped Lambda handler
+        // can finish.
+        this._signalLambdaEnd(cb)
+      }
+    } else {
+      console.log('XXX micdrop disabled, use XXX_ELASTIC_APM_ENABLE_MICDROP=1 to enable')
     }
-    this._onIntakeReqConcluded = cb
+  }
+
+  if (this._activeIntakeReq) {
+    this._onIntakeReqConcluded = onFlushed
     this._chopper.chop()
   } else {
-    this._chopper.chop(cb)
+    this._chopper.chop(onFlushed)
   }
 }
 
 Client.prototype._maybeCork = function () {
-  if (!this._writableState.corked && this._conf.bufferWindowTime !== -1) {
-    this.cork()
-    if (this._corkTimer && this._corkTimer.refresh) {
-      // the refresh function was added in Node 10.2.0
-      this._corkTimer.refresh()
-    } else {
-      this._corkTimer = setTimeout(() => {
-        this.uncork()
-      }, this._conf.bufferWindowTime)
+  if (!this._writableState.corked) {
+    if (isLambdaExecutionEnvironment && !this._lambdaActive) {
+      this.cork()
+    } else if (this._conf.bufferWindowTime !== -1) {
+      this.cork()
+      if (this._corkTimer && this._corkTimer.refresh) {
+        // the refresh function was added in Node 10.2.0
+        this._corkTimer.refresh()
+      } else {
+        this._corkTimer = setTimeout(() => {
+          this.uncork()
+        }, this._conf.bufferWindowTime)
+      }
     }
   } else if (this._writableState.length >= this._conf.bufferWindowSize) {
     this._maybeUncork()
@@ -561,6 +589,8 @@ Client.prototype._maybeUncork = function () {
   // client must remain corked until cloud metadata has been
   // fetched-or-skipped.
   if (!this._encodedMetadata) {
+    return
+  } else if (isLambdaExecutionEnvironment && !this._lambdaActive) {
     return
   }
 
@@ -601,6 +631,10 @@ Client.prototype._encode = function (obj, enc) {
       break
   }
   return ndjson.serialize(out)
+}
+
+Client.prototype.lambdaStart = function () {
+  this._lambdaActive = true
 }
 
 // With the cork/uncork handling on this stream, `this.write`ing on this
@@ -652,14 +686,42 @@ Client.prototype.sendMetricSet = function (metricset, cb) {
   return this.write({ metricset }, Client.encoding.METRICSET, cb)
 }
 
-Client.prototype.flush = function (cb) {
+/**
+ * If possible, start a flush of currently queued APM events to APM server.
+ *
+ * "If possible," because there are some guards on uncorking. See `_maybeUncork`.
+ *
+ * @param {Object} opts - Optional.
+ *    - {Boolean} opts.lambdaEnd - Optional. Default false. Setting this true
+ *      tells the client to also handle the end of a Lambda function invocation.
+ * @param {Function} cb - Optional. `cb()` will be called when the data has
+ *    be sent to APM Server (or failed in the attempt).
+ */
+Client.prototype.flush = function (opts, cb) {
+  if (typeof opts === 'function') {
+    cb = opts
+    opts = {}
+  } else if (!opts) {
+    opts = {}
+  }
+  const lambdaEnd = !!opts.lambdaEnd
+
   this._maybeUncork()
+
+  let flushMarker = kFlush
+  if (lambdaEnd) {
+    flushMarker = kLambdaEndFlush
+    // Set this synchronously after _maybeUncork to ensure that subsequently
+    // sent events (via `sendSpan` et al) will result in corking the stream
+    // (in `_maybeCork`) until the *next* Lambda function invocation.
+    this._lambdaActive = false
+  }
 
   // Write the special "flush" signal. We do this so that the order of writes
   // and flushes are kept. If we where to just flush the client right here, the
   // internal Writable buffer might still contain data that hasn't yet been
   // given to the _write function.
-  return this.write(kFlush, cb)
+  return this.write(flushMarker, cb)
 }
 
 // A handler that can be called on process "beforeExit" to attempt quick and
@@ -1049,6 +1111,57 @@ Client.prototype.supportsKeepingUnsampledTransaction = function () {
 }
 
 /**
+ * Signal to the Elastic AWS Lambda extension that a lambda function execution
+ * is done.
+ * https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-aws-lambda.md#data-flushing
+ *
+ * @param {Function} cb() is called when finished. There are no arguments.
+ */
+Client.prototype._signalLambdaEnd = function (cb) {
+  this._log.trace('_signalLambdaEnd start')
+  const startTime = performance.now()
+  const finish = errOrErrMsg => {
+    const durationMs = performance.now() - startTime
+    let err = null
+    if (errOrErrMsg) {
+      this._log.error({ err: errOrErrMsg, durationMs }, 'error signaling lambda invocation done')
+    } else {
+      this._log.trace({ durationMs }, 'signaled lambda invocation done')
+    }
+    cb()
+  }
+
+  // We expect to be talking to the localhost Elastic Lambda extension, so we
+  // want a shorter timeout than `_conf.serverTimeout`.
+  const TIMEOUT_MS = 5000
+
+  const req = this._transportRequest(this._conf.requestSignalLambdaEnd, res => {
+    res.on('error', err => {
+      // Not sure this event can ever be emitted, but just in case.
+      res.destroy(err)
+    })
+    res.resume()
+    if (res.statusCode !== 202) {
+      finish(`unexpected response status code: ${res.statusCode}`)
+      return
+    }
+    res.on('end', function () {
+      finish()
+    })
+  })
+  req.setTimeout(TIMEOUT_MS)
+  req.on('timeout', () => {
+    this._log.trace('_signalLambdaEnd timeout')
+    req.destroy(new Error(`timeout (${TIMEOUT_MS}ms) signaling Lambda invocation done`))
+  })
+  req.on('error', err => {
+    finish(err)
+  })
+  req.end()
+}
+
+
+/**
  * Fetch the APM Server version and set `this._apmServerVersion`.
  * https://www.elastic.co/guide/en/apm/server/current/server-info.html
  *
@@ -1162,6 +1275,13 @@ function getIntakeRequestOptions (opts, agent) {
   headers['Content-Encoding'] = 'gzip'
 
   return getBasicRequestOptions('POST', '/intake/v2/events', headers, opts, agent)
+}
+
+function getSignalLambdaEndRequestOptions (opts, agent) {
+  const headers = getHeaders(opts)
+  headers['Content-Length'] = 0
+
+  return getBasicRequestOptions('POST', '/intake/v2/events?flushed=true', headers, opts, agent)
 }
 
 function getConfigRequestOptions (opts, agent) {
