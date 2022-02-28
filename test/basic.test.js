@@ -221,11 +221,11 @@ test('client.flush(callback) - with active request', function (t) {
       res.end()
     })
   }).client({ bufferWindowTime: -1, apmServerVersion: '8.0.0' }, function (client) {
-    t.equal(client._active, false, 'no outgoing HTTP request to begin with')
+    t.equal(client._activeIntakeReq, false, 'no outgoing HTTP request to begin with')
     client.sendSpan({ foo: 42 })
-    t.equal(client._active, true, 'an outgoing HTTP request should be active')
+    t.equal(client._activeIntakeReq, true, 'an outgoing HTTP request should be active')
     client.flush(function () {
-      t.equal(client._active, false, 'the outgoing HTTP request should be done')
+      t.equal(client._activeIntakeReq, false, 'the outgoing HTTP request should be done')
       client.end()
       server.close()
       t.end()
@@ -256,9 +256,9 @@ test('client.flush(callback) - with queued request', function (t) {
     client.sendSpan({ req: 1 })
     client.flush()
     client.sendSpan({ req: 2 })
-    t.equal(client._active, true, 'an outgoing HTTP request should be active')
+    t.equal(client._activeIntakeReq, true, 'an outgoing HTTP request should be active')
     client.flush(function () {
-      t.equal(client._active, false, 'the outgoing HTTP request should be done')
+      t.equal(client._activeIntakeReq, false, 'the outgoing HTTP request should be done')
       client.end()
       server.close()
       t.end()

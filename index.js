@@ -25,7 +25,13 @@ const truncate = require('./lib/truncate')
 
 module.exports = Client
 
-const flush = Symbol('flush')
+// This symbol is used as a marker in the client stream to indicate special
+// flush handling.
+const kFlush = Symbol('flush')
+function isFlushMarker (obj) {
+  return obj === kFlush
+}
+
 const hostname = os.hostname()
 const requiredOpts = [
   'agentName',
@@ -87,8 +93,8 @@ function Client (opts) {
 
   this._corkTimer = null
   this._agent = null
-  this._active = false
-  this._onflushed = null
+  this._activeIntakeReq = false
+  this._onIntakeReqConcluded = null
   this._transport = null
   this._configTimer = null
   this._backoffReconnectCount = 0
@@ -422,7 +428,7 @@ Client.prototype._ref = function () {
 }
 
 Client.prototype._write = function (obj, enc, cb) {
-  if (obj === flush) {
+  if (isFlushMarker(obj)) {
     this._writeFlush(cb)
   } else {
     const t = process.hrtime()
@@ -455,29 +461,29 @@ Client.prototype._writev = function (objs, cb) {
     let flushIdx = -1
     const limit = Math.min(objs.length, offset + MAX_WRITE_BATCH_SIZE)
     for (let i = offset; i < limit; i++) {
-      if (objs[i].chunk === flush) {
+      if (isFlushMarker(objs[i].chunk)) {
         flushIdx = i
         break
       }
     }
 
     if (offset === 0 && flushIdx === -1 && objs.length <= MAX_WRITE_BATCH_SIZE) {
-      // A shortcut if there is no `flush` and the whole `objs` fits in a batch.
+      // A shortcut if there is no flush marker and the whole `objs` fits in a batch.
       this._writeBatch(objs, cb)
     } else if (flushIdx === -1) {
-      // No `flush` in this batch.
+      // No flush marker in this batch.
       this._writeBatch(objs.slice(offset, limit),
         limit === objs.length ? cb : processBatch)
       offset = limit
     } else if (flushIdx > offset) {
-      // There are some events in the queue before a `flush`.
+      // There are some events in the queue before a flush marker.
       this._writeBatch(objs.slice(offset, flushIdx), processBatch)
       offset = flushIdx
     } else if (flushIdx === objs.length - 1) {
-      // The next item is a flush, and it is the *last* item in the queue.
+      // The next item is a flush marker, and it is the *last* item in the queue.
       this._writeFlush(cb)
     } else {
-      // the next item in the queue is a flush
+      // The next item in the queue is a flush.
       this._writeFlush(processBatch)
       offset++
     }
@@ -520,15 +526,15 @@ Client.prototype._writeBatch = function (objs, cb) {
 }
 
 Client.prototype._writeFlush = function (cb) {
-  this._log.trace({ active: this._active }, '_writeFlush')
-  if (this._active) {
+  this._log.trace({ activeIntakeReq: this._activeIntakeReq }, '_writeFlush')
+  if (this._activeIntakeReq) {
     // In a Lambda environment a flush is almost certainly a signal that the
     // runtime environment is about to be frozen: tell the intake request
     // to finish up quickly.
     if (this._intakeRequestGracefulExitFn && isLambdaExecutionEnvironment) {
       this._intakeRequestGracefulExitFn()
     }
-    this._onflushed = cb
+    this._onIntakeReqConcluded = cb
     this._chopper.chop()
   } else {
     this._chopper.chop(cb)
@@ -653,7 +659,7 @@ Client.prototype.flush = function (cb) {
   // and flushes are kept. If we where to just flush the client right here, the
   // internal Writable buffer might still contain data that hasn't yet been
   // given to the _write function.
-  return this.write(flush, cb)
+  return this.write(kFlush, cb)
 }
 
 // A handler that can be called on process "beforeExit" to attempt quick and
@@ -777,8 +783,8 @@ function getChoppedStreamHandler (client, onerror) {
     const intakeResTimeout = client._conf.intakeResTimeout
     const intakeResTimeoutOnEnd = client._conf.intakeResTimeoutOnEnd
 
-    // `_active` is used to coordinate the callback to `client.flush(db)`.
-    client._active = true
+    // `_activeIntakeReq` is used to coordinate the callback to `client.flush(db)`.
+    client._activeIntakeReq = true
 
     // Handle conclusion of this intake request. Each "part" is expected to call
     // `completePart()` at least once -- multiple calls are okay for cases like
@@ -834,7 +840,7 @@ function getChoppedStreamHandler (client, onerror) {
       client._intakeRequestGracefulExitFn = null
 
       client.sent = client._numEventsEnqueued
-      client._active = false
+      client._activeIntakeReq = false
       const backoffDelayMs = client._getBackoffDelay(!!err)
       if (err) {
         log.trace({ timeline, bytesWritten, backoffDelayMs, err },
@@ -844,9 +850,9 @@ function getChoppedStreamHandler (client, onerror) {
         log.trace({ timeline, bytesWritten, backoffDelayMs },
           'conclude intake request: success')
       }
-      if (client._onflushed) {
-        client._onflushed()
-        client._onflushed = null
+      if (client._onIntakeReqConcluded) {
+        client._onIntakeReqConcluded()
+        client._onIntakeReqConcluded = null
       }
 
       if (backoffDelayMs > 0) {
