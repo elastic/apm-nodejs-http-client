@@ -32,6 +32,7 @@ const kFlush = Symbol('flush')
 const kLambdaEndFlush = Symbol('lambdaEndFlush')
 function isFlushMarker (obj) {
   return obj === kFlush || obj === kLambdaEndFlush
+}
 
 const hostname = os.hostname()
 const requiredOpts = [
