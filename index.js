@@ -192,6 +192,14 @@ function Client (opts) {
   this._index = clientsToAutoEnd.length
   clientsToAutoEnd.push(this)
 
+  // The 'beforeExit' event is significant in Lambda invocation completion
+  // handling, so we log it for debugging.
+  if (isLambdaExecutionEnvironment && this._log.isLevelEnabled('trace')) {
+    process.prependListener('beforeExit', () => {
+      this._log.trace('process "beforeExit"')
+    })
+  }
+
   if (this._conf.centralConfig) {
     this._pollConfig()
   }
@@ -585,11 +593,13 @@ Client.prototype._maybeCork = function () {
 }
 
 Client.prototype._maybeUncork = function () {
-  // client must remain corked until cloud metadata has been
-  // fetched-or-skipped.
   if (!this._encodedMetadata) {
+    // The client must remain corked until cloud metadata has been
+    // fetched-or-skipped.
     return
   } else if (isLambdaExecutionEnvironment && !this._lambdaActive) {
+    // In a Lambda env, we must only uncork when an invocation is active,
+    // otherwise we could start an intake request just before the VM is frozen.
     return
   }
 
@@ -970,7 +980,12 @@ function getChoppedStreamHandler (client, onerror) {
       // during a request. Given that the normal makeIntakeRequest behaviour
       // is to keep a request open for up to 10s (`apiRequestTimeout`), we must
       // manually unref the socket.
-      if (!intakeRequestGracefulExitCalled) {
+      //
+      // The exception is when in a Lambda environment, where we *do* want to
+      // keep the node process running to complete this intake request.
+      // Otherwise a 'beforeExit' event can be sent, which the Lambda runtime
+      // interprets as "the Lambda handler callback was never called".
+      if (!isLambdaExecutionEnvironment && !intakeRequestGracefulExitCalled) {
         log.trace('intakeReq "socket": unref it')
         intakeReqSocket.unref()
       }
