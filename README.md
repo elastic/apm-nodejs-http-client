@@ -362,7 +362,7 @@ this Client should be used as follows in a Lambda environment.
 
   The `lambdaEnd: true` tells the Client to (a) mark the lambda as inactive so
   a subsequent intake request is not started until the next invocation, and
-  (b) signal the Elastic AWS Lambda Extension the this invocation is done.
+  (b) signal the Elastic AWS Lambda Extension that this invocation is done.
   The user's Lambda handler should not finish until `cb` is called. This
   ensures that the extension receives tracing data and the end signal before
   the Lambda Runtime freezes the VM.
