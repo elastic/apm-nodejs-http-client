@@ -544,23 +544,11 @@ Client.prototype._writeFlush = function (flushMarker, cb) {
 
   let onFlushed = cb
   if (isLambdaExecutionEnvironment && flushMarker === kLambdaEndFlush) {
-    // XXX For now the "micdrop" (the `?flushed=true` signal to the ext) is
-    //     disabled by default until there is an extension release after v0.0.3
-    //     with https://github.com/elastic/apm-aws-lambda/pull/132 which fixes
-    //     panics reported in https://github.com/elastic/apm-aws-lambda/issues/133
-    //     To enable: XXX_ELASTIC_APM_ENABLE_MICDROP=1
-    const micdropEnabled = process.env.XXX_ELASTIC_APM_ENABLE_MICDROP &&
-      process.env.XXX_ELASTIC_APM_ENABLE_MICDROP !== '0' &&
-      process.env.XXX_ELASTIC_APM_ENABLE_MICDROP !== 'false'
-    if (micdropEnabled) {
-      onFlushed = () => {
-        // Signal the Elastic AWS Lambda extension that it is done passing data
-        // for this invocation, then call `cb()` so the wrapped Lambda handler
-        // can finish.
-        this._signalLambdaEnd(cb)
-      }
-    } else {
-      console.log('XXX micdrop disabled, use XXX_ELASTIC_APM_ENABLE_MICDROP=1 to enable')
+    onFlushed = () => {
+      // Signal the Elastic AWS Lambda extension that it is done passing data
+      // for this invocation, then call `cb()` so the wrapped Lambda handler
+      // can finish.
+      this._signalLambdaEnd(cb)
     }
   }
 
