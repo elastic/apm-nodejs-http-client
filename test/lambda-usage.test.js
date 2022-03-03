@@ -3,6 +3,8 @@
 // Test the expected usage of this Client in an AWS Lambda environment.
 // The "Notes on Lambda usage" section in the README.md describes the
 // expected usage.
+//
+// Note: This test file needs to be run in its own process.
 
 // Must set this before the Client is imported so it thinks it is in a Lambda env.
 process.env.AWS_LAMBDA_FUNCTION_NAME = 'myFn'
