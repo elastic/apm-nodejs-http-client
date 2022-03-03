@@ -596,7 +596,7 @@ Client.prototype._maybeUncork = function () {
     // to `_maybeUncork` have time to be added to the queue. If we didn't do
     // this, that last write would trigger a single call to `_write`.
     process.nextTick(() => {
-      if (this.destroyed === false) {
+      if (this.destroyed === false && !(isLambdaExecutionEnvironment && !this._lambdaActive)) {
         this.uncork()
       }
     })
@@ -703,22 +703,24 @@ Client.prototype.flush = function (opts, cb) {
   }
   const lambdaEnd = !!opts.lambdaEnd
 
-  this._maybeUncork()
-
-  let flushMarker = kFlush
-  if (lambdaEnd) {
-    flushMarker = kLambdaEndFlush
-    // Set this synchronously after _maybeUncork to ensure that subsequently
-    // sent events (via `sendSpan` et al) will result in corking the stream
-    // (in `_maybeCork`) until the *next* Lambda function invocation.
-    this._lambdaActive = false
-  }
-
   // Write the special "flush" signal. We do this so that the order of writes
   // and flushes are kept. If we where to just flush the client right here, the
   // internal Writable buffer might still contain data that hasn't yet been
   // given to the _write function.
-  return this.write(flushMarker, cb)
+
+  if (lambdaEnd && isLambdaExecutionEnvironment && this._lambdaActive) {
+    // To flush the current data and ensure that subsequently sent events *in
+    // the same tick* do not start a new intake request, we must uncork
+    // synchronously -- rather than the nextTick uncork done in `_maybeUncork()`.
+    assert(this._encodedMetadata, 'client.flush({lambdaEnd:true}) must not be called before metadata has been set')
+    const rv = this.write(kLambdaEndFlush, cb)
+    this.uncork()
+    this._lambdaActive = false
+    return rv
+  } else {
+    this._maybeUncork()
+    return this.write(kFlush, cb)
+  }
 }
 
 // A handler that can be called on process "beforeExit" to attempt quick and

@@ -9,9 +9,8 @@
   "files": [
     "lib"
   ],
-  "// scripts.test": "quoting arg to tape to avoid too long argv, let tape do globbing",
   "scripts": {
-    "test": "standard && nyc tape \"test/*.test.js\""
+    "test": "standard && nyc ./test/run_tests.sh"
   },
   "engines": {
     "node": "^8.6.0 || 10 || >=12"
