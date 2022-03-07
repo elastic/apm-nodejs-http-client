@@ -10,6 +10,8 @@ const os = require('os')
 const { URL } = require('url')
 const zlib = require('zlib')
 
+const HttpAgentKeepAlive = require('agentkeepalive')
+const HttpsAgentKeepAlive = HttpAgentKeepAlive.HttpsAgent
 const Filters = require('object-filter-sequence')
 const querystring = require('querystring')
 const Writable = require('readable-stream').Writable
@@ -231,6 +233,10 @@ Client.prototype.config = function (opts) {
   if (!this._conf.intakeResTimeoutOnEnd) this._conf.intakeResTimeoutOnEnd = 1000
   this._conf.keepAlive = this._conf.keepAlive !== false
   this._conf.centralConfig = this._conf.centralConfig || false
+  if (!('keepAliveMsecs' in this._conf)) this._conf.keepAliveMsecs = 1000
+  if (!('maxSockets' in this._conf)) this._conf.maxSockets = Infinity
+  if (!('maxFreeSockets' in this._conf)) this._conf.maxFreeSockets = 256
+  if (!('freeSocketTimeout' in this._conf)) this._conf.freeSocketTimeout = 4000
 
   // processed values
   this._conf.serverUrl = new URL(this._conf.serverUrl)
@@ -247,16 +253,19 @@ Client.prototype.config = function (opts) {
     }
   }
 
+  let AgentKeepAlive
   switch (this._conf.serverUrl.protocol) {
     case 'http:':
       this._transport = http
       this._transportRequest = httpRequest
       this._transportGet = httpGet
+      AgentKeepAlive = HttpAgentKeepAlive
       break
     case 'https:':
       this._transport = https
       this._transportRequest = httpsRequest
       this._transportGet = httpsGet
+      AgentKeepAlive = HttpsAgentKeepAlive
       break
     default:
       throw new Error('Unknown protocol ' + this._conf.serverUrl.protocol)
@@ -268,13 +277,14 @@ Client.prototype.config = function (opts) {
     if (this._agent) {
       this._agent.destroy()
     }
-    var agentOpts = {
+    this._agent = new AgentKeepAlive({
       keepAlive: this._conf.keepAlive,
       keepAliveMsecs: this._conf.keepAliveMsecs,
+      freeSocketTimeout: this._conf.freeSocketTimeout,
+      timeout: this._conf.serverTimeout,
       maxSockets: this._conf.maxSockets,
       maxFreeSockets: this._conf.maxFreeSockets
-    }
-    this._agent = new this._transport.Agent(agentOpts)
+    })
   }
 
   // http request options
@@ -883,9 +893,6 @@ function getChoppedStreamHandler (client, onerror) {
 
     // Start the request and set its timeout.
     const intakeReq = client._transportRequest(client._conf.requestIntake)
-    if (Number.isFinite(client._conf.serverTimeout)) {
-      intakeReq.setTimeout(client._conf.serverTimeout)
-    }
     // TODO: log intakeReq and intakeRes when
     // https://github.com/elastic/ecs-logging-nodejs/issues/67 is implemented.
     log.trace('intake request start')

@@ -104,6 +104,15 @@ HTTP client configuration:
   `Infinity`)
 - `maxFreeSockets` - Maximum number of sockets to leave open in a free
   state. Only relevant if `keepAlive` is set to `true` (default: `256`)
+- `freeSocketTimeout` - A number of milliseconds of inactivity on a free
+  (kept-alive) socket after which to timeout and recycle the socket. Set this to
+  a value less than the HTTP Keep-Alive timeout of the APM server to avoid
+  [ECONNRESET exceptions](https://medium.com/ssense-tech/reduce-networking-errors-in-nodejs-23b4eb9f2d83).
+  This defaults to 4000ms to be less than the [node.js HTTP server default of
+  5s](https://nodejs.org/api/http.html#serverkeepalivetimeout) (useful when
+  using a Node.js-based mock APM server) and the [Go lang Dialer `KeepAlive`
+  default of 15s](https://pkg.go.dev/net#Dialer) (when talking to the Elastic
+  APM Lambda extension). (default: `4000`)
 
 Cloud & Extra Metadata Configuration:
 
