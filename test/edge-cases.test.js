@@ -347,7 +347,7 @@ test('socket timeout - server response too slow', function (t) {
       t.ok(err, 'got a request-error from the client')
       const end = Date.now()
       const delta = end - start
-      t.ok(delta > 1000 && delta < 2000, 'timeout should occur between 1-2 seconds')
+      t.ok(delta > 1000 && delta < 2000, `timeout should occur between 1-2 seconds: delta=${delta}ms`)
       t.equal(err.message, 'APM Server response timeout (1000ms)')
       server.close()
       t.end()

@@ -893,6 +893,9 @@ function getChoppedStreamHandler (client, onerror) {
 
     // Start the request and set its timeout.
     const intakeReq = client._transportRequest(client._conf.requestIntake)
+    if (Number.isFinite(client._conf.serverTimeout)) {
+      intakeReq.setTimeout(client._conf.serverTimeout)
+    }
     // TODO: log intakeReq and intakeRes when
     // https://github.com/elastic/ecs-logging-nodejs/issues/67 is implemented.
     log.trace('intake request start')
