@@ -19,6 +19,11 @@
   current elastic-apm-node with this version of the client would break
   behavior in a Lambda environment.
 
+- Add the `freeSocketTimeout` option, with a default of 4000 (ms), and switch
+  from Node.js's core `http.Agent` to the [agentkeepalive package](https://github.com/node-modules/agentkeepalive)
+  to fix ECONNRESET issues with HTTP Keep-Alive usage talking to APM Server
+  (https://github.com/elastic/apm-agent-nodejs/issues/2594).
+
 ## v10.4.0
 
 - Add APM Server version checking to the client. On creation the client will
