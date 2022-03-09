@@ -781,9 +781,18 @@ Client.prototype._destroy = function (err, cb) {
 // Return the appropriate backoff delay (in milliseconds) before a next possible
 // request to APM server.
 // Spec: https://github.com/elastic/apm/blob/main/specs/agents/transport.md#transport-errors
+//
+// In a Lambda environment, a backoff delay can be harmful: The backoff
+// setTimeout is unref'd, to not hold the process open. A subsequent Lambda
+// function invocation during that timer will result in no active handles and
+// a process "beforeExit" event. That event is interpreted by the Lambda Runtime
+// as "the Lambda function callback was never called", and it terminates the
+// function and responds with `null`.  The solution is to never backoff in a
+// Lambda environment -- we expect and assume the Lambda extension is working,
+// and pass responsibility for backoff to the extension.
 Client.prototype._getBackoffDelay = function (isErr) {
   let reconnectCount = this._backoffReconnectCount
-  if (isErr) {
+  if (isErr && !isLambdaExecutionEnvironment) {
     this._backoffReconnectCount++
   } else {
     this._backoffReconnectCount = 0

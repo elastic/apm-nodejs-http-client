@@ -1,5 +1,14 @@
 # elastic-apm-http-client changelog
 
+## Unreleased
+
+- Fix an issue when running in a Lambda function, where a missing or erroring
+  APM Lambda extension could result in apmclient back-off such that (a) the
+  end-of-lambda-invocation signaling (`?flushed=true`) would not happen and
+  (b) premature "beforeExit" event could result in the Lambda Runtime
+  responding `null` before the Lambda function could respond
+  (https://github.com/elastic/apm-agent-nodejs/issues/1831).
+
 ## v11.0.0
 
 - Add support for coordinating data flushing in an AWS Lambda environment. The
