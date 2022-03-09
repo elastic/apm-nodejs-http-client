@@ -1,5 +1,24 @@
 # elastic-apm-http-client changelog
 
+## v11.0.0
+
+- Add support for coordinating data flushing in an AWS Lambda environment. The
+  following two API additions are used to ensure that (a) the Elastic Lambda
+  extension is signaled at invocation end [per spec](https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-aws-lambda.md#data-flushing)
+  and (b) a new intake request is not started when a Lambda function invocation
+  is not active.
+
+  - `Client#lambdaStart()` should be used to indicate when a Lambda function
+    invocation begins.
+  - `Client#flush([opts,] cb)` now supports an optional `opts.lambdaEnd`
+    boolean. Set it to true to indicate this is a flush at the end of a Lambda
+    function invocation.
+
+  This is a **BREAKING CHANGE**, because current versions of elastic-apm-node
+  depend on `^10.4.0`. If this were released as another 10.x, then usage of
+  current elastic-apm-node with this version of the client would break
+  behavior in a Lambda environment.
+
 ## v10.4.0
 
 - Add APM Server version checking to the client. On creation the client will

@@ -341,6 +341,33 @@ is provided. For example, in an AWS Lambda function some metadata is not
 available until the first function invocation -- which is some async time after
 Client creation.
 
+### `client.lambdaStart()`
+
+Tells the client that a Lambda function invocation has started.
+
+#### Notes on Lambda usage
+
+To properly handle [data flushing for instrumented Lambda functions](https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-aws-lambda.md#data-flushing)
+this Client should be used as follows in a Lambda environment.
+
+- When a Lambda invocation starts, `client.lambdaStart()` must be called.
+
+  The Client prevents intake requests to APM Server when in a Lambda environment
+  when a function invocation is *not* active. This is to ensure that an intake
+  request does not accidentally span a period when a Lambda VM is frozen,
+  which can lead to timeouts and lost APM data.
+
+- When a Lambda invocation finishes, `client.flush({lambdaEnd: true}, cb)` must
+  be called.
+
+  The `lambdaEnd: true` tells the Client to (a) mark the lambda as inactive so
+  a subsequent intake request is not started until the next invocation, and
+  (b) signal the Elastic AWS Lambda Extension that this invocation is done.
+  The user's Lambda handler should not finish until `cb` is called. This
+  ensures that the extension receives tracing data and the end signal before
+  the Lambda Runtime freezes the VM.
+
+
 ### `client.sendSpan(span[, callback])`
 
 Send a span to the APM Server.
@@ -381,7 +408,7 @@ Arguments:
 - `callback` - Callback is called when the `metricset` have been flushed to
   the underlying system
 
-### `client.flush([callback])`
+### `client.flush([opts,] [callback])`
 
 Flush the internal buffer and end the current HTTP request to the APM
 Server. If no HTTP request is in process nothing happens. In an AWS Lambda
@@ -390,6 +417,11 @@ because the APM agent always flushes at the end of a Lambda handler.
 
 Arguments:
 
+- `opts`:
+  - `opts.lambdaEnd` - An optional boolean to indicate if this is the final
+    flush at the end of the Lambda function invocation. The client will do
+    some extra handling if this is the case. See notes in `client.lambdaStart()`
+    above.
 - `callback` - Callback is called when the internal buffer has been
   flushed and the HTTP request ended. If no HTTP request is in progress
   the callback is called in the next tick.
