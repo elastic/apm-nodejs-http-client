@@ -1,6 +1,6 @@
 # elastic-apm-http-client changelog
 
-## Unreleased
+## v11.0.1
 
 - Fix an issue when running in a Lambda function, where a missing or erroring
   APM Lambda extension could result in apmclient back-off such that (a) the
