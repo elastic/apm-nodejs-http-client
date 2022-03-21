@@ -400,8 +400,10 @@ Client.prototype._pollConfig = function () {
       switch (res.statusCode) {
         case 403:
           this._log.warn(`[_pollConfig] statusCode: 403, message: Central config not enabled in APM Server`)
+          break;
         case 404:
           this._log.warn(`[_pollConfig] statusCode: 404, message: Old APM Server that doesn't support central config`)
+          break;
       }
 
       res.resume()
