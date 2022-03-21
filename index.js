@@ -390,7 +390,7 @@ Client.prototype._pollConfig = function () {
     this._scheduleNextConfigPoll(getMaxAge(res))
 
     if (req.statusCode === 304) {
-      this._log.debug(`[_pollConfig] statusCode: 304, message: No new config since last time`)
+      this._log.debug('[_pollConfig] statusCode: 304, message: No new config since last time')
       res.resume()
       return
     }
@@ -399,11 +399,11 @@ Client.prototype._pollConfig = function () {
       // something is wrong on the Central Config server.
       switch (res.statusCode) {
         case 403:
-          this._log.warn(`[_pollConfig] statusCode: 403, message: Central config not enabled in APM Server`)
-          break;
+          this._log.warn('[_pollConfig] statusCode: 403, message: Central config not enabled in APM Server')
+          break
         case 404:
-          this._log.warn(`[_pollConfig] statusCode: 404, message: Old APM Server that doesn't support central config`)
-          break;
+          this._log.warn('[_pollConfig] statusCode: 404, message: Old APM Server that doesn't support central config')
+          break
       }
 
       res.resume()
