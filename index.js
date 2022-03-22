@@ -389,7 +389,7 @@ Client.prototype._pollConfig = function () {
 
     this._scheduleNextConfigPoll(getMaxAge(res))
 
-    if (req.statusCode === 304) {
+    if (res.statusCode === 304) {
       this._log.debug('[_pollConfig] statusCode: 304, message: No new config since last time')
       res.resume()
       return
