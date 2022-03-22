@@ -402,7 +402,7 @@ Client.prototype._pollConfig = function () {
           this._log.warn('[_pollConfig] statusCode: 403, message: Central config not enabled in APM Server')
           break
         case 404:
-          this._log.warn('[_pollConfig] statusCode: 404, message: Old APM Server that doesn't support central config')
+          this._log.warn('[_pollConfig] statusCode: 404, message: Old APM Server that does not support central config')
           break
       }
 
