@@ -53,7 +53,7 @@ const httpRequest = http.request
 const httpsGet = https.get
 const httpsRequest = https.request
 
-const containerInfo = getContainerInfo()
+const containerInfo = getContainerInfo.sync()
 
 const isLambdaExecutionEnvironment = !!process.env.AWS_LAMBDA_FUNCTION_NAME
 
