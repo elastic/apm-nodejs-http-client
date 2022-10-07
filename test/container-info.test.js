@@ -412,3 +412,8 @@ tape.test('ecs without metadata file present', t=> {
   t.end()
   containerInfo.resetEcsMetadata(process.env.ECS_CONTAINER_METADATA_FILE)
 })
+
+tape.test('ecs without metadata file present', t=> {
+  t.fail()
+  t.end()
+})
