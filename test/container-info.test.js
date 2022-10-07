@@ -403,17 +403,21 @@ tape.test('containerInfoSync() - error', t => {
   t.end()
 })
 
-tape.test('ecs without metadata file present', t=> {
+tape.test('ecs without metadata file present', t => {
   const originalEcsFile = process.env.ECS_CONTAINER_METADATA_FILE
   containerInfo.resetEcsMetadata(null)
 
-  const result = containerInfo.parse(`15:name=systemd:/ecs/03752a671e744971a862edcee6195646/03752a671e744971a862edcee6195646-4015103728`)
-  t.equals(result.containerId, '03752a671e744971a862edcee6195646-4015103728')
-  t.end()
-  containerInfo.resetEcsMetadata(process.env.ECS_CONTAINER_METADATA_FILE)
-})
+  t.equals(
+    containerInfo.parse('15:name=systemd:/ecs/03752a671e744971a862edcee6195646/03752a671e744971a862edcee6195646-4015103728').containerId,
+    '03752a671e744971a862edcee6195646-4015103728',
+    'fargate id parsed'
+  )
 
-tape.test('ecs without metadata file present', t=> {
-  t.fail()
+  containerInfo.resetEcsMetadata(originalEcsFile)
+  t.equals(
+    containerInfo.parse('15:name=systemd:/ecs/03752a671e744971a862edcee6195646/03752a671e744971a862edcee6195646-4015103728').containerId,
+    '34dc0b5e626f2c5c4c5170e34b10e7654ce36f0fcd532739f4445baabea03376',
+    'container id from metadata file'
+  )
   t.end()
 })
