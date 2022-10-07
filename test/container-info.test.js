@@ -421,3 +421,8 @@ tape.test('ecs without metadata file present', t => {
   )
   t.end()
 })
+
+tape.test('ecs without metadata file present', t => {
+  t.fail()
+  t.end()
+})
