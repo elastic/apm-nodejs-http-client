@@ -213,16 +213,6 @@ test('all except kubernetesPodUID', function (t) {
 })
 
 test('Tests for ../lib/container-info', function (t) {
-  const createMockForFixtureString = (source) => {
-    const mock = {
-      sync: () => {
-        const string = source
-        return getContainerInfo.parse(string)
-      }
-    }
-    return mock
-  }
-
   const fixtures = [
     {
       source: '12:freezer:/kubepods.slice/kubepods-pod22949dce_fd8b_11ea_8ede_98f2b32c645c.slice/docker-b15a5bdedd2e7645c3be271364324321b908314e4c77857bbfd32a041148c07f.scope',
