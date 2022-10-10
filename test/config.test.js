@@ -161,7 +161,11 @@ test('reject unauthorized TLS by default', function (t) {
   }).client({ apmServerVersion: '8.0.0' }, function (client) {
     client.on('request-error', function (err) {
       t.ok(err instanceof Error)
-      t.equal(err.message, 'self signed certificate')
+      let expectedErrorMessage = 'self signed certificate'
+      if (semver.gte(process.version, 'v17.0.0')) {
+        expectedErrorMessage = 'self-signed certificate'
+      }
+      t.equal(err.message, expectedErrorMessage)
       t.equal(err.code, 'DEPTH_ZERO_SELF_SIGNED_CERT')
       server.close()
       t.end()

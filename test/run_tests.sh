@@ -3,10 +3,15 @@
 # Run each test/*.test.js file in a separate process.
 #
 
+EXIT_CODE=0
 TOP=$(cd $(dirname $0)/../ >/dev/null; pwd)
-
-ls $TOP/test/*.test.js | while read f; do
+runTest() {
     echo ""
-    echo "# runnign 'node $f'"
-    node $f
+    echo "# runnign 'node $1'"
+    node $1 || EXIT_CODE=$?
+}
+
+for i in $TOP/test/*.test.js; do
+    runTest $i
 done
+exit $EXIT_CODE
