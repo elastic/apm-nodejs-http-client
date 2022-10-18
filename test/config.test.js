@@ -1,7 +1,7 @@
 'use strict'
 
 const fs = require('fs')
-const getContainerInfo = require('container-info')
+const getContainerInfo = require('../lib/container-info')
 const http = require('http')
 const ndjson = require('ndjson')
 const os = require('os')
@@ -375,7 +375,6 @@ test('metadata - container info', function (t) {
   // Clear Client and APMServer from require cache
   delete require.cache[require.resolve('../')]
   delete require.cache[require.resolve('./lib/utils')]
-
   const sync = getContainerInfo.sync
   getContainerInfo.sync = function sync () {
     return {
