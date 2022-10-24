@@ -432,12 +432,20 @@ Client.prototype._pollConfig = function () {
 Client.prototype._scheduleNextConfigPoll = function (seconds) {
   if (this._configTimer !== null) return
 
-  seconds = seconds || 300
+  // Re-fetch central config after the given number of `seconds`.
+  // Default to 5 minutes, minimum 5s, max 1d.
+  //
+  // The maximum of 1d ensures we don't get surprised by an overflow value to
+  // `setTimeout` per https://developer.mozilla.org/en-US/docs/Web/API/setTimeout#maximum_delay_value
+  const DELAY_DEFAULT_S = 300 // 5 min
+  const DELAY_MIN_S = 5
+  const DELAY_MAX_S = 86400 // 1d
+  const delayS = Math.min(Math.max(seconds || DELAY_DEFAULT_S, DELAY_MIN_S), DELAY_MAX_S)
 
   this._configTimer = setTimeout(() => {
     this._configTimer = null
     this._pollConfig()
-  }, seconds * 1000)
+  }, delayS * 1000)
 
   this._configTimer.unref()
 }
@@ -1464,9 +1472,10 @@ function normalizeGlobalLabels (labels) {
   return result
 }
 
+// https://httpwg.org/specs/rfc9111.html#cache-response-directive.max-age
 function getMaxAge (res) {
   const header = res.headers['cache-control']
-  const match = header && header.match(/max-age=(\d+)/)
+  const match = header && header.match(/max-age=(\d+)/i)
   return parseInt(match && match[1], 10)
 }
 
