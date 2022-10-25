@@ -3,7 +3,52 @@
 const test = require('tape')
 
 const { APMServer, validOpts, assertConfigReq } = require('./lib/utils')
+const {
+  getCentralConfigIntervalS,
+  INTERVAL_DEFAULT_S,
+  INTERVAL_MIN_S,
+  INTERVAL_MAX_S
+} = require('../lib/central-config')
 const Client = require('../')
+
+test('getCentralConfigIntervalS', function (t) {
+  const testCases = [
+    // [ <input arg>, <expected result> ]
+    [-4, INTERVAL_DEFAULT_S],
+    [-1, INTERVAL_DEFAULT_S],
+    [0, 300],
+    [1, INTERVAL_MIN_S],
+    [2, INTERVAL_MIN_S],
+    [3, INTERVAL_MIN_S],
+    [4, INTERVAL_MIN_S],
+    [5, INTERVAL_MIN_S],
+    [6, 6],
+    [7, 7],
+    [8, 8],
+    [9, 9],
+    [10, 10],
+    [86398, 86398],
+    [86399, 86399],
+    [86400, 86400],
+    [86401, INTERVAL_MAX_S],
+    [86402, INTERVAL_MAX_S],
+    [86403, INTERVAL_MAX_S],
+    [86404, INTERVAL_MAX_S],
+    [null, INTERVAL_DEFAULT_S],
+    [undefined, INTERVAL_DEFAULT_S],
+    [false, INTERVAL_DEFAULT_S],
+    [true, INTERVAL_DEFAULT_S],
+    ['a string', INTERVAL_DEFAULT_S],
+    [{}, INTERVAL_DEFAULT_S],
+    [[], INTERVAL_DEFAULT_S]
+  ]
+
+  testCases.forEach(testCase => {
+    t.equal(getCentralConfigIntervalS(testCase[0]), testCase[1],
+      `getCentralConfigIntervalS(${testCase[0]}) -> ${testCase[1]}`)
+  })
+  t.end()
+})
 
 test('central config disabled', function (t) {
   const origPollConfig = Client.prototype._pollConfig

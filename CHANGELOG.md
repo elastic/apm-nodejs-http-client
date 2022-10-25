@@ -1,5 +1,12 @@
 # elastic-apm-http-client changelog
 
+## Unreleased
+
+- Add guards to ensure that a crazy `Cache-Control: max-age=...` response
+  header cannot accidentally result in inappropriate intervals for fetching
+  central config. The re-fetch delay is clamped to `[5 seconds, 1 day]`.
+  (https://github.com/elastic/apm-agent-nodejs/issues/2941)
+
 ## v11.0.1
 
 - Fix an issue when running in a Lambda function, where a missing or erroring

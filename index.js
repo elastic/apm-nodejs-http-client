@@ -25,6 +25,7 @@ const StreamChopper = require('stream-chopper')
 const ndjson = require('./lib/ndjson')
 const { NoopLogger } = require('./lib/logging')
 const truncate = require('./lib/truncate')
+const { getCentralConfigIntervalS } = require('./lib/central-config')
 
 module.exports = Client
 
@@ -432,12 +433,11 @@ Client.prototype._pollConfig = function () {
 Client.prototype._scheduleNextConfigPoll = function (seconds) {
   if (this._configTimer !== null) return
 
-  seconds = seconds || 300
-
+  const delayS = getCentralConfigIntervalS(seconds)
   this._configTimer = setTimeout(() => {
     this._configTimer = null
     this._pollConfig()
-  }, seconds * 1000)
+  }, delayS * 1000)
 
   this._configTimer.unref()
 }
@@ -1464,9 +1464,10 @@ function normalizeGlobalLabels (labels) {
   return result
 }
 
+// https://httpwg.org/specs/rfc9111.html#cache-response-directive.max-age
 function getMaxAge (res) {
   const header = res.headers['cache-control']
-  const match = header && header.match(/max-age=(\d+)/)
+  const match = header && header.match(/max-age=(\d+)/i)
   return parseInt(match && match[1], 10)
 }
 
