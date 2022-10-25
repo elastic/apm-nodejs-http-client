@@ -25,6 +25,7 @@ const StreamChopper = require('stream-chopper')
 const ndjson = require('./lib/ndjson')
 const { NoopLogger } = require('./lib/logging')
 const truncate = require('./lib/truncate')
+const { getCentralConfigIntervalS } = require('./lib/central-config')
 
 module.exports = Client
 
@@ -432,16 +433,7 @@ Client.prototype._pollConfig = function () {
 Client.prototype._scheduleNextConfigPoll = function (seconds) {
   if (this._configTimer !== null) return
 
-  // Re-fetch central config after the given number of `seconds`.
-  // Default to 5 minutes, minimum 5s, max 1d.
-  //
-  // The maximum of 1d ensures we don't get surprised by an overflow value to
-  // `setTimeout` per https://developer.mozilla.org/en-US/docs/Web/API/setTimeout#maximum_delay_value
-  const DELAY_DEFAULT_S = 300 // 5 min
-  const DELAY_MIN_S = 5
-  const DELAY_MAX_S = 86400 // 1d
-  const delayS = Math.min(Math.max(seconds || DELAY_DEFAULT_S, DELAY_MIN_S), DELAY_MAX_S)
-
+  const delayS = getCentralConfigIntervalS(seconds)
   this._configTimer = setTimeout(() => {
     this._configTimer = null
     this._pollConfig()
