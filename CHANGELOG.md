@@ -1,11 +1,14 @@
 # elastic-apm-http-client changelog
 
-## Unreleased
+## v11.0.2
 
 - Add guards to ensure that a crazy `Cache-Control: max-age=...` response
   header cannot accidentally result in inappropriate intervals for fetching
   central config. The re-fetch delay is clamped to `[5 seconds, 1 day]`.
   (https://github.com/elastic/apm-agent-nodejs/issues/2941)
+
+- Improve container-info gathering to support AWS ECS/Fargate environments.
+  (https://github.com/elastic/apm-agent-nodejs/issues/2914)
 
 ## v11.0.1
 
