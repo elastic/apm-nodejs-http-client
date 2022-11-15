@@ -1467,8 +1467,14 @@ function normalizeGlobalLabels (labels) {
 // https://httpwg.org/specs/rfc9111.html#cache-response-directive.max-age
 function getMaxAge (res) {
   const header = res.headers['cache-control']
-  const match = header && header.match(/max-age=(\d+)/i)
-  return parseInt(match && match[1], 10)
+  if (!header) {
+    return undefined
+  }
+  const match = header.match(/max-age=(\d+)/i)
+  if (!match) {
+    return undefined
+  }
+  return parseInt(match[1], 10)
 }
 
 // Wrap the given Error object, including the given message.
