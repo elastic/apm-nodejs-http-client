@@ -1,6 +1,13 @@
 # elastic-apm-http-client changelog
 
+## v11.0.3
+
+- Prevent a possible tight loop in central config fetching.
+  (https://github.com/elastic/apm-agent-nodejs/issues/3029)
+
 ## v11.0.2
+
+**Bad release. Upgrade to 11.0.3.**
 
 - Add guards to ensure that a crazy `Cache-Control: max-age=...` response
   header cannot accidentally result in inappropriate intervals for fetching

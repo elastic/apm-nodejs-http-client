@@ -34,6 +34,7 @@ test('getCentralConfigIntervalS', function (t) {
     [86402, INTERVAL_MAX_S],
     [86403, INTERVAL_MAX_S],
     [86404, INTERVAL_MAX_S],
+    [NaN, INTERVAL_DEFAULT_S],
     [null, INTERVAL_DEFAULT_S],
     [undefined, INTERVAL_DEFAULT_S],
     [false, INTERVAL_DEFAULT_S],
