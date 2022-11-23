@@ -1,5 +1,10 @@
 # elastic-apm-http-client changelog
 
+## v11.1.0
+
+- Support a new `agentInstallationMethod` string config var that is added to
+  'metadata.service.agent.installation.method'. XXX spec link
+
 ## v11.0.3
 
 - Prevent a possible tight loop in central config fetching.

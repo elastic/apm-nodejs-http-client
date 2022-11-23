@@ -60,6 +60,7 @@ Data sent to the APM Server as part of the [metadata object](https://www.elastic
 
 - `agentName` - (required) The APM agent name
 - `agentVersion` - (required) The APM agent version
+- `agentInstallationMethod` - An enum string (XXX spec) that identifies the way this agent was installed/started
 - `serviceName` - (required) The name of the service being instrumented
 - `serviceNodeName` - Unique name of the service being instrumented
 - `serviceVersion` - The version of the service being instrumented
