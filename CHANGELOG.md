@@ -1,5 +1,12 @@
 # elastic-apm-http-client changelog
 
+## v11.0.4
+
+- Update the default `serverUrl` to "http://127.0.0.1:8200". We no longer use
+  "localhost" to avoid ambiguity if localhost resolves to multiple addresses
+  (e.g. IPv4 and IPv6). APM server only listens on IPv4 by default.
+  (https://github.com/elastic/apm-agent-nodejs/pull/3049)
+
 ## v11.0.3
 
 - Prevent a possible tight loop in central config fetching.
