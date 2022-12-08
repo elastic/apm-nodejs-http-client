@@ -1,5 +1,5 @@
-# Test with all supported node versions.
-name: Test
+# Lint this change with the latest node LTS.
+name: Lint
 
 # https://github.community/t/how-to-trigger-an-action-on-push-or-pull-request-but-not-both/16662/2
 on:
@@ -15,15 +15,12 @@ on:
     - '*.md'
 
 jobs:
-  test-vers:
-    strategy:
-      matrix:
-        node: ['8.6', '8', '10', '12', '14', '15', '16', '18', '19']
+  lint:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-node@v2
       with:
-        node-version: ${{ matrix.node }}
+        node-version: '18'
     - run: npm install
-    - run: npm test
+    - run: npm run lint
