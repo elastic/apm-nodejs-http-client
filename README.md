@@ -82,7 +82,7 @@ HTTP client configuration:
   identify itself as
 - `secretToken` - The Elastic APM intake API secret token
 - `apiKey` - Elastic APM API key
-- `serverUrl` - The APM Server URL (default: `http://localhost:8200`)
+- `serverUrl` - The APM Server URL (default: `http://127.0.0.1:8200`)
 - `headers` - An object containing extra HTTP headers that should be
   used when making HTTP requests to he APM Server
 - `rejectUnauthorized` - Set to `false` if the client shouldn't verify
