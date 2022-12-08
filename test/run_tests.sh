@@ -7,7 +7,7 @@ EXIT_CODE=0
 TOP=$(cd $(dirname $0)/../ >/dev/null; pwd)
 runTest() {
     echo ""
-    echo "# runnign 'node $1'"
+    echo "# running 'node $1'"
     node $1 || EXIT_CODE=$?
 }
 
