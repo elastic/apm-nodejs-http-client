@@ -1,5 +1,13 @@
 # elastic-apm-http-client changelog
 
+## v11.1.0
+
+- Add an `extraMetadata` config option, which is an object to merge into the
+  built metadata object. This is an alternative to the existing
+  `cloudMetadataFetcher` and `expectExtraMetadata` options which provide ways
+  to asynchronously provide metadata. Only one (or zero) of these three options
+  may be used.
+
 ## v11.0.4
 
 - Update the default `serverUrl` to "http://127.0.0.1:8200". We no longer use

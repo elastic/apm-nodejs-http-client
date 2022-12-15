@@ -129,8 +129,13 @@ function Client (opts) {
   this.config(opts)
   this._log = this._conf.logger || new NoopLogger()
 
-  if (this._conf.cloudMetadataFetcher && this._conf.expectExtraMetadata) {
-    throw new Error('it is an error to create a Client with both cloudMetadataFetcher and expectExtraMetadata')
+  const numExtraMdOpts = [
+    this._conf.cloudMetadataFetcher,
+    this._conf.expectExtraMetadata,
+    this._conf.extraMetadata
+  ].reduce((accum, curr) => curr ? accum + 1 : accum, 0)
+  if (numExtraMdOpts > 1) {
+    throw new Error('it is an error to configure a Client with more than one of "cloudMetadataFetcher", "expectExtraMetadata", or "extraMetadata"')
   } else if (this._conf.cloudMetadataFetcher) {
     // Start stream in corked mode, uncork when cloud metadata is fetched and
     // assigned.  Also, the _maybeUncork will not uncork until _encodedMetadata
@@ -155,6 +160,8 @@ function Client (opts) {
     // Uncorking will happen in the expected `.setExtraMetadata()` call.
     this._log.trace('corking (expectExtraMetadata)')
     this.cork()
+  } else if (this._conf.extraMetadata) {
+    this.setExtraMetadata(this._conf.extraMetadata)
   } else {
     this._resetEncodedMetadata()
   }
