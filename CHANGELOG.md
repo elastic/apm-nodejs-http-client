@@ -2,7 +2,7 @@
 
 ## v11.2.0
 
-- Support a new `agentInstallationMethod` string config var that is added to
+- Support a new `agentActivationMethod` string config var that is added to
   'metadata.service.agent.installation.method'. XXX spec link
 
 ## v11.1.0
@@ -19,7 +19,6 @@
   "localhost" to avoid ambiguity if localhost resolves to multiple addresses
   (e.g. IPv4 and IPv6). APM server only listens on IPv4 by default.
   (https://github.com/elastic/apm-agent-nodejs/pull/3049)
->>>>>>> main
 
 ## v11.0.3
 
