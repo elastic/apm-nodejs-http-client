@@ -1,9 +1,25 @@
 # elastic-apm-http-client changelog
 
-## v11.1.0
+## v11.2.0
 
 - Support a new `agentInstallationMethod` string config var that is added to
   'metadata.service.agent.installation.method'. XXX spec link
+
+## v11.1.0
+
+- Add an `extraMetadata` config option, which is an object to merge into the
+  built metadata object. This is an alternative to the existing
+  `cloudMetadataFetcher` and `expectExtraMetadata` options which provide ways
+  to asynchronously provide metadata. Only one (or zero) of these three options
+  may be used.
+
+## v11.0.4
+
+- Update the default `serverUrl` to "http://127.0.0.1:8200". We no longer use
+  "localhost" to avoid ambiguity if localhost resolves to multiple addresses
+  (e.g. IPv4 and IPv6). APM server only listens on IPv4 by default.
+  (https://github.com/elastic/apm-agent-nodejs/pull/3049)
+>>>>>>> main
 
 ## v11.0.3
 

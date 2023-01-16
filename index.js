@@ -129,8 +129,13 @@ function Client (opts) {
   this.config(opts)
   this._log = this._conf.logger || new NoopLogger()
 
-  if (this._conf.cloudMetadataFetcher && this._conf.expectExtraMetadata) {
-    throw new Error('it is an error to create a Client with both cloudMetadataFetcher and expectExtraMetadata')
+  const numExtraMdOpts = [
+    this._conf.cloudMetadataFetcher,
+    this._conf.expectExtraMetadata,
+    this._conf.extraMetadata
+  ].reduce((accum, curr) => curr ? accum + 1 : accum, 0)
+  if (numExtraMdOpts > 1) {
+    throw new Error('it is an error to configure a Client with more than one of "cloudMetadataFetcher", "expectExtraMetadata", or "extraMetadata"')
   } else if (this._conf.cloudMetadataFetcher) {
     // Start stream in corked mode, uncork when cloud metadata is fetched and
     // assigned.  Also, the _maybeUncork will not uncork until _encodedMetadata
@@ -155,6 +160,8 @@ function Client (opts) {
     // Uncorking will happen in the expected `.setExtraMetadata()` call.
     this._log.trace('corking (expectExtraMetadata)')
     this.cork()
+  } else if (this._conf.extraMetadata) {
+    this.setExtraMetadata(this._conf.extraMetadata)
   } else {
     this._resetEncodedMetadata()
   }
@@ -232,7 +239,7 @@ Client.prototype.config = function (opts) {
   if (!this._conf.size && this._conf.size !== 0) this._conf.size = 750 * 1024
   if (!this._conf.time && this._conf.time !== 0) this._conf.time = 10000
   if (!this._conf.serverTimeout && this._conf.serverTimeout !== 0) this._conf.serverTimeout = 15000
-  if (!this._conf.serverUrl) this._conf.serverUrl = 'http://localhost:8200'
+  if (!this._conf.serverUrl) this._conf.serverUrl = 'http://127.0.0.1:8200'
   if (!this._conf.hostname) this._conf.hostname = hostname
   if (!this._conf.environment) this._conf.environment = process.env.NODE_ENV || 'development'
   if (!this._conf.truncateKeywordsAt) this._conf.truncateKeywordsAt = 1024
@@ -987,7 +994,7 @@ function getChoppedStreamHandler (client, onerror) {
       //
       // The HTTP keep-alive agent will unref sockets when unused, and ref them
       // during a request. Given that the normal makeIntakeRequest behaviour
-      // is to keep a request open for up to 10s (`apiRequestTimeout`), we must
+      // is to keep a request open for up to 10s (`apiRequestTime`), we must
       // manually unref the socket.
       //
       // The exception is when in a Lambda environment, where we *do* want to

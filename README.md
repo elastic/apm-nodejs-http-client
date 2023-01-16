@@ -56,7 +56,8 @@ Arguments:
 - `options` - An object containing config options (see below). All options
   are optional, except those marked "(required)".
 
-Data sent to the APM Server as part of the [metadata object](https://www.elastic.co/guide/en/apm/server/current/metadata-api.html):
+Data sent to the APM Server as part of the [metadata object](https://www.elastic.co/guide/en/apm/server/current/metadata-api.html).
+See also the "Cloud & Extra Metadata" section below.
 
 - `agentName` - (required) The APM agent name
 - `agentVersion` - (required) The APM agent version
@@ -83,7 +84,7 @@ HTTP client configuration:
   identify itself as
 - `secretToken` - The Elastic APM intake API secret token
 - `apiKey` - Elastic APM API key
-- `serverUrl` - The APM Server URL (default: `http://localhost:8200`)
+- `serverUrl` - The APM Server URL (default: `http://127.0.0.1:8200`)
 - `headers` - An object containing extra HTTP headers that should be
   used when making HTTP requests to he APM Server
 - `rejectUnauthorized` - Set to `false` if the client shouldn't verify
@@ -115,21 +116,22 @@ HTTP client configuration:
   default of 15s](https://pkg.go.dev/net#Dialer) (when talking to the Elastic
   APM Lambda extension). (default: `4000`)
 
-Cloud & Extra Metadata Configuration:
+Cloud & Extra Metadata Configuration. Zero or one of the following three
+options may be used.
 
 - `cloudMetadataFetcher` - An object with a `getCloudMetadata(cb)` method
   for fetching metadata related to the current cloud environment. The callback
   is of the form `function (err, cloudMetadata)` and the returned `cloudMetadata`
   will be set on `metadata.cloud` for intake requests to APM Server. If
   provided, this client will not begin any intake requests until the callback
-  is called. The `cloudMetadataFetcher` option must not be used with the
-  `expectExtraMetadata` option.
+  is called.
 - `expectExtraMetadata` - A boolean option to indicate that the client should
   not allow any intake requests to begin until `cloud.setExtraMetadata(...)`
   has been called. It is the responsibility of the caller to call
   `cloud.setExtraMetadata()`. If not, then the Client will never perform an
-  intake request. The `expectExtraMetadata` option must not be used with the
-  `cloudMetadataFetcher` option.
+  intake request.
+- `extraMetadata` - An object with extra metadata to merge into the metadata
+  object created from the individual fields above.
 
 APM Agent Configuration via Kibana:
 

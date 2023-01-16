@@ -10,7 +10,8 @@
     "lib"
   ],
   "scripts": {
-    "test": "standard && nyc ./test/run_tests.sh"
+    "lint": "standard",
+    "test": "nyc ./test/run_tests.sh"
   },
   "engines": {
     "node": "^8.6.0 || 10 || >=12"
