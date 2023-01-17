@@ -3,7 +3,7 @@
 ## v11.2.0
 
 - Support a new `agentActivationMethod` string config var that is added to
-  'metadata.service.agent.activation.method'. Spec:
+  `metadata.service.agent.activation_method`. Spec:
   https://github.com/elastic/apm/blob/main/specs/agents/metadata.md#activation-method
 
 ## v11.1.0
