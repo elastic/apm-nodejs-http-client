@@ -214,6 +214,7 @@ test('metadata', function (t) {
   const opts = {
     agentName: 'custom-agentName',
     agentVersion: 'custom-agentVersion',
+    agentActivationMethod: 'custom-agentActivationMethod',
     serviceName: 'custom-serviceName',
     serviceNodeName: 'custom-serviceNodeName',
     serviceVersion: 'custom-serviceVersion',
@@ -246,7 +247,8 @@ test('metadata', function (t) {
             },
             agent: {
               name: 'custom-agentName',
-              version: 'custom-agentVersion'
+              version: 'custom-agentVersion',
+              activation_method: 'custom-agentActivationMethod'
             },
             framework: {
               name: 'custom-frameworkName',

@@ -1381,6 +1381,10 @@ function getMetadata (opts) {
     labels: opts.globalLabels
   }
 
+  if (opts.agentActivationMethod) {
+    payload.service.agent.activation_method = opts.agentActivationMethod
+  }
+
   if (opts.serviceNodeName) {
     payload.service.node = {
       configured_name: opts.serviceNodeName

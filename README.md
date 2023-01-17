@@ -61,6 +61,7 @@ See also the "Cloud & Extra Metadata" section below.
 
 - `agentName` - (required) The APM agent name
 - `agentVersion` - (required) The APM agent version
+- `agentActivationMethod` - An enum string ([spec](https://github.com/elastic/apm/blob/main/specs/agents/metadata.md#activation-method)) that identifies the way this agent was activated/started
 - `serviceName` - (required) The name of the service being instrumented
 - `serviceNodeName` - Unique name of the service being instrumented
 - `serviceVersion` - The version of the service being instrumented
