@@ -228,7 +228,7 @@ test('metadata', function (t) {
         nope: 'this should be [object Object]'
       }
     },
-    apmServerVersion: '8.0.0' // avoid the APM server version fetch request
+    apmServerVersion: '8.7.1' // avoid the APM server version fetch request
   }
   const server = APMServer(function (req, res) {
     req = processIntakeReq(req)

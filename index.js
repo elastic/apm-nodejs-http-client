@@ -129,6 +129,15 @@ function Client (opts) {
   this.config(opts)
   this._log = this._conf.logger || new NoopLogger()
 
+  // `_apmServerVersion` is one of:
+  // - `undefined`: the version has not yet been fetched
+  // - `null`: the APM server version is unknown, could not be determined
+  // - a semver.SemVer instance
+  this._apmServerVersion = this._conf.apmServerVersion ? semver.SemVer(this._conf.apmServerVersion) : undefined
+  if (!this._apmServerVersion) {
+    this._fetchApmServerVersion()
+  }
+
   const numExtraMdOpts = [
     this._conf.cloudMetadataFetcher,
     this._conf.expectExtraMetadata,
@@ -164,15 +173,6 @@ function Client (opts) {
     this.setExtraMetadata(this._conf.extraMetadata)
   } else {
     this._resetEncodedMetadata()
-  }
-
-  // `_apmServerVersion` is one of:
-  // - `undefined`: the version has not yet been fetched
-  // - `null`: the APM server version is unknown, could not be determined
-  // - a semver.SemVer instance
-  this._apmServerVersion = this._conf.apmServerVersion ? semver.SemVer(this._conf.apmServerVersion) : undefined
-  if (!this._apmServerVersion) {
-    this._fetchApmServerVersion()
   }
 
   this._chopper = new StreamChopper({
@@ -313,8 +313,6 @@ Client.prototype.config = function (opts) {
   this._conf.requestConfig = getConfigRequestOptions(this._conf, this._agent)
   this._conf.requestSignalLambdaEnd = getSignalLambdaEndRequestOptions(this._conf, this._agent)
 
-  this._conf.metadata = getMetadata(this._conf)
-
   // fixes bug where cached/memoized _encodedMetadata wouldn't be
   // updated when client was reconfigured
   if (this._encodedMetadata) {
@@ -358,14 +356,14 @@ Client.prototype.addMetadataFilter = function (fn) {
 }
 
 /**
- * (Re)set `_encodedMetadata` from this._conf.metadata, this._cloudMetadata,
+ * (Re)set `_encodedMetadata` from this._conf, this._cloudMetadata,
  * this._extraMetadata and possible this._metadataFilters.
  */
 Client.prototype._resetEncodedMetadata = function () {
   // Make a deep clone so that the originals are not modified when (a) adding
   // `.cloud` and (b) filtering. This isn't perf-sensitive code, so this JSON
   // cycle for cloning should suffice.
-  let metadata = deepClone(this._conf.metadata)
+  let metadata = metadataFromConf(this._conf, this)
   if (this._cloudMetadata) {
     metadata.cloud = deepClone(this._cloudMetadata)
   }
@@ -1139,6 +1137,15 @@ Client.prototype.supportsKeepingUnsampledTransaction = function () {
     return this._apmServerVersion.major < 8
   }
 }
+Client.prototype.supportsActivationMethodField = function () {
+  // APM server 8.7.0 had a bug where sending `activation_method` is *harmful*,
+  // therefore, if we don't *know* we are >=8.7.1, then assume no.
+  if (!this._apmServerVersion) {
+    return false
+  } else {
+    return semver.gte(this._apmServerVersion, '8.7.1')
+  }
+}
 
 /**
  * Signal to the Elastic AWS Lambda extension that a lambda function execution
@@ -1199,6 +1206,7 @@ Client.prototype._signalLambdaEnd = function (cb) {
 Client.prototype._fetchApmServerVersion = function () {
   const setVerUnknownAndNotify = (errmsg) => {
     this._apmServerVersion = null // means "unknown version"
+    this._resetEncodedMetadata()
     if (isLambdaExecutionEnvironment) {
       // In a Lambda environment, where the process can be frozen, it is not
       // unusual for this request to hit an error. As long as APM Server version
@@ -1255,6 +1263,7 @@ Client.prototype._fetchApmServerVersion = function () {
           setVerUnknownAndNotify(`could not parse APM Server version "${verStr}": ${verErr.message}`)
           return
         }
+        this._resetEncodedMetadata()
         this._log.debug({ apmServerVersion: verStr }, 'fetched APM Server version')
       } else {
         setVerUnknownAndNotify(`could not determine APM Server version from information endpoint body: ${JSON.stringify(serverInfo)}`)
@@ -1345,7 +1354,7 @@ function getHeaders (opts) {
   return Object.assign(headers, opts.headers)
 }
 
-function getMetadata (opts) {
+function metadataFromConf (opts, client) {
   var payload = {
     service: {
       name: opts.serviceName,
@@ -1381,7 +1390,7 @@ function getMetadata (opts) {
     labels: opts.globalLabels
   }
 
-  if (opts.agentActivationMethod) {
+  if (opts.agentActivationMethod && client.supportsActivationMethodField()) {
     payload.service.agent.activation_method = opts.agentActivationMethod
   }
 

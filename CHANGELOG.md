@@ -1,5 +1,14 @@
 # elastic-apm-http-client changelog
 
+## v11.3.0
+
+- Ensure `metadata.service.agent.activation_method` is only sent for APM
+  server version 8.7.1 or later. APM server 8.7.0 included a bug where
+  receiving `activation_method` is harmful.
+  (https://github.com/elastic/apm-agent-nodejs/issues/3230)
+
+  This change adds the `client.supportsActivationMethodField()` method.
+
 ## v11.2.0
 
 - Support a new `agentActivationMethod` string config var that is added to
