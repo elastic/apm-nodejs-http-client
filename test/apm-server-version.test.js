@@ -212,7 +212,6 @@ test('APM server version fetch works for "8.7.1"', function (t) {
   })
 })
 
-
 test('APM server version is null on fetch error', function (t) {
   const HOPEFULLY_UNUSED_PORT_HACK = 62345
   const client = new Client(validOpts({
