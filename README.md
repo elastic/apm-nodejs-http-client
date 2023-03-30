@@ -306,6 +306,14 @@ This defaults to `true` if the remote APM server version is not known -- either
 because the background fetch of the APM Server version hasn't yet completed,
 or the version could not be fetched.
 
+### `client.supportsActivationMethodField()`
+
+This method returns a boolean indicating whether the remote APM Server (per
+the configured `serverUrl`) is of a version that supports the
+`metadata.service.agent.activation_method` field.
+
+This defaults to `false` if the remote APM server version is not known.
+
 ### `client.addMetadataFilter(fn)`
 
 Add a filter function for the ["metadata" object](https://www.elastic.co/guide/en/apm/server/current/metadata-api.html)
