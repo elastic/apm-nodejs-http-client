@@ -1138,10 +1138,10 @@ Client.prototype.supportsKeepingUnsampledTransaction = function () {
   }
 }
 Client.prototype.supportsActivationMethodField = function () {
-  // APM server 8.7.0 had a bug where sending `activation_method` is *harmful*,
-  // therefore, if we don't *know* we are >=8.7.1, then assume no.
+  // APM server 8.7.0 had a bug where continuing to send `activation_method` is
+  // harmful.
   if (!this._apmServerVersion) {
-    return false
+    return true // Optimistically assume APM server isn't v8.7.0.
   } else {
     return semver.gte(this._apmServerVersion, '8.7.1')
   }

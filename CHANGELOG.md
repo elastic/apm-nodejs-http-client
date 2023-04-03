@@ -1,5 +1,13 @@
 # elastic-apm-http-client changelog
 
+## v11.3.1
+
+- Tweak logic to only exclude `metadata.service.agent.activation_method` when
+  the APM server version is known to be 8.7.0 -- i.e. optimistically assume
+  it is a version that is fine. The APM server 8.7.0 issue isn't so severe that
+  we want a fast first serverless function invocation to not send the field.
+  (https://github.com/elastic/apm/pull/783)
+
 ## v11.3.0
 
 - Ensure `metadata.service.agent.activation_method` is only sent for APM
