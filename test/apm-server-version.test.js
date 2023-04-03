@@ -42,8 +42,8 @@ test('APM server version fetch works for "6.6.0"', function (t) {
       'client._apmServerVersion is undefined immediately after client creation')
     t.equal(client.supportsKeepingUnsampledTransaction(), true,
       'client.supportsKeepingUnsampledTransaction() defaults to true before fetch')
-    t.equal(client.supportsActivationMethodField(), false,
-      'client.supportsActivationMethodField() defaults to false before fetch')
+    t.equal(client.supportsActivationMethodField(), true,
+      'client.supportsActivationMethodField() defaults to true before fetch')
 
     // Currently there isn't a mechanism to wait for the fetch request, so for
     // now just wait a bit.
@@ -149,10 +149,10 @@ test('APM server version fetch works for "8.7.0"', function (t) {
     t.strictEqual(client._apmServerVersion, undefined,
       'client._apmServerVersion is undefined immediately after client creation')
     t.equal(client._conf.agentActivationMethod, 'env-attach', '_conf.agentActivationMethod')
-    t.equal(client.supportsActivationMethodField(), false,
-      'client.supportsActivationMethodField() defaults to false before fetch')
-    t.equal(JSON.parse(client._encodedMetadata).metadata.service.agent.activation_method, undefined,
-      'metadata does not include "activation_method" before fetch')
+    t.equal(client.supportsActivationMethodField(), true,
+      'client.supportsActivationMethodField() defaults to true before fetch')
+    t.ok('activation_method' in JSON.parse(client._encodedMetadata).metadata.service.agent,
+      'metadata includes "activation_method" before fetch')
 
     // Currently there isn't a mechanism to wait for the fetch request, so for
     // now just wait a bit.
@@ -190,10 +190,10 @@ test('APM server version fetch works for "8.7.1"', function (t) {
     t.strictEqual(client._apmServerVersion, undefined,
       'client._apmServerVersion is undefined immediately after client creation')
     t.equal(client._conf.agentActivationMethod, 'env-attach', '_conf.agentActivationMethod')
-    t.equal(client.supportsActivationMethodField(), false,
-      'client.supportsActivationMethodField() defaults to false before fetch')
-    t.equal(JSON.parse(client._encodedMetadata).metadata.service.agent.activation_method, undefined,
-      'metadata does not include "activation_method" before fetch')
+    t.equal(client.supportsActivationMethodField(), true,
+      'client.supportsActivationMethodField() defaults to true before fetch')
+    t.ok('activation_method' in JSON.parse(client._encodedMetadata).metadata.service.agent,
+      'metadata includes "activation_method" before fetch')
 
     // Currently there isn't a mechanism to wait for the fetch request, so for
     // now just wait a bit.

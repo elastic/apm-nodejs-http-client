@@ -310,9 +310,9 @@ or the version could not be fetched.
 
 This method returns a boolean indicating whether the remote APM Server (per
 the configured `serverUrl`) is of a version that supports the
-`metadata.service.agent.activation_method` field.
-
-This defaults to `false` if the remote APM server version is not known.
+`metadata.service.agent.activation_method` field. This is true for APM server
+versions >=8.7.1. It defaults to true if the APM server version is not (yet)
+known.
 
 ### `client.addMetadataFilter(fn)`
 
