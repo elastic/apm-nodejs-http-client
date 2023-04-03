@@ -151,7 +151,7 @@ test('APM server version fetch works for "8.7.0"', function (t) {
     t.equal(client._conf.agentActivationMethod, 'env-attach', '_conf.agentActivationMethod')
     t.equal(client.supportsActivationMethodField(), true,
       'client.supportsActivationMethodField() defaults to true before fetch')
-    t.ok("activation_method" in JSON.parse(client._encodedMetadata).metadata.service.agent,
+    t.ok('activation_method' in JSON.parse(client._encodedMetadata).metadata.service.agent,
       'metadata includes "activation_method" before fetch')
 
     // Currently there isn't a mechanism to wait for the fetch request, so for
@@ -192,7 +192,7 @@ test('APM server version fetch works for "8.7.1"', function (t) {
     t.equal(client._conf.agentActivationMethod, 'env-attach', '_conf.agentActivationMethod')
     t.equal(client.supportsActivationMethodField(), true,
       'client.supportsActivationMethodField() defaults to true before fetch')
-    t.ok("activation_method" in JSON.parse(client._encodedMetadata).metadata.service.agent,
+    t.ok('activation_method' in JSON.parse(client._encodedMetadata).metadata.service.agent,
       'metadata includes "activation_method" before fetch')
 
     // Currently there isn't a mechanism to wait for the fetch request, so for
