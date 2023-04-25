@@ -715,7 +715,6 @@ Client.prototype.lambdaRegisterTransaction = function (trans, awsRequestId) {
         this._lambdaShouldRegisterTransactions = false
       } else {
         this._log.trace({ awsRequestId, durationMs }, 'lambdaRegisterTransaction success')
-        this._log.info({ awsRequestId, durationMs }, 'XXX lambdaRegisterTransaction success')
       }
       resolve() // always resolve, never reject
     }
