@@ -704,7 +704,7 @@ Client.prototype.lambdaRegisterTransaction = function (trans, awsRequestId) {
   const TIMEOUT_MS = 5000
   const startTime = performance.now()
 
-  return new Promise((resolve, _reject) => {
+  return new Promise((resolve, reject) => {
     this._log.trace({ awsRequestId, traceId: trans.trace_id, transId: trans.id }, 'lambdaRegisterTransaction start')
     var out = this._encode({ transaction: trans }, Client.encoding.TRANSACTION)
 
