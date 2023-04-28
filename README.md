@@ -363,29 +363,29 @@ Client creation.
 ### `client.lambdaStart()`
 
 Tells the client that a Lambda function invocation has started.
+See [Notes on Lambda Usage](#notes-on-lambda-usage) below.
 
-#### Notes on Lambda usage
+### `client.lambdaShouldRegisterTransactions()`
 
-To properly handle [data flushing for instrumented Lambda functions](https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-aws-lambda.md#data-flushing)
-this Client should be used as follows in a Lambda environment.
+This returns a boolean indicating if the APM agent -- when running in a Lambda
+environment -- should bother calling `client.lambdaRegisterTransaction(...)`.
+This can help the APM agent avoid some processing gathering transaction data.
 
-- When a Lambda invocation starts, `client.lambdaStart()` must be called.
+Typically the reason this would return `false` is when the Lambda extension is
+too old to support registering transactions.
 
-  The Client prevents intake requests to APM Server when in a Lambda environment
-  when a function invocation is *not* active. This is to ensure that an intake
-  request does not accidentally span a period when a Lambda VM is frozen,
-  which can lead to timeouts and lost APM data.
 
-- When a Lambda invocation finishes, `client.flush({lambdaEnd: true}, cb)` must
-  be called.
+### `client.lambdaRegisterTransaction(transaction, awsRequestId)`
 
-  The `lambdaEnd: true` tells the Client to (a) mark the lambda as inactive so
-  a subsequent intake request is not started until the next invocation, and
-  (b) signal the Elastic AWS Lambda Extension that this invocation is done.
-  The user's Lambda handler should not finish until `cb` is called. This
-  ensures that the extension receives tracing data and the end signal before
-  the Lambda Runtime freezes the VM.
+Tells the Lambda Extension about the ongoing transaction, so that data can be
+used to report the transaction in certain error cases -- e.g. a Lambda handler
+timeout.  See [Notes on Lambda Usage](#notes-on-lambda-usage) below.
 
+Arguments:
+
+- `transaction` - A transaction object that can be serialized to JSON.
+- `awsRequestId` - The AWS request ID for this invocation. This is a UUID
+  available on the Lambda context object.
 
 ### `client.sendSpan(span[, callback])`
 
@@ -461,6 +461,43 @@ Arguments:
 Destroy the `client`. After this call, the client has ended and
 subsequent calls to `sendSpan()`, `sendTransaction()`, `sendError()`,
 `flush()`, or `end()` will result in an error.
+
+## Notes on Lambda usage
+
+To properly handle [data flushing for instrumented Lambda functions](https://github.com/elastic/apm/blob/main/specs/agents/tracing-instrumentation-aws-lambda.md#data-flushing)
+this Client should be used as follows in a Lambda environment.
+
+ 1. Ensure that metadata is set before any of the following calls. Typically
+    in Lambda this is done by (a) configuring the client with
+    `expectExtraMetadata` and (b) calling `setExtraMetadata()` at the start of
+    the first invocation.
+
+ 2. When a Lambda invocation starts, `client.lambdaStart()` must be called.
+    The Client prevents intake requests to APM Server when in a Lambda
+    environment when a function invocation is *not* active. This is to ensure
+    that an intake request does not accidentally span a period when a Lambda VM
+    is frozen, which can lead to timeouts and lost APM data.
+
+ 3. When the transaction for this Lambda invocation has been created,
+    `await client.lambdaRegisterTransaction(<transaction>, <awsRequestId>)` should be
+    called. This is used to pass transaction details to the Lambda Extension so
+    a transaction can be reported in certain failure modes (e.g. a Lambda
+    handler timeout).
+
+    `client.lambdaShouldRegisterTransactions()` can be used to avoid gathering
+    data for this call.
+
+ 4. When a Lambda invocation finishes, `client.flush({lambdaEnd: true}, cb)`
+    must be called.
+
+    The `lambdaEnd: true` tells the Client to (a) mark the lambda as inactive so
+    a subsequent intake request is not started until the next invocation, and
+    (b) signal the Elastic AWS Lambda Extension that this invocation is done.
+    The user's Lambda handler should not finish until `cb` is called. This
+    ensures that the extension receives tracing data and the end signal before
+    the Lambda Runtime freezes the VM.
+
+
 
 ## License
 

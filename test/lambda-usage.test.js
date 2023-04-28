@@ -23,6 +23,22 @@ test('lambda usage', suite => {
 
   test('setup mock APM server', t => {
     server = APMServer(function (req, res) {
+      if (req.method === 'POST' && req.url === '/register/transaction') {
+        req.resume()
+        req.on('end', () => {
+          res.writeHead(200)
+          res.end()
+        })
+        return
+      } else if (!(req.method === 'POST' && req.url.startsWith('/intake/v2/events'))) {
+        req.resume()
+        req.on('end', () => {
+          res.writeHead(404)
+          res.end()
+        })
+        return
+      }
+
       // Capture intake req data to this mock APM server to `reqsToServer`.
       const reqInfo = {
         method: req.method,
@@ -78,13 +94,21 @@ test('lambda usage', suite => {
     }, client._conf.bufferWindowTime + 10)
   })
 
-  test('lambda invocation', t => {
+  test('lambda invocation', async (t) => {
     client.lambdaStart() // 1. start of invocation
+
+    // 2. Registering transaction
+    t.equal(client.lambdaShouldRegisterTransactions(), true, '.lambdaShouldRegisterTransactions() is true')
+    await client.lambdaRegisterTransaction(
+      { name: 'GET /aStage/myFn', type: 'lambda', outcome: 'unknown' /* ... */ },
+      '063de0d2-1705-4eeb-9dfd-045d76b8cdec')
+    t.equal(client.lambdaShouldRegisterTransactions(), true, '.lambdaShouldRegisterTransactions() is true after register')
+
     setTimeout(() => {
       client.sendTransaction({ name: 'GET /aStage/myFn', type: 'lambda', result: 'success' /* ... */ })
       client.sendSpan({ name: 'mySpan', type: 'custom', result: 'success' /* ... */ })
 
-      // 2. end of invocation
+      // 3. Flush at end of invocation
       client.flush({ lambdaEnd: true }, function () {
         t.ok(reqsToServer.length > 1, 'at least 2 intake requests to APM Server')
         t.equal(reqsToServer[reqsToServer.length - 1].url.searchParams.get('flushed'), 'true',

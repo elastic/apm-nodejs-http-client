@@ -1,5 +1,16 @@
 # elastic-apm-http-client changelog
 
+## v11.4.0
+
+- Add support for pre-registering of partial transactions for AWS Lambda.
+  This adds `client.lambdaShouldRegisterTransactions()` and
+  `client.lambdaRegisterTransaction(transaction, awsRequestId)` so the
+  APM agent can register a partial transaction with the Elastic Lambda
+  extension before executing the user's handler. In some error cases
+  (`uncaughtException`, `unhandledRejection`, Lambda timeout), the extension
+  can report that transaction when the APM agent is unable.
+  (https://github.com/elastic/apm-agent-nodejs/issues/3136)
+
 ## v11.3.1
 
 - Tweak logic to only exclude `metadata.service.agent.activation_method` when

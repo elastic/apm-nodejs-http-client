@@ -111,6 +111,9 @@ function Client (opts) {
   // _lambdaActive indicates if a Lambda function invocation is active. It is
   // only meaningful if `isLambdaExecutionEnvironment`.
   this._lambdaActive = false
+  // Whether to forward `.lambdaRegisterTransaction()` calls to the Lambda
+  // extension. This will be set false if a previous attempt failed.
+  this._lambdaShouldRegisterTransactions = true
 
   // Internal runtime stats for developer debugging/tuning.
   this._numEvents = 0 // number of events given to the client
@@ -312,6 +315,7 @@ Client.prototype.config = function (opts) {
   this._conf.requestIntake = getIntakeRequestOptions(this._conf, this._agent)
   this._conf.requestConfig = getConfigRequestOptions(this._conf, this._agent)
   this._conf.requestSignalLambdaEnd = getSignalLambdaEndRequestOptions(this._conf, this._agent)
+  this._conf.requestRegisterTransaction = getRegisterTransactionRequestOptions(this._conf, this._agent)
 
   // fixes bug where cached/memoized _encodedMetadata wouldn't be
   // updated when client was reconfigured
@@ -647,6 +651,101 @@ Client.prototype._encode = function (obj, enc) {
 
 Client.prototype.lambdaStart = function () {
   this._lambdaActive = true
+}
+
+/**
+ * Indicate whether the APM agent -- when in a Lambda environment -- should
+ * bother calling `.lambdaRegisterTransaction(...)`.
+ *
+ * @returns {boolean}
+ */
+Client.prototype.lambdaShouldRegisterTransactions = function () {
+  return this._lambdaShouldRegisterTransactions
+}
+
+/**
+ * Tell the local Lambda extension about the just-started transaction. This
+ * allows the extension to report the transaction in certain error cases
+ * where the APM agent isn't able to *end* the transaction and report it,
+ * e.g. if the function is about to timeout, or if the process crashes.
+ *
+ * The expected request is as follows, and a 200 status code is expected in
+ * response:
+ *
+ *   POST /register/transaction
+ *   Content-Type: application/vnd.elastic.apm.transaction+ndjson
+ *   x-elastic-aws-request-id: ${awsRequestId}
+ *
+ *   {"metadata":{...}}
+ *   {"transaction":{...partial transaction data...}}
+ *
+ * @param {object} trans - a mostly complete APM Transaction object. It should
+ *    have a default `outcome` value. `duration` and `result` (and possibly
+ *    `outcome`) fields will be set by the Elastic Lambda extension if this
+ *    transaction is used.
+ * @param {import('crypto').UUID} awsRequestId
+ * @returns {Promise || undefined} So this can, and should, be `await`ed.
+ *    If returning a promise, it will only resolve, never reject.
+ */
+Client.prototype.lambdaRegisterTransaction = function (trans, awsRequestId) {
+  if (!isLambdaExecutionEnvironment) {
+    return
+  }
+  if (!this._lambdaShouldRegisterTransactions) {
+    return
+  }
+  assert(this._encodedMetadata, '_encodedMetadata is set')
+
+  // We expect to be talking to the localhost Elastic Lambda extension, so we
+  // want a shorter timeout than `_conf.serverTimeout`.
+  const TIMEOUT_MS = 5000
+  const startTime = performance.now()
+
+  return new Promise((resolve, reject) => {
+    this._log.trace({ awsRequestId, traceId: trans.trace_id, transId: trans.id }, 'lambdaRegisterTransaction start')
+    var out = this._encode({ transaction: trans }, Client.encoding.TRANSACTION)
+
+    const finish = errOrErrMsg => {
+      const durationMs = performance.now() - startTime
+      if (errOrErrMsg) {
+        this._log.debug({ awsRequestId, err: errOrErrMsg, durationMs }, 'lambdaRegisterTransaction unsuccessful')
+        this._lambdaShouldRegisterTransactions = false
+      } else {
+        this._log.trace({ awsRequestId, durationMs }, 'lambdaRegisterTransaction success')
+      }
+      resolve() // always resolve, never reject
+    }
+
+    // Every `POST /register/transaction` request must set the
+    // `x-elastic-aws-request-id` header. Instead of creating a new options obj
+    // each time, we just modify in-place.
+    this._conf.requestRegisterTransaction.headers['x-elastic-aws-request-id'] = awsRequestId
+
+    const req = this._transportRequest(this._conf.requestRegisterTransaction, res => {
+      res.on('error', err => {
+        // Not sure this event can ever be emitted, but just in case.
+        res.destroy(err)
+      })
+      res.resume()
+      if (res.statusCode !== 200) {
+        finish(`unexpected response status code: ${res.statusCode}`)
+        return
+      }
+      res.on('end', function () {
+        finish()
+      })
+    })
+    req.setTimeout(TIMEOUT_MS)
+    req.on('timeout', () => {
+      req.destroy(new Error(`timeout (${TIMEOUT_MS}ms) registering lambda transaction`))
+    })
+    req.on('error', err => {
+      finish(err)
+    })
+    req.write(this._encodedMetadata)
+    req.write(out)
+    req.end()
+  })
 }
 
 // With the cork/uncork handling on this stream, `this.write`ing on this
@@ -1160,9 +1259,9 @@ Client.prototype._signalLambdaEnd = function (cb) {
   const finish = errOrErrMsg => {
     const durationMs = performance.now() - startTime
     if (errOrErrMsg) {
-      this._log.error({ err: errOrErrMsg, durationMs }, 'error signaling lambda invocation done')
+      this._log.error({ err: errOrErrMsg, durationMs }, '_signalLambdaEnd error')
     } else {
-      this._log.trace({ durationMs }, 'signaled lambda invocation done')
+      this._log.trace({ durationMs }, '_signalLambdaEnd success')
     }
     cb()
   }
@@ -1187,7 +1286,6 @@ Client.prototype._signalLambdaEnd = function (cb) {
   })
   req.setTimeout(TIMEOUT_MS)
   req.on('timeout', () => {
-    this._log.trace('_signalLambdaEnd timeout')
     req.destroy(new Error(`timeout (${TIMEOUT_MS}ms) signaling Lambda invocation done`))
   })
   req.on('error', err => {
@@ -1319,6 +1417,12 @@ function getSignalLambdaEndRequestOptions (opts, agent) {
   headers['Content-Length'] = 0
 
   return getBasicRequestOptions('POST', '/intake/v2/events?flushed=true', headers, opts, agent)
+}
+
+function getRegisterTransactionRequestOptions (opts, agent) {
+  const headers = getHeaders(opts)
+  headers['Content-Type'] = 'application/vnd.elastic.apm.transaction+ndjson'
+  return getBasicRequestOptions('POST', '/register/transaction', headers, opts, agent)
 }
 
 function getConfigRequestOptions (opts, agent) {
