@@ -667,7 +667,7 @@ Client.prototype.lambdaShouldRegisterTransactions = function () {
  * Tell the local Lambda extension about the just-started transaction. This
  * allows the extension to report the transaction in certain error cases
  * where the APM agent isn't able to *end* the transaction and report it,
- * e.g. if the function is about the timeout, or if the process crashes.
+ * e.g. if the function is about to timeout, or if the process crashes.
  *
  * The expected request is as follows, and a 200 status code is expected in
  * response:
@@ -679,16 +679,13 @@ Client.prototype.lambdaShouldRegisterTransactions = function () {
  *   {"metadata":{...}}
  *   {"transaction":{...partial transaction data...}}
  *
- * Currently this is "fire and forget" -- i.e. the user's function handler is
- * invoked before this /register/transaction request is complete. This is to
- * avoid adding latency to the user function.
- *
  * @param {object} trans - a mostly complete APM Transaction object. It should
  *    have a default `outcome` value. `duration` and `result` (and possibly
  *    `outcome`) fields will be set by the Elastic Lambda extension if this
  *    transaction is used.
  * @param {import('crypto').UUID} awsRequestId
- * @returns {Promise || undefined} So this can be `await`ed.
+ * @returns {Promise || undefined} So this can, and should, be `await`ed.
+ *    If returning a promise, it will only resolve, never reject.
  */
 Client.prototype.lambdaRegisterTransaction = function (trans, awsRequestId) {
   if (!isLambdaExecutionEnvironment) {

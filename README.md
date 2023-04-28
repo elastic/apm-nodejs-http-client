@@ -479,7 +479,7 @@ this Client should be used as follows in a Lambda environment.
     is frozen, which can lead to timeouts and lost APM data.
 
  3. When the transaction for this Lambda invocation has been created,
-    `client.lambdaRegisterTransaction(<transaction>, <awsRequestId>)` should be
+    `await client.lambdaRegisterTransaction(<transaction>, <awsRequestId>)` should be
     called. This is used to pass transaction details to the Lambda Extension so
     a transaction can be reported in certain failure modes (e.g. a Lambda
     handler timeout).

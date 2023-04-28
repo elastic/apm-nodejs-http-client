@@ -150,13 +150,12 @@ test('lambda usage', suite => {
     }, 1000)
   })
 
-  test('second lambda invocation', async (t) => {
+  test('second lambda invocation', t => {
     t.equal(lateSpanInSameTickCallbackCalled, false, 'lateSpanInSameTick flush callback not yet called')
     t.equal(lateSpanInNextTickCallbackCalled, false, 'lateSpanInNextTick flush callback not yet called')
     t.equal(reqsToServer.length, 0, 'no intake request was made to APM Server since last lambdaEnd')
 
     client.lambdaStart()
-
     setTimeout(() => {
       client.flush({ lambdaEnd: true }, () => {
         t.equal(reqsToServer.length, 3, '3 intake requests to APM Server')
