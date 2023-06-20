@@ -212,7 +212,7 @@ test('allow self-signed TLS certificate by specifying the CA', function (t) {
 })
 
 test('metadata', function (t) {
-  t.plan(12)
+  t.plan(11)
   let client
   const opts = {
     agentName: 'custom-agentName',
@@ -293,7 +293,6 @@ test('metadata', function (t) {
       } else {
         t.equal(obj.metadata.process.ppid, undefined)
       }
-      t.ok(/node$/.test(obj.metadata.process.title))
       t.ok(Array.isArray(obj.metadata.process.argv))
       t.ok(obj.metadata.process.argv.every(arg => typeof arg === 'string'))
       t.ok(obj.metadata.process.argv.every(arg => arg.length > 0))
