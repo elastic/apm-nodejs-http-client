@@ -597,7 +597,7 @@ test('client.flush callbacks must be called, even if no active handles', functio
     const url = 'http://localhost:' + server.address().port
     const script = path.resolve(__dirname, 'lib', 'call-me-back-maybe.js')
     const start = Date.now()
-    exec(`${process.execPath} ${script} ${url}`, function (err, stdout, stderr) {
+    exec(`"${process.execPath}" ${script} ${url}`, function (err, stdout, stderr) {
       if (stderr.trim()) {
         t.comment(`stderr from ${script}:\n${stderr}`)
       }
