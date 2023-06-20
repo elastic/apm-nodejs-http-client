@@ -445,7 +445,7 @@ test('client.destroy() - on client with request in progress', function (t) {
 
   server.listen(function () {
     client = new Client(validOpts({
-      serverUrl: 'http://localhost:' + server.address().port,
+      serverUrl: 'http://localhost:' + server.address().port
       // TODO: the _fetchApmServerVersion() here *is* hanging.
     }))
     client.on('finish', function () {
