@@ -2,7 +2,6 @@
 
 const http = require('http')
 const https = require('https')
-const path = require('path')
 const { URL } = require('url')
 const zlib = require('zlib')
 const semver = require('semver')
@@ -113,7 +112,7 @@ function assertMetadata (t, obj) {
   t.ok(_process.argv.length >= 2, 'process.title should contain at least two elements')
   var regex = /node(\.exe)?$/i
   t.ok(regex.test(_process.argv[0]), `process.argv[0] should match ${regex} (was: ${_process.argv[0]})`)
-  regex = /(\.test\.js|tape)$/
+  regex = /(test.*\.js|tape)$/
   t.ok(regex.test(_process.argv[1]), `process.argv[1] should match ${regex} (was: ${_process.argv[1]})"`)
   const system = metadata.system
   if ('detected_hostname' in system) {
