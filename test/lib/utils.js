@@ -111,9 +111,9 @@ function assertMetadata (t, obj) {
 
   t.ok(Array.isArray(_process.argv), 'process.title should be an array')
   t.ok(_process.argv.length >= 2, 'process.title should contain at least two elements')
-  t.ok(new RegExp(`${path.sep}node(\\.exe)?$`, 'i').test(_process.argv[0]),
-    `process.argv[0] should end in node binary (was: ${_process.argv[0]})`)
-  const regex = new RegExp(`(${path.sep}test${path.sep}.*\\.js|node_modules${path.sep}\\.bin${path.sep}tape)$`)
+  var regex = /node(\.exe)?$/i
+  t.ok(regex.test(_process.argv[0]), `process.argv[0] should match ${regex} (was: ${_process.argv[0]})`)
+  regex = /(\.test\.js|tape)$/
   t.ok(regex.test(_process.argv[1]), `process.argv[1] should match ${regex} (was: ${_process.argv[1]})"`)
   const system = metadata.system
   if ('detected_hostname' in system) {
