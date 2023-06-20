@@ -114,8 +114,13 @@ function assertMetadata (t, obj) {
   const regex = /(\/test\/.*\.js|node_modules\/\.bin\/tape)$/
   t.ok(regex.test(_process.argv[1]), `process.argv[1] should match ${regex} (was: ${_process.argv[1]})"`)
   const system = metadata.system
-  t.ok(typeof system.hostname, 'string')
-  t.ok(system.hostname.length > 0)
+  if ('detected_hostname' in system) {
+    t.ok(typeof system.detected_hostname, 'string')
+    t.ok(system.detected_hostname.length > 0)
+  } else {
+    t.ok(typeof system.hostname, 'string')
+    t.ok(system.hostname.length > 0)
+  }
   t.ok(typeof system.architecture, 'string')
   t.ok(system.architecture.length > 0)
   t.ok(typeof system.platform, 'string')

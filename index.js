@@ -22,6 +22,7 @@ const semver = require('semver')
 const streamToBuffer = require('fast-stream-to-buffer')
 const StreamChopper = require('stream-chopper')
 
+const { detectHostname } = require('./lib/detect-hostname')
 const ndjson = require('./lib/ndjson')
 const { NoopLogger } = require('./lib/logging')
 const truncate = require('./lib/truncate')
@@ -37,7 +38,6 @@ function isFlushMarker (obj) {
   return obj === kFlush || obj === kLambdaEndFlush
 }
 
-const hostname = os.hostname()
 const requiredOpts = [
   'agentName',
   'agentVersion',
@@ -243,7 +243,6 @@ Client.prototype.config = function (opts) {
   if (!this._conf.time && this._conf.time !== 0) this._conf.time = 10000
   if (!this._conf.serverTimeout && this._conf.serverTimeout !== 0) this._conf.serverTimeout = 15000
   if (!this._conf.serverUrl) this._conf.serverUrl = 'http://127.0.0.1:8200'
-  if (!this._conf.hostname) this._conf.hostname = hostname
   if (!this._conf.environment) this._conf.environment = process.env.NODE_ENV || 'development'
   if (!this._conf.truncateKeywordsAt) this._conf.truncateKeywordsAt = 1024
   if (!this._conf.truncateStringsAt) this._conf.truncateStringsAt = 1024
@@ -265,6 +264,8 @@ Client.prototype.config = function (opts) {
   // processed values
   this._conf.serverUrl = new URL(this._conf.serverUrl)
 
+  this._conf.detectedHostname = detectHostname()
+
   if (containerInfo) {
     if (!this._conf.containerId && containerInfo.containerId) {
       this._conf.containerId = containerInfo.containerId
@@ -273,7 +274,7 @@ Client.prototype.config = function (opts) {
       this._conf.kubernetesPodUID = containerInfo.podId
     }
     if (!this._conf.kubernetesPodName && containerInfo.podId) {
-      this._conf.kubernetesPodName = hostname
+      this._conf.kubernetesPodName = this._conf.detectedHostname
     }
   }
 
@@ -1223,7 +1224,8 @@ function getChoppedStreamHandler (client, onerror) {
  * Some behaviors in the APM depend on the APM Server version. These are
  * exposed as `Client#supports...` boolean methods.
  *
- * These `Client#supports...` method names intentionally match those from the Java agent:
+ * These `Client#supports...` method names, if not always the implementation,
+ * intentionally match those from the Java agent:
  * https://github.com/elastic/apm-agent-java/blob/master/apm-agent-core/src/main/java/co/elastic/apm/agent/report/ApmServerClient.java#L322-L349
  */
 Client.prototype.supportsKeepingUnsampledTransaction = function () {
@@ -1243,6 +1245,13 @@ Client.prototype.supportsActivationMethodField = function () {
     return true // Optimistically assume APM server isn't v8.7.0.
   } else {
     return semver.gte(this._apmServerVersion, '8.7.1')
+  }
+}
+Client.prototype.supportsConfiguredAndDetectedHostname = function () {
+  if (!this._apmServerVersion) {
+    return true // Optimistically assume APM server is >=7.4.
+  } else {
+    return semver.gte(this._apmServerVersion, '7.4.0')
   }
 }
 
@@ -1485,13 +1494,25 @@ function metadataFromConf (opts, client) {
       argv: process.argv
     },
     system: {
-      hostname: opts.hostname,
       architecture: process.arch,
       platform: process.platform,
       container: undefined,
       kubernetes: undefined
     },
     labels: opts.globalLabels
+  }
+
+  // On `system.*hostname` fields:
+  // - `hostname` was deprecated in APM server v7.4, replaced by the next two.
+  // - Around Elastic v8.9, ECS changed `host.name` to prefer the FQDN,
+  //   hence APM agents now prefer FQDN for `detected_hostname`.
+  if (client.supportsConfiguredAndDetectedHostname()) {
+    payload.system.detected_hostname = opts.detectedHostname
+    if (opts.configuredHostname) {
+      payload.system.configured_hostname = opts.configuredHostname
+    }
+  } else {
+    payload.system.hostname = opts.configuredHostname || opts.detectedHostname
   }
 
   if (opts.agentActivationMethod && client.supportsActivationMethodField()) {

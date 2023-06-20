@@ -1,5 +1,17 @@
 # elastic-apm-http-client changelog
 
+## v12.0.0
+
+- **Breaking change.** The `hostname` configuration option has been renamed to
+  `configuredHostname`. As well, the hostname detection has changed to prefer
+  using a FQDN, if available. See [the spec](https://github.com/elastic/apm/blob/main/specs/agents/metadata.md#hostname).
+  (https://github.com/elastic/apm-agent-nodejs/issues/3310)
+
+- The APM client will send `metadata.system.detected_hostname` and
+  `metadata.system.configured_hostname` as appropriate for APM server versions
+  >=7.4, rather than the now deprecated `metadata.system.hostname`.
+  See [the spec](https://github.com/elastic/apm/blob/main/specs/agents/metadata.md#hostname).
+
 ## v11.4.0
 
 - Add support for pre-registering of partial transactions for AWS Lambda.

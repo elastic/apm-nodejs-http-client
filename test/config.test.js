@@ -13,10 +13,13 @@ const URL = require('url').URL
 const utils = require('./lib/utils')
 const pkg = require('../package')
 const Client = require('../')
+const { detectHostname } = require('../lib/detect-hostname')
 
 const APMServer = utils.APMServer
 const processIntakeReq = utils.processIntakeReq
 const validOpts = utils.validOpts
+
+const detectedHostname = detectHostname()
 
 test('package', function (t) {
   // these values are in the User-Agent header tests, so we need to make sure
@@ -220,7 +223,7 @@ test('metadata', function (t) {
     serviceVersion: 'custom-serviceVersion',
     frameworkName: 'custom-frameworkName',
     frameworkVersion: 'custom-frameworkVersion',
-    hostname: 'custom-hostname',
+    configuredHostname: 'custom-hostname',
     environment: 'production',
     globalLabels: {
       foo: 'bar',
@@ -265,9 +268,10 @@ test('metadata', function (t) {
             argv: process.argv
           },
           system: {
-            hostname: 'custom-hostname',
             architecture: process.arch,
-            platform: process.platform
+            platform: process.platform,
+            detected_hostname: detectedHostname,
+            configured_hostname: 'custom-hostname',
           },
           labels: {
             foo: 'bar',
@@ -346,9 +350,9 @@ test('metadata - default values', function (t) {
             argv: process.argv
           },
           system: {
-            hostname: os.hostname(),
             architecture: process.arch,
-            platform: process.platform
+            platform: process.platform,
+            detected_hostname: detectedHostname
           }
         }
       }
