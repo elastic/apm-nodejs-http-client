@@ -17,6 +17,7 @@ on:
 jobs:
   test-vers:
     strategy:
+      fail-fast: false
       matrix:
         node: ['8.6', '8', '10', '12', '14', '15', '16', '18', '19', '20']
     runs-on: ubuntu-latest
