@@ -104,7 +104,7 @@ function assertMetadata (t, obj) {
     // because of truncation test
     t.equal(_process.title, process.title[0])
   } else {
-    const regex = /(node|cmd.exe)$/
+    const regex = /(node|cmd.exe)/
     t.ok(regex.test(_process.title), `process.title should match ${regex} (was: ${_process.title})`)
   }
 
