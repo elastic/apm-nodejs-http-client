@@ -273,7 +273,11 @@ Client.prototype.config = function (opts) {
       this._conf.kubernetesPodUID = containerInfo.podId
     }
     if (!this._conf.kubernetesPodName && containerInfo.podId) {
-      this._conf.kubernetesPodName = this._conf.detectedHostname
+      // https://kubernetes.io/docs/concepts/workloads/pods/#working-with-pods
+      // suggests a pod name should just be the shorter "DNS label", and my
+      // guess is k8s defaults a pod name to just the *short* hostname, not
+      // the FQDN.
+      this._conf.kubernetesPodName = this._conf.detectedHostname.split('.', 1)[0]
     }
   }
 

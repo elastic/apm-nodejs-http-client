@@ -83,7 +83,7 @@ test('central config enabled', function (t) {
 
 // Test central-config handling of Etag and If-None-Match headers using a mock
 // apm-server that uses the `Cache-Control: max-age=1 ...` header to speed up
-// the polling interval of the client.
+// the polling interval of the client. (This is foiled by `INTERVAL_MIN_S = 5`.)
 test('polling', function (t) {
   t.plan((assertConfigReq.asserts + 1) * 8 + 12)
 
