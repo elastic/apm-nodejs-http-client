@@ -8,8 +8,6 @@
 
 // Run all "test/**/*.test.js" files, each in a separate process.
 
-var fs = require('fs')
-var path = require('path')
 var spawn = require('child_process').spawn
 
 var glob = require('glob')
