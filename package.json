@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "lint": "standard",
-    "test": "nyc ./test/run_tests.sh"
+    "test": "nyc node ./scripts/run-tests.js"
   },
   "engines": {
     "node": "^8.6.0 || 10 || >=12"
@@ -30,6 +30,7 @@
     "stream-chopper": "^3.0.1"
   },
   "devDependencies": {
+    "glob": "^7.2.3",
     "ndjson": "^1.5.0",
     "nyc": "^14.1.1",
     "standard": "^14.3.1",
