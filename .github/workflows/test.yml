@@ -39,6 +39,5 @@ jobs:
         # is the current LTS version (https://github.com/nodejs/release) and
         # which version more of our users are using.
         node-version: 16
-        cache: 'npm'
     - run: npm install
     - run: npm test
