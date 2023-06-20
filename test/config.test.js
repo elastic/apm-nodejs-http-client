@@ -271,7 +271,7 @@ test('metadata', function (t) {
             architecture: process.arch,
             platform: process.platform,
             detected_hostname: detectedHostname,
-            configured_hostname: 'custom-hostname',
+            configured_hostname: 'custom-hostname'
           },
           labels: {
             foo: 'bar',
