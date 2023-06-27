@@ -13,10 +13,13 @@ const URL = require('url').URL
 const utils = require('./lib/utils')
 const pkg = require('../package')
 const Client = require('../')
+const { detectHostname } = require('../lib/detect-hostname')
 
 const APMServer = utils.APMServer
 const processIntakeReq = utils.processIntakeReq
 const validOpts = utils.validOpts
+
+const detectedHostname = detectHostname()
 
 test('package', function (t) {
   // these values are in the User-Agent header tests, so we need to make sure
@@ -209,7 +212,7 @@ test('allow self-signed TLS certificate by specifying the CA', function (t) {
 })
 
 test('metadata', function (t) {
-  t.plan(12)
+  t.plan(11)
   let client
   const opts = {
     agentName: 'custom-agentName',
@@ -220,7 +223,7 @@ test('metadata', function (t) {
     serviceVersion: 'custom-serviceVersion',
     frameworkName: 'custom-frameworkName',
     frameworkVersion: 'custom-frameworkVersion',
-    hostname: 'custom-hostname',
+    configuredHostname: 'custom-hostname',
     environment: 'production',
     globalLabels: {
       foo: 'bar',
@@ -265,9 +268,10 @@ test('metadata', function (t) {
             argv: process.argv
           },
           system: {
-            hostname: 'custom-hostname',
             architecture: process.arch,
-            platform: process.platform
+            platform: process.platform,
+            detected_hostname: detectedHostname,
+            configured_hostname: 'custom-hostname'
           },
           labels: {
             foo: 'bar',
@@ -289,7 +293,6 @@ test('metadata', function (t) {
       } else {
         t.equal(obj.metadata.process.ppid, undefined)
       }
-      t.ok(/node$/.test(obj.metadata.process.title))
       t.ok(Array.isArray(obj.metadata.process.argv))
       t.ok(obj.metadata.process.argv.every(arg => typeof arg === 'string'))
       t.ok(obj.metadata.process.argv.every(arg => arg.length > 0))
@@ -346,9 +349,9 @@ test('metadata - default values', function (t) {
             argv: process.argv
           },
           system: {
-            hostname: os.hostname(),
             architecture: process.arch,
-            platform: process.platform
+            platform: process.platform,
+            detected_hostname: detectedHostname
           }
         }
       }
@@ -401,7 +404,7 @@ test('metadata - container info', function (t) {
       })
       t.deepEqual(obj.metadata.system.kubernetes, {
         pod: {
-          name: os.hostname(),
+          name: detectedHostname.split('.')[0],
           uid: 'pod-id'
         }
       })

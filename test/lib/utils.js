@@ -104,18 +104,24 @@ function assertMetadata (t, obj) {
     // because of truncation test
     t.equal(_process.title, process.title[0])
   } else {
-    const regex = /(\/node|^node)$/
+    const regex = /(node|cmd.exe)/
     t.ok(regex.test(_process.title), `process.title should match ${regex} (was: ${_process.title})`)
   }
 
   t.ok(Array.isArray(_process.argv), 'process.title should be an array')
   t.ok(_process.argv.length >= 2, 'process.title should contain at least two elements')
-  t.ok(/\/node$/.test(_process.argv[0]), `process.argv[0] should match /\\/node$/ (was: ${_process.argv[0]})`)
-  const regex = /(\/test\/.*\.js|node_modules\/\.bin\/tape)$/
+  var regex = /node(\.exe)?$/i
+  t.ok(regex.test(_process.argv[0]), `process.argv[0] should match ${regex} (was: ${_process.argv[0]})`)
+  regex = /(test.*\.js|tape)$/
   t.ok(regex.test(_process.argv[1]), `process.argv[1] should match ${regex} (was: ${_process.argv[1]})"`)
   const system = metadata.system
-  t.ok(typeof system.hostname, 'string')
-  t.ok(system.hostname.length > 0)
+  if ('detected_hostname' in system) {
+    t.ok(typeof system.detected_hostname, 'string')
+    t.ok(system.detected_hostname.length > 0)
+  } else {
+    t.ok(typeof system.hostname, 'string')
+    t.ok(system.hostname.length > 0)
+  }
   t.ok(typeof system.architecture, 'string')
   t.ok(system.architecture.length > 0)
   t.ok(typeof system.platform, 'string')

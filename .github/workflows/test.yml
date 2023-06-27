@@ -17,13 +17,27 @@ on:
 jobs:
   test-vers:
     strategy:
+      fail-fast: false
       matrix:
-        node: ['8.6', '8', '10', '12', '14', '15', '16', '18', '19']
+        node: ['8.6', '8', '10', '12', '14', '15', '16', '18', '19', '20']
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-node@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node }}
+    - run: npm install
+    - run: npm test
+
+  test-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-node@v3
+      with:
+        # What Node.js version to test on Windows is a balance between which
+        # is the current LTS version (https://github.com/nodejs/release) and
+        # which version more of our users are using.
+        node-version: 16
     - run: npm install
     - run: npm test
