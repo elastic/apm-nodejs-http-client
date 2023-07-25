@@ -1,3 +1,9 @@
+/*
+ * Copyright Elasticsearch B.V. and other contributors where applicable.
+ * Licensed under the BSD 2-Clause License; you may not use this file except in
+ * compliance with the BSD 2-Clause License.
+ */
+
 // A script, used by test/side-effects.js, to test that the client.flush
 // callback is called.
 //
@@ -17,7 +23,7 @@ const serverUrl = process.argv[2]
 
 const client = new Client({
   // logger: require('pino')({ level: 'trace', ...require('@elastic/ecs-pino-format')() }, process.stderr), // uncomment for debugging
-  serverUrl: serverUrl,
+  serverUrl,
   serviceName: 'call-me-back-maybe',
   agentName: 'my-nodejs-agent',
   agentVersion: '1.2.3',
