@@ -1,3 +1,9 @@
+/*
+ * Copyright Elasticsearch B.V. and other contributors where applicable.
+ * Licensed under the BSD 2-Clause License; you may not use this file except in
+ * compliance with the BSD 2-Clause License.
+ */
+
 'use strict'
 
 const assert = require('assert')
@@ -555,8 +561,8 @@ Client.prototype._writeBatch = function (objs, cb) {
     this._slowWriteBatch.numOver10Ms++
   }
   this._log.trace({
-    encodeTimeMs: encodeTimeMs,
-    fullTimeMs: fullTimeMs,
+    encodeTimeMs,
+    fullTimeMs,
     numEvents: objs.length,
     numBytes: chunk.length
   }, '_writeBatch')
@@ -1188,7 +1194,8 @@ function getChoppedStreamHandler (client, onerror) {
       log.trace('gzipStream "finish"')
       if (!completedFromPart.intakeReq && !completedFromPart.intakeRes) {
         const timeout = (client._writableState.ending || intakeRequestGracefulExitCalled
-          ? intakeResTimeoutOnEnd : intakeResTimeout)
+          ? intakeResTimeoutOnEnd
+          : intakeResTimeout)
         log.trace({ timeout }, 'start intakeResTimer')
         intakeResTimer = setTimeout(() => {
           completePart('intakeRes',
@@ -1450,7 +1457,7 @@ function getConfigRequestOptions (opts, agent) {
 
 function getBasicRequestOptions (method, defaultPath, headers, opts, agent) {
   return {
-    agent: agent,
+    agent,
     rejectUnauthorized: opts.rejectUnauthorized !== false,
     ca: opts.serverCaCert,
     hostname: opts.serverUrl.hostname,
