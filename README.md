@@ -1,7 +1,7 @@
-# elastic-apm-http-client
+**Note:** This repository will no longer be updated. This APM HTTP client code was [moved into the elastic/apm-agent-nodejs repository](https://github.com/elastic/apm-agent-nodejs/pull/3507) in 2023-07. The code now lives at: <https://github.com/elastic/apm-agent-nodejs/tree/main/lib/apm-client/http-apm-client>. Please open any issues, questions, PRs for the APM HTTP client there.
 
-[![npm](https://img.shields.io/npm/v/elastic-apm-http-client.svg)](https://www.npmjs.com/package/elastic-apm-http-client)
-[![Test status in GitHub Actions](https://github.com/elastic/apm-nodejs-http-client/workflows/Test/badge.svg)](https://github.com/elastic/apm-nodejs-http-client/actions)
+
+# elastic-apm-http-client
 
 A low-level HTTP client for communicating with the Elastic APM intake
 API version 2. For support for version 1, use version 5.x of this
